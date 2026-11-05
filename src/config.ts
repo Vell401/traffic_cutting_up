@@ -43,6 +43,8 @@ export const carTune = {
   steerReturn: 9,
   /** Pulls yaw rate toward the kinematic one: kills snap oversteer (0..1). */
   yawAssist: 0.5,
+  /** Cuts rear thrust so cornering grip survives full throttle (0 = off, 1 = full). */
+  tractionControl: 0.9,
   redline: 7600,
   idleRpm: 900,
   /** Speed at the redline in each gear. */

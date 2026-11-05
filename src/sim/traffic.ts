@@ -1,6 +1,7 @@
 import { LANES, LANE_W, WALL_D, laneCenter, trafficTune } from '../config';
 import { clamp, lerp, smoothstep } from '../core/math';
-import { type Rng, range, pickWeighted } from '../core/rng';
+import { type Rng, range } from '../core/rng';
+import type { Director } from './director';
 import { VEHICLES, type VehicleSpec } from './vehicles';
 import type { PlayerCar } from './vehicle';
 
@@ -10,6 +11,8 @@ const BEHIND = 220;
 const AHEAD = 850;
 const SPAWN_AHEAD_MIN = 680;
 const GLASS = 0x0d1015;
+const ALL_LANES = [0, 1, 2, 3];
+const BOX_TRUCK = VEHICLES.find((v) => v.name === 'boxTruck')!;
 
 export class TrafficCar {
   active = false;
@@ -38,6 +41,8 @@ export class TrafficCar {
   blinkT = 0;
   decisionT = 0;
   rude = false;
+  /** IDM time headway (s); platoons drive closer than normal traffic. */
+  tGap = 1.3;
   acc = 0;
   braking = false;
 
@@ -56,11 +61,11 @@ export class TrafficCar {
   constructor(readonly id: number) {}
 }
 
-function idm(v: number, v0: number, gap: number, vLead: number): number {
+function idm(v: number, v0: number, gap: number, vLead: number, T: number): number {
   const t = trafficTune;
   const free = 1 - Math.pow(v / Math.max(v0, 0.1), 4);
   if (gap === Infinity) return t.idmA * free;
-  const sStar = t.idmS0 + Math.max(0, v * t.idmT + (v * (v - vLead)) / (2 * Math.sqrt(t.idmA * t.idmB)));
+  const sStar = t.idmS0 + Math.max(0, v * T + (v * (v - vLead)) / (2 * Math.sqrt(t.idmA * t.idmB)));
   const g = Math.max(gap, 0.1);
   return t.idmA * (free - (sStar / g) * (sStar / g));
 }
@@ -75,12 +80,15 @@ export class Traffic {
   private fGap = Infinity;
   private fCar: TrafficCar | null = null;
 
-  constructor(private readonly rng: Rng) {
+  constructor(
+    private readonly rng: Rng,
+    readonly director: Director,
+  ) {
     for (let i = 0; i < MAX_TRAFFIC; i++) this.cars.push(new TrafficCar(i));
   }
 
   targetCount(): number {
-    return Math.min(MAX_TRAFFIC - 4, Math.round((trafficTune.density * LANES * (BEHIND + AHEAD)) / 1000));
+    return Math.min(MAX_TRAFFIC - 6, Math.round((this.director.density() * LANES * (BEHIND + AHEAD)) / 1000));
   }
 
   reset(p: PlayerCar): void {
@@ -112,7 +120,10 @@ export class Traffic {
       // When we crawl, traffic overtakes us: feed it from behind as well.
       const behind = p.vAlong < 24 && rng() < 0.5;
       const s = behind ? p.s - BEHIND + range(rng, 5, 40) : p.s + range(rng, SPAWN_AHEAD_MIN, AHEAD);
-      this.trySpawn(s, p, behind);
+      const pattern = behind ? 'single' : this.director.pattern();
+      if (pattern === 'wall') this.spawnWall(s, p);
+      else if (pattern === 'platoon') this.spawnPlatoon(s, p);
+      else this.trySpawn(s, p, behind);
     }
 
     for (const c of this.cars) {
@@ -135,10 +146,10 @@ export class Traffic {
   private think(c: TrafficCar, dt: number, p: PlayerCar): void {
     const rng = this.rng;
     this.leader(c, c.d, p);
-    let acc = idm(c.v, c.v0, this.lGap, this.lV);
+    let acc = idm(c.v, c.v0, this.lGap, this.lV, c.tGap);
     if (c.laneT >= 0) {
       this.leader(c, laneCenter(c.targetLane), p);
-      acc = Math.min(acc, idm(c.v, c.v0, this.lGap, this.lV));
+      acc = Math.min(acc, idm(c.v, c.v0, this.lGap, this.lV, c.tGap));
     }
     c.acc = clamp(acc, -9, trafficTune.idmA);
     c.braking = c.acc < -1.2;
@@ -184,7 +195,7 @@ export class Traffic {
       const l = c.lane + dir;
       if (c.spec.lanes.indexOf(l) < 0) continue;
       this.leader(c, laneCenter(l), p);
-      const aNew = idm(c.v, c.v0, this.lGap, this.lV);
+      const aNew = idm(c.v, c.v0, this.lGap, this.lV, c.tGap);
       let gain = aNew - aCur;
       if (dir > 0) gain += 0.1;
       if (this.rng() < trafficTune.whim) gain += 0.6;
@@ -208,7 +219,7 @@ export class Traffic {
     this.follower(c, d);
     if (this.fCar) {
       if (this.fGap < 4) return false;
-      if (idm(this.fCar.v, this.fCar.v0, this.fGap, c.v) < -3.5) return false;
+      if (idm(this.fCar.v, this.fCar.v0, this.fGap, c.v, this.fCar.tGap) < -3.5) return false;
     }
     const pInLane = Math.abs(p.d - d) < LANE_W * 0.9;
     if (pInLane && Math.abs(p.s - c.s) < hl + p.tune.length / 2 + 2) return false;
@@ -283,22 +294,85 @@ export class Traffic {
     c.blink = 2;
   }
 
-  private trySpawn(s: number, p: PlayerCar, fromBehind: boolean): boolean {
-    const rng = this.rng;
-    const spec = pickWeighted(rng, VEHICLES);
-    const lane = spec.lanes[Math.floor(rng() * spec.lanes.length)];
+  /** Is a lane free of other vehicles around s (± clearance beyond both cars' half lengths)? */
+  private laneFree(lane: number, s: number, len: number, clearance: number, p: PlayerCar): boolean {
     const d = laneCenter(lane);
     for (const o of this.cars) {
       if (!o.active) continue;
-      if (Math.abs(o.d - d) < LANE_W * 0.9 && Math.abs(o.s - s) < (o.spec.len + spec.len) / 2 + 22) return false;
+      if (Math.abs(o.d - d) < LANE_W * 0.9 && Math.abs(o.s - s) < (o.spec.len + len) / 2 + clearance) return false;
     }
-    if (Math.abs(p.d - d) < LANE_W && Math.abs(p.s - s) < 40) return false;
+    return !(Math.abs(p.d - d) < LANE_W && Math.abs(p.s - s) < 40);
+  }
 
+  private laneSpeed(lane: number, spec: VehicleSpec): number {
     const [lo, hi] = trafficTune.laneSpeedKmh[lane];
-    let v0 = range(rng, lo, hi) / 3.6;
-    if (spec.truck) v0 = Math.min(v0, range(rng, 80, 92) / 3.6);
+    let v0 = range(this.rng, lo, hi) / 3.6;
+    if (spec.truck) v0 = Math.min(v0, range(this.rng, 80, 92) / 3.6);
+    return v0;
+  }
+
+  /** Keep a formation's lanes until the player has had time to reach it. */
+  private holdLanes(c: TrafficCar, p: PlayerCar): void {
+    const closing = Math.max(3, p.vAlong - c.v);
+    c.decisionT = Math.min(45, 6 + (c.s - p.s) / closing);
+  }
+
+  private trySpawn(s: number, p: PlayerCar, fromBehind: boolean): boolean {
+    const dir = this.director;
+    const spec = dir.pickSpec();
+    const lane = dir.pickLane(dir.lanesFor(spec));
+    if (!this.laneFree(lane, s, spec.len, 22, p)) return false;
+    const v0 = this.laneSpeed(lane, spec);
     if (fromBehind && v0 < p.vAlong + 3) return false;
     return this.spawnAt(spec, s, lane, v0) !== null;
+  }
+
+  /** Three vehicles abreast with one lane left open: thread the gap or go round. */
+  spawnWall(s: number, p: PlayerCar): boolean {
+    const rng = this.rng;
+    const gapLane = Math.floor(rng() * LANES);
+    const lanes: number[] = [];
+    for (let l = 0; l < LANES; l++) if (l !== gapLane) lanes.push(l);
+    if (MAX_TRAFFIC - this.activeCount < lanes.length) return false;
+    for (const l of lanes) if (!this.laneFree(l, s, 15, 30, p)) return false;
+    if (!this.laneFree(gapLane, s, 15, 25, p)) return false;
+    const v0 = range(rng, 86, 100) / 3.6;
+    for (const l of lanes) {
+      const spec = l >= 2 && rng() < 0.3 ? BOX_TRUCK : this.director.pickCar();
+      const c = this.spawnAt(spec, s + range(rng, -1.5, 1.5), l, v0);
+      if (!c) break;
+      c.rude = false;
+      this.holdLanes(c, p);
+    }
+    return true;
+  }
+
+  /** 3 to 5 cars nose to tail in one lane at the same speed. */
+  spawnPlatoon(s: number, p: PlayerCar): boolean {
+    const rng = this.rng;
+    const n = 3 + Math.floor(rng() * 3);
+    if (MAX_TRAFFIC - this.activeCount < n) return false;
+    const lane = this.director.pickLane(ALL_LANES);
+    const specs: VehicleSpec[] = [];
+    const gaps: number[] = [];
+    let span = 0;
+    for (let i = 0; i < n; i++) {
+      specs.push(this.director.pickCar());
+      gaps.push(range(rng, 9, 14));
+      span += specs[i].len + gaps[i];
+    }
+    if (!this.laneFree(lane, s + span / 2, span, 25, p)) return false;
+    const v0 = this.laneSpeed(lane, specs[0]);
+    let at = s;
+    for (let i = 0; i < n; i++) {
+      const c = this.spawnAt(specs[i], at + specs[i].len / 2, lane, v0);
+      if (!c) break;
+      c.tGap = 0.55;
+      c.rude = false;
+      this.holdLanes(c, p);
+      at += specs[i].len + gaps[i];
+    }
+    return true;
   }
 
   /** Place a vehicle at (s, lane) driving at v0. Returns null when the pool is exhausted. */
@@ -327,7 +401,8 @@ export class Traffic {
     c.blink = 0;
     c.blinkT = 0;
     c.decisionT = range(rng, 1, 4);
-    c.rude = rng() < trafficTune.rudeShare;
+    c.rude = rng() < this.director.rudeShare();
+    c.tGap = trafficTune.idmT;
     c.acc = 0;
     c.braking = false;
     c.crashed = false;

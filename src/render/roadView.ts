@@ -32,6 +32,12 @@ export const LIGHT_COLOR: Record<LightKind, THREE.Color> = {
 /** Light pool strength per lamp type: LED is whiter and reads brighter on asphalt. */
 const POOL_K: Record<LightKind, number> = { sodium: 0.8, led: 0.42 };
 
+/**
+ * Height of light decals above the asphalt. With the 0.5 m near plane the depth buffer still separates
+ * 6 cm at ~600 m, so far decals no longer z-fight with the road (that flicker read as ripples).
+ */
+const DECAL_Y = 0.06;
+
 /** Outer edge of the barrier / viaduct deck. */
 const EDGE = WALL_D + 0.55;
 const GROUND_OUT = 420;
@@ -277,7 +283,7 @@ class ChunkView {
       this.glow.color(light, 2.4);
       box(this.glow, f, side * HEAD_D, POLE_H - 0.22, 0.38, 0.06, 0.17);
       this.pools.color(light, POOL_K[this.c.light]);
-      flatQuad(this.pools, f, side * HEAD_D, 0.03, POOL_R, POOL_R);
+      flatQuad(this.pools, f, side * HEAD_D, DECAL_Y, POOL_R, POOL_R);
       this.anchor(this.c.s0 + s, side * HEAD_D, POLE_H - 0.5, LAMP_STEP, light);
     }
   }
@@ -309,13 +315,17 @@ class ChunkView {
     strip(g, fr, -HX, TUNNEL_H, -TW, 5.4, ceil, wall);
     strip(g, fr, HX, TUNNEL_H, -HX, TUNNEL_H, ceil, ceil);
 
+    // Light on the asphalt: one continuous soft band under each light row. Separate pools every 6 m
+    // summed into a high-frequency striped pattern that shimmered at speed.
+    for (const d of [-LANE_W, LANE_W]) {
+      this.pools.color(light, POOL_K[c.light] * 0.55);
+      this.glowBand(d, 4.2);
+    }
     for (const [s, k] of this.every(TUNNEL_LIGHT_STEP)) {
       const f = this.at(s);
       for (const d of [-LANE_W, LANE_W]) {
         g.color(light, 3);
         box(g, f, d, TUNNEL_H - 0.08, 0.16, 0.05, 0.7);
-        this.pools.color(light, POOL_K[c.light] * 0.3);
-        flatQuad(this.pools, f, d, 0.03, 3.6, 3.6);
       }
       if (k % 2 === 0) this.anchor(c.s0 + s, 0, TUNNEL_H - 0.4, TUNNEL_LIGHT_STEP * 2, light);
     }
@@ -338,6 +348,23 @@ class ChunkView {
     this.struct.color(COL.concrete);
     if (c.prevKind !== 'tunnel') this.portal(0.8);
     if (c.nextKind !== 'tunnel') this.portal(CHUNK_LEN - 0.8);
+  }
+
+  /** Soft light band along the chunk at offset d: the radial texture's middle row gives the falloff across. */
+  private glowBand(d: number, halfW: number): void {
+    const mb = this.pools;
+    const fr = this.fr;
+    let pa = -1;
+    let pb = -1;
+    for (let i = 0; i < ROWS; i++) {
+      const cs = fr.cs[i];
+      const sn = fr.sn[i];
+      const a = mb.v(fr.bx[i] + cs * (d - halfW), DECAL_Y, fr.bz[i] + sn * (d - halfW), 0, 1, 0, 0, 0.5);
+      const b = mb.v(fr.bx[i] + cs * (d + halfW), DECAL_Y, fr.bz[i] + sn * (d + halfW), 0, 1, 0, 1, 0.5);
+      if (i > 0) mb.quad(pa, pb, b, a);
+      pa = a;
+      pb = b;
+    }
   }
 
   private portal(s: number): void {
@@ -548,7 +575,7 @@ export class RoadView {
         vertexColors: true,
         transparent: true,
         blending: THREE.AdditiveBlending,
-        // Sits 3 cm above the asphalt. No polygonOffset: on ANGLE/D3D11 it pushed the decals under the road.
+        // Lifted by DECAL_Y instead of polygonOffset: on ANGLE/D3D11 the offset pushed decals under the road.
         depthWrite: false,
       }),
       city: makeCityMaterial(),

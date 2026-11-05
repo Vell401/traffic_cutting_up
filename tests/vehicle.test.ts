@@ -70,6 +70,20 @@ describe('PlayerCar', () => {
     expect(maxD).toBeLessThan(1);
   });
 
+  it('keeps turning under full throttle (traction control)', () => {
+    for (const speed of [80, 120]) {
+      const coast = new PlayerCar();
+      const power = new PlayerCar();
+      coast.reset(0, 0, speed / 3.6);
+      power.reset(0, 0, speed / 3.6);
+      run(coast, { steer: 1, throttle: 0, brake: 0 }, 1);
+      run(power, { steer: 1, throttle: 1, brake: 0 }, 1);
+      const slip = Math.abs(Math.atan2(power.vy, power.vx));
+      expect(slip).toBeLessThan(0.12); // no power oversteer pivot
+      expect(power.d).toBeGreaterThan(coast.d * 0.95);
+    }
+  });
+
   it('brakes to a stop without going backwards', () => {
     const car = new PlayerCar();
     car.reset(0, 0, 200 / 3.6);

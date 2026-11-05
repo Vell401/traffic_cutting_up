@@ -2,6 +2,7 @@ import { laneCenter } from '../config';
 import { Emitter } from '../core/events';
 import type { Rng } from '../core/rng';
 import { obbOverlap, type Contact, type OBB } from './collision';
+import { Director } from './director';
 import type { SimEvents } from './events';
 import { Road } from './road';
 import { Scoring } from './scoring';
@@ -17,6 +18,7 @@ export class Sim {
   readonly player = new PlayerCar();
   readonly traffic: Traffic;
   readonly score: Scoring;
+  readonly director: Director;
   time = 0;
 
   private readonly boxA: OBB = { x: 0, y: 0, hx: 0, hy: 0, rot: 0 };
@@ -25,8 +27,10 @@ export class Sim {
 
   constructor(private readonly rng: Rng = Math.random) {
     this.road = new Road(rng);
-    this.traffic = new Traffic(rng);
+    this.director = new Director(rng, this.events);
+    this.traffic = new Traffic(rng, this.director);
     this.score = new Scoring(this.events);
+    this.events.on('runEnd', () => this.director.resetRun());
     this.player.reset(START_S, laneCenter(1), 100 / 3.6);
     this.road.ensure(START_S - 300, START_S + 1700);
     this.traffic.reset(this.player);
@@ -44,7 +48,9 @@ export class Sim {
     const p = this.player;
     this.time += dt;
     this.road.ensure(p.s - 300, p.s + 1700);
+    const s0 = p.s;
     p.step(dt, input, this.road.curvature(p.s));
+    this.director.step(p.s - s0);
     if (p.wallHit) {
       this.events.emit('wallHit', { speed: p.wallImpact });
       this.score.onWall();

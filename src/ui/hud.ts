@@ -18,7 +18,9 @@ export class Hud {
   private readonly popups = $('popups');
   private readonly banner = $('banner');
   private readonly shoulder = $('shoulder');
+  private readonly modeTag = $('modeTag');
   private bannerT = 0;
+  private modeT = 0;
   private last = { score: '', mult: '', best: '', kmh: '', gear: '', shoulder: false, combo: false };
 
   constructor(private readonly sim: Sim) {
@@ -27,6 +29,12 @@ export class Hud {
     ev.on('laneSplit', (e) => this.popup('LANE SPLIT', e.points, 'split'));
     ev.on('comboEnd', (e) => {
       if (e.reason === 'wall') this.popup('WALL · COMBO LOST', 0, 'bad');
+    });
+    ev.on('trafficMode', (e) => {
+      if (!e.label) return;
+      this.modeTag.textContent = e.label;
+      this.modeTag.classList.add('on');
+      this.modeT = 3;
     });
     ev.on('runEnd', (e) => {
       if (e.score <= 0) return;
@@ -58,6 +66,10 @@ export class Hud {
       this.last.shoulder = p.onShoulder;
     }
 
+    if (this.modeT > 0) {
+      this.modeT -= dt;
+      if (this.modeT <= 0) this.modeTag.classList.remove('on');
+    }
     if (this.bannerT > 0) {
       this.bannerT -= dt;
       if (this.bannerT <= 0) this.banner.classList.remove('on');

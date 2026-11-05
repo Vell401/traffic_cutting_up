@@ -42,7 +42,8 @@ export class View {
     r.toneMappingExposure = 1.05;
     this.renderer = r;
 
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 3000);
+    // Near plane at 0.5 m (the chase camera never gets closer to anything): 5× the depth precision of 0.1.
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.5, 3000);
     this.scene.background = HORIZON;
     this.scene.fog = new THREE.Fog(HORIZON, 70, 950);
 

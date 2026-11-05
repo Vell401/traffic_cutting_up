@@ -140,7 +140,7 @@ export class PlayerCar {
     const Fzr = (m * G * t.cgToFront) / L;
     let drive = 0;
     if (this.shiftT <= 0 && !limiter) {
-      drive = this.throttle * Math.min((t.powerKW * 1000) / Math.max(v, 6), t.gripRear * Fzr * 0.95);
+      drive = this.throttle * Math.min((t.powerKW * 1000) / Math.max(v, 6), this.tractionLimit(v, delta, Fzr, L));
     }
     const brakeF = this.brake * m * t.brakeDecel;
     const resist = t.aeroDrag * v * v + t.rollingRes * v;
@@ -202,6 +202,26 @@ export class PlayerCar {
 
     this.resolveWalls(dt);
     this.onShoulder = Math.abs(this.d) > ROAD_HALF;
+  }
+
+  /**
+   * Traction control: the most rear-wheel thrust that still leaves the rear tires enough grip for the
+   * cornering the driver asks for, cut further if the rear is already sliding. Without it, full throttle
+   * below ~150 km/h used up the whole friction circle and the car pivoted instead of turning.
+   */
+  private tractionLimit(v: number, delta: number, Fzr: number, L: number): number {
+    const t = this.tune;
+    const Dr0 = t.gripRear * Fzr;
+    const raw = 0.95 * Dr0;
+    if (t.tractionControl <= 0) return raw;
+    const ayDemand = Math.min(t.gripFront * G, (v * v * Math.abs(Math.tan(delta))) / L);
+    const fyrDemand = (t.mass * ayDemand * t.cgToFront) / L;
+    let cap = 0.9 * Math.sqrt(Math.max(0, Dr0 * Dr0 - fyrDemand * fyrDemand));
+    if (v > 2.5) {
+      const slip = Math.abs(Math.atan2(this.vy - t.cgToRear * this.r, v));
+      cap *= clamp(1 - (slip - 0.06) / 0.08, 0.15, 1);
+    }
+    return raw + (Math.min(raw, cap) - raw) * t.tractionControl;
   }
 
   private resolveWalls(dt: number): void {

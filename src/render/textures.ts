@@ -46,7 +46,7 @@ export function makeRoadTexture(anisotropy: number): THREE.CanvasTexture {
   const img = g.getImageData(0, 0, W, H);
   const px = img.data;
   for (let i = 0; i < px.length; i += 4) {
-    const n = (Math.random() - 0.5) * 26 + (Math.random() < 0.02 ? 22 : 0);
+    const n = (Math.random() - 0.5) * 16 + (Math.random() < 0.015 ? 14 : 0);
     px[i] += n;
     px[i + 1] += n;
     px[i + 2] += n;

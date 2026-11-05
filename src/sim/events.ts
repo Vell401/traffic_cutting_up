@@ -5,4 +5,5 @@ export interface SimEvents {
   wallHit: { speed: number };
   crash: { speed: number };
   runEnd: { score: number; best: number; newBest: boolean; time: number; near: number; topKmh: number };
+  trafficMode: { mode: string; label: string };
 }

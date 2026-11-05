@@ -3,8 +3,8 @@ import { smoothstep } from '../core/math';
 import type { Road, RoadPoint } from '../sim/road';
 import type { LampAnchor, RoadView } from './roadView';
 
-/** Candela of one lamp light at full weight. */
-const INTENSITY = 650;
+/** Candela of one lamp light at full weight. Kept low: it should glint on the paint, not flood the screen. */
+const INTENSITY = 160;
 /** Lights are centred a little ahead of the car, where the camera looks. */
 const AHEAD = 6;
 
@@ -24,7 +24,7 @@ export class LampLights {
 
   constructor(count = 4) {
     for (let i = 0; i < count; i++) {
-      const l = new THREE.PointLight(0xffffff, 0, 30, 2);
+      const l = new THREE.PointLight(0xffffff, 0, 24, 2);
       this.lights.push(l);
       this.group.add(l);
     }

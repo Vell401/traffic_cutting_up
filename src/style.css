@@ -180,6 +180,24 @@ body.menu #hud {
   opacity: 0.9;
 }
 
+#modeTag {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  color: var(--ink-dim);
+  opacity: 0;
+  transition:
+    opacity 0.4s,
+    transform 0.4s;
+}
+#modeTag.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 #banner {
   position: absolute;
   top: 30%;
@@ -380,4 +398,35 @@ kbd {
   .best {
     left: 16px;
   }
+}
+
+/* ---------- F1 metrics ---------- */
+#metrics {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 15;
+  margin: 0;
+  padding: 10px 12px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  font: 12px/1.55 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  color: #d8dbe0;
+  background: rgba(4, 6, 10, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: pre;
+}
+#metrics b {
+  font-size: 14px;
+}
+#metrics .ok {
+  color: var(--accent);
+}
+#metrics .warn {
+  color: var(--hot);
+}
+#metrics .bad {
+  color: var(--bad);
 }

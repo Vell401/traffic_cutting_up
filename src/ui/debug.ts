@@ -37,6 +37,7 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   car.addBinding(carTune, 'steerRate', { min: 1, max: 12, step: 0.1 });
   car.addBinding(carTune, 'steerReturn', { min: 1, max: 15, step: 0.1 });
   car.addBinding(carTune, 'yawAssist', { min: 0, max: 1, step: 0.01 });
+  car.addBinding(carTune, 'tractionControl', { min: 0, max: 1, step: 0.01, label: 'traction ctrl' });
   car.addBinding(carTune, 'aeroDrag', { min: 0.1, max: 1, step: 0.01 });
   car.addBinding(carTune, 'brakeDecel', { min: 4, max: 16, step: 0.1 });
 

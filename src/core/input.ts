@@ -1,6 +1,7 @@
 import type { DriveInput } from '../sim/vehicle';
 
-const BLOCK = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']);
+/** Keys whose browser default (scrolling, F1 help) must not fire. */
+const BLOCK = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F1']);
 const DEADZONE = 0.12;
 
 /** Keyboard (layout independent, by KeyboardEvent.code) and gamepad. */

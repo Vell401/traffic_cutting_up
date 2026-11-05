@@ -7,6 +7,7 @@ import type { DriveInput } from './sim/vehicle';
 import { Sim } from './sim/world';
 import type { Debug } from './ui/debug';
 import { Hud } from './ui/hud';
+import { Metrics } from './ui/metrics';
 
 const BEST_KEY = 'tcu.best.v1';
 const loadBest = (): number => {
@@ -31,6 +32,7 @@ sim.score.grace = Infinity; // the menu attract mode never scores
 const view = new View(canvas, sim);
 const hud = new Hud(sim);
 const input = new Input();
+const metrics = new Metrics(view.renderer, sim);
 
 type State = 'menu' | 'play' | 'pause';
 let state: State = 'menu';
@@ -65,15 +67,17 @@ async function toggleDebug(): Promise<void> {
   if (!debug && !debugLoading) {
     debugLoading = true;
     const { createDebug } = await import('./ui/debug');
+    metrics.gpuAllowed = false; // stats-gl wraps every render in its own GPU timer query
     debug = await createDebug(view.renderer, sim);
   }
   debug?.setVisible(debugOn);
 }
 if (new URLSearchParams(location.search).has('debug')) void toggleDebug();
-if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud } });
+if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics } });
 
 input.onPress = (code) => {
   if (code === 'Backquote') void toggleDebug();
+  else if (code === 'F1') metrics.toggle();
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(state === 'play');
   else if (code === 'KeyR' && state === 'play') sim.respawn();
@@ -109,12 +113,14 @@ const STEP = 1 / SIM_HZ;
 let acc = 0;
 let last = performance.now();
 view.renderer.setAnimationLoop((now: number) => {
-  const dt = Math.min((now - last) / 1000, 0.1);
+  const frameMs = now - last;
+  const dt = Math.min(frameMs / 1000, 0.1);
   last = now;
   input.poll();
+  const t0 = performance.now();
+  let n = 0;
   if (state !== 'pause') {
     acc += dt;
-    let n = 0;
     while (acc >= STEP && n < 12) {
       sim.step(STEP, state === 'play' ? input.drive : autopilot());
       acc -= STEP;
@@ -122,7 +128,12 @@ view.renderer.setAnimationLoop((now: number) => {
     }
     if (n === 12) acc = 0;
   }
+  const t1 = performance.now();
+  metrics.gpuBegin();
   view.render(state === 'pause' ? 1 : acc / STEP, dt);
+  metrics.gpuEnd();
+  const t2 = performance.now();
   hud.update(dt);
+  metrics.frame(frameMs, t1 - t0, t2 - t1, n);
   if (debugOn) debug?.update();
 });
