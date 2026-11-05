@@ -4,7 +4,7 @@ import type { PlayerCar } from '../sim/vehicle';
 import { buildCoupe } from './carModels';
 
 const TAIL_IDLE = new THREE.Color(1.2, 0.05, 0.03);
-const TAIL_BRAKE = new THREE.Color(5, 0.18, 0.1);
+const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 
 /** Player coupe: extruded body with clearcoat paint, glasshouse, trim. Faces -Z; root on the ground under the centre. */
 export class PlayerView {

@@ -83,8 +83,11 @@ export class Scoring {
         c.ovl = false;
         const passed = (ds >= 0 ? 1 : -1) !== c.ovlSign;
         const relKmh = Math.abs(p.vAlong - c.v) * 3.6;
+        if (passed && !c.hit && c.minGap < 2.5 && relKmh > 10) {
+          this.events.emit('passBy', { side: c.d > p.d ? 1 : -1, gap: Math.max(0, c.minGap), truck: c.spec.truck, relSpeed: relKmh / 3.6 });
+        }
         if (passed && scoring && !c.hit && !p.onShoulder && c.minGap < t.nearGap && kmh >= t.minSpeedKmh && relKmh >= t.minRelKmh) {
-          this.nearMiss(c, Math.max(0, c.minGap), kmh);
+          this.nearMiss(c, Math.max(0, c.minGap), kmh, c.d > p.d ? 1 : -1);
         }
         c.minGap = Infinity;
       }
@@ -106,7 +109,7 @@ export class Scoring {
     this.mult = Math.min(1 + this.combo * t.multPerCombo, t.multMax);
   }
 
-  private nearMiss(c: TrafficCar, gap: number, kmh: number): void {
+  private nearMiss(c: TrafficCar, gap: number, kmh: number, side: number): void {
     const t = scoreTune;
     this.bumpCombo();
     this.near++;
@@ -115,7 +118,7 @@ export class Scoring {
     const kindF = c.spec.truck ? t.truckFactor : 1;
     const points = Math.round((t.basePoints + t.closeBonus * Math.pow(closeness, 1.5)) * speedF * kindF * this.mult);
     this.score += points;
-    this.events.emit('nearMiss', { points, gap, truck: c.spec.truck, combo: this.combo, mult: this.mult });
+    this.events.emit('nearMiss', { points, gap, truck: c.spec.truck, combo: this.combo, mult: this.mult, side });
   }
 
   onWall(): void {

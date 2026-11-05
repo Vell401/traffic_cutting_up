@@ -23,10 +23,10 @@ export const carTune = {
   length: 4.6,
   width: 1.9,
   powerKW: 340,
-  gripFront: 1.15,
-  gripRear: 1.25,
+  gripFront: 1.3,
+  gripRear: 1.4,
   /** Simplified Pacejka shape: Fy = D·sin(C·atan(B·α)). */
-  tireB: 11,
+  tireB: 15,
   tireC: 1.45,
   /** ½·ρ·Cd·A, N per (m/s)². */
   aeroDrag: 0.38,
@@ -37,12 +37,13 @@ export const carTune = {
   /** Wheel angle at a standstill, rad. Above ~20 km/h grip-limited steering takes over. */
   maxSteerLow: 0.55,
   /** Full steering lock asks for this fraction of the grip limit, so the input feels the same at any speed. */
-  steerGripScale: 1.2,
-  /** Keyboard steering ramp, full lock per second. */
-  steerRate: 6,
-  steerReturn: 9,
-  /** Pulls yaw rate toward the kinematic one: kills snap oversteer (0..1). */
-  yawAssist: 0.5,
+  steerGripScale: 1.3,
+  /** Keyboard steering ramp, full lock per second (reached after ~0.15 s of holding; taps are gentler). */
+  steerRate: 12,
+  /** Self-centring speed when the key is released or reversed. */
+  steerReturn: 24,
+  /** Yaw follows the wheel and stops when it centres; kills snap oversteer (0..1). */
+  yawAssist: 1,
   /** Cuts rear thrust so cornering grip survives full throttle (0 = off, 1 = full). */
   tractionControl: 0.9,
   redline: 7600,
@@ -94,8 +95,8 @@ export const scoreTune = {
 };
 
 export const cameraTune = {
-  dist: 6.0,
-  height: 1.9,
+  dist: 6.6,
+  height: 2.2,
   lookAhead: 6,
   lookHeight: 0.9,
   fovMin: 58,

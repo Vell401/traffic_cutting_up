@@ -36,6 +36,7 @@
     </div>
 
     <div id="start" class="overlay">
+      <button id="testBtn" class="corner-btn" title="Короткая трасса со всеми участками и режимами трафика">Test</button>
       <div class="card">
         <div class="kicker">Night highway · cut up</div>
         <h1>Traffic<br />Cutting Up</h1>
@@ -45,18 +46,35 @@
           <span><kbd>A</kbd><kbd>D</kbd> руль</span>
           <span><kbd>R</kbd> на полосу</span>
           <span><kbd>C</kbd> камера</span>
+          <span><kbd>M</kbd> звук</span>
           <span><kbd>P</kbd> пауза</span>
           <span><kbd>`</kbd> тюнинг</span>
           <span><kbd>F1</kbd> метрики</span>
+        </div>
+        <div class="quality">
+          <span>Графика</span>
+          <div class="seg">
+            <button data-quality="medium">Medium</button>
+            <button data-quality="high">High</button>
+          </div>
         </div>
         <button id="startBtn">Поехали <span>Enter</span></button>
       </div>
     </div>
 
+    <aside id="testPanel" hidden>
+      <div class="ph">Test · виды трассы</div>
+      <div id="showcases" class="plist"></div>
+      <div class="ph">Трафик</div>
+      <div id="patterns" class="plist"></div>
+      <div class="pnote">R — заново · 1–0 — выбор · Esc — меню</div>
+    </aside>
+
     <div id="pause" class="overlay hidden">
       <div class="card small">
         <h2>Пауза</h2>
         <p class="tag">P или Esc — продолжить</p>
+        <button id="menuBtn" class="ghost-btn">Выйти в меню</button>
       </div>
     </div>
 

@@ -4,17 +4,27 @@ import type { Rng } from '../core/rng';
 import { obbOverlap, type Contact, type OBB } from './collision';
 import { Director } from './director';
 import type { SimEvents } from './events';
-import { Road } from './road';
+import { Road, type RoadScript } from './road';
 import { Scoring } from './scoring';
 import { Traffic, type TrafficCar } from './traffic';
 import { PlayerCar, type DriveInput } from './vehicle';
+import { clamp } from '../core/math';
 
 const START_S = 300;
+/** Showcase tracks start close to their beginning. */
+const SHOWCASE_START_S = 60;
+/** The car is brought to a stop this far before a finite track's end barrier. */
+const END_STOP_GAP = 14;
+
+export interface SimOptions {
+  /** Start on a finite scripted track (test showcase) instead of the endless road. */
+  track?: RoadScript;
+}
 
 /** Whole simulation: pure TS, no rendering. Stepped at a fixed rate by the game loop. */
 export class Sim {
   readonly events = new Emitter<SimEvents>();
-  readonly road: Road;
+  road: Road;
   readonly player = new PlayerCar();
   readonly traffic: Traffic;
   readonly score: Scoring;
@@ -25,15 +35,32 @@ export class Sim {
   private readonly boxB: OBB = { x: 0, y: 0, hx: 0, hy: 0, rot: 0 };
   private readonly contact: Contact = { nx: 0, ny: 0, depth: 0 };
 
-  constructor(private readonly rng: Rng = Math.random) {
-    this.road = new Road(rng);
+  /** The car has been stopped at the end of a finite track. */
+  trackEnded = false;
+
+  constructor(
+    private readonly rng: Rng = Math.random,
+    options: SimOptions = {},
+  ) {
+    this.road = new Road(rng, options.track);
     this.director = new Director(rng, this.events);
     this.traffic = new Traffic(rng, this.director);
     this.score = new Scoring(this.events);
     this.events.on('runEnd', () => this.director.resetRun());
-    this.player.reset(START_S, laneCenter(1), 100 / 3.6);
-    this.road.ensure(START_S - 300, START_S + 1700);
+    const start = options.track ? SHOWCASE_START_S : START_S;
+    this.player.reset(start, laneCenter(1), (options.track ? 160 : 100) / 3.6);
+    this.road.ensure(start - 300, start + 1700);
     this.traffic.reset(this.player);
+  }
+
+  /** Swap in a finite showcase track and put the car at its start. */
+  loadTrack(script: RoadScript, kmh = 160): void {
+    this.road = new Road(this.rng, script);
+    this.road.ensure(0, SHOWCASE_START_S + 1700);
+    this.player.reset(SHOWCASE_START_S, laneCenter(1), kmh / 3.6);
+    this.trackEnded = false;
+    this.traffic.reset(this.player);
+    this.score.resetRun();
   }
 
   /** Put the car back on a lane at the current spot. Counts as the end of the run. */
@@ -49,6 +76,7 @@ export class Sim {
     this.time += dt;
     this.road.ensure(p.s - 300, p.s + 1700);
     const s0 = p.s;
+    input = this.endOfTrack(input);
     p.step(dt, input, this.road.curvature(p.s));
     this.director.step(p.s - s0);
     if (p.wallHit) {
@@ -58,6 +86,29 @@ export class Sim {
     this.traffic.step(dt, p);
     this.collide();
     this.score.step(dt, p, this.traffic);
+  }
+
+  private readonly endInput: DriveInput = { steer: 0, throttle: 0, brake: 0 };
+
+  /** Near the end of a finite track: take over the pedals and stop smoothly before the barrier. */
+  private endOfTrack(input: DriveInput): DriveInput {
+    const end = this.road.endS;
+    if (end === Infinity) return input;
+    const p = this.player;
+    const left = end - END_STOP_GAP - p.s;
+    this.traffic.limitS = end - 40;
+    const v = Math.max(0, p.vAlong);
+    if (left > 15 + (v * v) / (2 * 7)) return input;
+    const need = (v * v) / (2 * Math.max(left, 0.5));
+    this.endInput.steer = input.steer;
+    this.endInput.analog = input.analog;
+    this.endInput.throttle = 0;
+    this.endInput.brake = left <= 0 ? 1 : clamp(need / (p.tune.brakeDecel * 0.9) + 0.15, 0, 1);
+    if (!this.trackEnded && v < 0.5) {
+      this.trackEnded = true;
+      this.events.emit('trackEnd', {});
+    }
+    return this.endInput;
   }
 
   private collide(): void {

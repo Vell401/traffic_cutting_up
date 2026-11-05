@@ -106,6 +106,6 @@ describe('PlayerCar', () => {
       expect(car.d + car.halfExtentD()).toBeLessThanOrEqual(WALL_D + 1e-9);
     });
     expect(hits).toBe(1);
-    expect(car.wallSide).toBe(1);
+    expect(car.scrapeSide).toBe(1); // rubbing the right barrier (per-step contact flickers)
   });
 });

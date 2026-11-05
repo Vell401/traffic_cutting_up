@@ -1,11 +1,14 @@
 import './style.css';
 import { LANES, SIM_HZ, laneCenter } from './config';
+import { Sound } from './audio/sound';
 import { Input } from './core/input';
 import { clamp } from './core/math';
 import { View } from './render/view';
 import type { DriveInput } from './sim/vehicle';
+import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
 import type { Debug } from './ui/debug';
+import { QUALITY, loadQuality, saveQuality, type Quality } from './settings';
 import { Hud } from './ui/hud';
 import { Metrics } from './ui/metrics';
 
@@ -26,13 +29,22 @@ const saveBest = (v: number): void => {
 };
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
-const sim = new Sim();
+const params = new URLSearchParams(location.search);
+/** ?test: short finite showcase tracks picked from a side panel; no records saved. */
+const TEST = params.has('test');
+let showcase = 0;
+const sim = new Sim(Math.random, TEST ? { track: SHOWCASES[0].script } : {});
 sim.score.best = loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
-const view = new View(canvas, sim);
+const quality = loadQuality();
+const view = new View(canvas, sim, QUALITY[quality]);
 const hud = new Hud(sim);
 const input = new Input();
-const metrics = new Metrics(view.renderer, sim);
+const sound = new Sound(sim);
+const metrics = new Metrics(view.renderer, sim, () => `quality ${quality}  audio ${sound.state}`);
+// Audio may only start after a user gesture.
+window.addEventListener('keydown', () => sound.unlock());
+window.addEventListener('pointerdown', () => sound.unlock());
 
 type State = 'menu' | 'play' | 'pause';
 let state: State = 'menu';
@@ -41,7 +53,7 @@ const startEl = document.getElementById('start')!;
 const pauseEl = document.getElementById('pause')!;
 
 sim.events.on('runEnd', (e) => {
-  if (e.newBest) saveBest(e.best);
+  if (e.newBest && !TEST) saveBest(e.best);
 });
 
 function start(): void {
@@ -57,6 +69,7 @@ function setPaused(paused: boolean): void {
   if (state === 'menu') return;
   state = paused ? 'pause' : 'play';
   pauseEl.classList.toggle('hidden', !paused);
+  sound.setPaused(paused);
 }
 
 let debug: Debug | null = null;
@@ -73,17 +86,98 @@ async function toggleDebug(): Promise<void> {
   debug?.setVisible(debugOn);
 }
 if (new URLSearchParams(location.search).has('debug')) void toggleDebug();
-if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics } });
+if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics, sound } });
 
 input.onPress = (code) => {
   if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
   else if (code === 'KeyC') hud.tag(`CAMERA · ${view.cycleCamera().toUpperCase()}`);
+  else if (code === 'KeyM') hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(state === 'play');
-  else if (code === 'KeyR' && state === 'play') sim.respawn();
+  else if (code === 'KeyR' && state === 'play') {
+    if (TEST) loadShowcase(showcase);
+    else sim.respawn();
+  } else if (TEST && state === 'play' && /^Digit[0-9]$/.test(code)) {
+    const i = (Number(code.slice(5)) + 9) % 10; // 1..9, 0 = tenth
+    if (i < SHOWCASES.length) loadShowcase(i);
+  }
 };
 document.getElementById('startBtn')!.addEventListener('click', start);
+for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-quality]')) {
+  btn.classList.toggle('on', btn.dataset.quality === quality);
+  btn.addEventListener('click', () => {
+    if (btn.dataset.quality === quality) return;
+    saveQuality(btn.dataset.quality as Quality);
+    location.reload(); // textures and render targets are built once at startup
+  });
+}
+document.getElementById('testBtn')!.addEventListener('click', () => {
+  location.search = '?test';
+});
+document.getElementById('menuBtn')!.addEventListener('click', () => {
+  location.href = location.pathname;
+});
+// ---------------------------------------------------------------- test panel
+
+/** Test showcases: name each section as the car enters it. */
+const SECTION_LABEL = { open: 'OPEN ROAD', walls: 'NOISE WALLS', viaduct: 'VIADUCT', tunnel: 'TUNNEL', bridge: 'BRIDGE' } as const;
+let lastSection = '';
+function announceSection(): void {
+  const c = sim.road.chunkAt(sim.player.s);
+  if (c.void) return;
+  const key = `${c.kind}/${c.light}`;
+  if (key === lastSection) return;
+  const first = lastSection === '';
+  lastSection = key;
+  if (!first) hud.tag(`${SECTION_LABEL[c.kind]} · ${c.light === 'led' ? 'LED' : 'SODIUM'}`, 2.5);
+}
+
+const panel = document.getElementById('testPanel')!;
+const showcaseList = document.getElementById('showcases')!;
+
+function loadShowcase(i: number): void {
+  showcase = i;
+  sim.loadTrack(SHOWCASES[i].script);
+  view.snapCamera();
+  lastSection = '';
+  for (const [k, el] of [...showcaseList.children].entries()) el.classList.toggle('on', k === i);
+  hud.tag(SHOWCASES[i].name.toUpperCase(), 2.5);
+}
+
+/** Buttons keep focus after a click; drop it so Space/Enter never re-trigger them while driving. */
+function panelButton(parent: HTMLElement, label: string, onClick: () => void): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.addEventListener('click', () => {
+    onClick();
+    b.blur();
+  });
+  parent.appendChild(b);
+  return b;
+}
+
+if (TEST) {
+  document.body.classList.add('test');
+  sim.score.best = 0;
+  panel.hidden = false;
+  SHOWCASES.forEach((sc, i) => panelButton(showcaseList, `${(i + 1) % 10}  ${sc.name}`, () => loadShowcase(i)));
+  const traffic = document.getElementById('patterns')!;
+  const ahead = () => sim.player.s + 260;
+  panelButton(traffic, 'Стенка из машин', () => sim.traffic.spawnWall(ahead(), sim.player));
+  panelButton(traffic, 'Колонна', () => sim.traffic.spawnPlatoon(ahead(), sim.player));
+  panelButton(traffic, 'Грузовики', () => sim.director.setMode('trucks', 1e6));
+  panelButton(traffic, 'Плотный', () => sim.director.setMode('dense', 1e6));
+  const toggle = panelButton(traffic, 'Трафик: вкл', () => {
+    sim.traffic.enabled = !sim.traffic.enabled;
+    if (!sim.traffic.enabled) sim.traffic.clearAround(sim.player.s, 1e9);
+    toggle.textContent = `Трафик: ${sim.traffic.enabled ? 'вкл' : 'выкл'}`;
+  });
+  sim.director.setMode('normal', 1e6);
+  start();
+  loadShowcase(0);
+}
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && state === 'play') setPaused(true);
 });
@@ -136,6 +230,8 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);
+  sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);
+  if (TEST && state === 'play') announceSection();
   if (debugOn) debug?.update();
 });

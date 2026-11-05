@@ -7,7 +7,7 @@ import type { Sim } from '../sim/world';
 import { buildVehicle, buildWheel, type VehicleModel } from './carModels';
 
 const TAIL = new THREE.Color(0.9, 0.04, 0.03);
-const TAIL_BRAKE = new THREE.Color(4.5, 0.16, 0.1);
+const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 const HEAD = new THREE.Color(2.4, 2.25, 1.9);
 const BLINK_ON = new THREE.Color(3.2, 1.45, 0.08);
 const BLINK_OFF = new THREE.Color(0.1, 0.05, 0.01);

@@ -73,6 +73,10 @@ function idm(v: number, v0: number, gap: number, vLead: number, T: number): numb
 export class Traffic {
   readonly cars: TrafficCar[] = [];
   activeCount = 0;
+  /** No traffic beyond this s (end of a finite track). */
+  limitS = Infinity;
+  /** Test panel switch: no new traffic while off. */
+  enabled = true;
 
   // Results of the last leader/follower query (avoids allocations in the hot loop).
   private lGap = Infinity;
@@ -94,6 +98,8 @@ export class Traffic {
   reset(p: PlayerCar): void {
     for (const c of this.cars) c.active = false;
     this.activeCount = 0;
+    this.limitS = Infinity;
+    if (!this.enabled) return;
     const target = this.targetCount();
     for (let i = 0; i < target * 6 && this.activeCount < target; i++) {
       const s = range(this.rng, p.s - BEHIND + 30, p.s + AHEAD - 30);
@@ -113,10 +119,10 @@ export class Traffic {
     const rng = this.rng;
     for (const c of this.cars) {
       if (!c.active) continue;
-      if (c.s < p.s - BEHIND || c.s > p.s + AHEAD + 60 || (c.crashed && c.crashT > 15)) this.deactivate(c);
+      if (c.s < p.s - BEHIND || c.s > p.s + AHEAD + 60 || c.s > this.limitS || (c.crashed && c.crashT > 15)) this.deactivate(c);
     }
 
-    if (this.activeCount < this.targetCount()) {
+    if (this.enabled && this.activeCount < this.targetCount()) {
       // When we crawl, traffic overtakes us: feed it from behind as well.
       const behind = p.vAlong < 24 && rng() < 0.5;
       const s = behind ? p.s - BEHIND + range(rng, 5, 40) : p.s + range(rng, SPAWN_AHEAD_MIN, AHEAD);
@@ -318,6 +324,7 @@ export class Traffic {
   }
 
   private trySpawn(s: number, p: PlayerCar, fromBehind: boolean): boolean {
+    if (s > this.limitS) return false;
     const dir = this.director;
     const spec = dir.pickSpec();
     const lane = dir.pickLane(dir.lanesFor(spec));
@@ -329,6 +336,7 @@ export class Traffic {
 
   /** Three vehicles abreast with one lane left open: thread the gap or go round. */
   spawnWall(s: number, p: PlayerCar): boolean {
+    if (s > this.limitS) return false;
     const rng = this.rng;
     const gapLane = Math.floor(rng() * LANES);
     const lanes: number[] = [];
@@ -349,6 +357,7 @@ export class Traffic {
 
   /** 3 to 5 cars nose to tail in one lane at the same speed. */
   spawnPlatoon(s: number, p: PlayerCar): boolean {
+    if (s + 80 > this.limitS) return false;
     const rng = this.rng;
     const n = 3 + Math.floor(rng() * 3);
     if (MAX_TRAFFIC - this.activeCount < n) return false;

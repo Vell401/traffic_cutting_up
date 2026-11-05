@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { LANE_W, WALL_D } from '../config';
 import { mulberry32, range, type Rng } from '../core/rng';
-import { CHUNK_LEN, SAMPLE_DS, type LightKind, type Road, type RoadChunk } from '../sim/road';
+import { CHUNK_LEN, GROUND_LEVEL, SAMPLE_DS, type LightKind, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
 import { makeCityMaterial } from './city';
 import {
   ChunkFrames,
@@ -15,6 +15,7 @@ import {
   signQuad,
   strip,
 } from './meshBuilder';
+import type { QualityPreset } from '../settings';
 import { ROAD_TEX_PERIOD, SIGN_COLS, SIGN_ROWS, makeRadialTexture, makeRoadTexture, makeSignAtlas } from './textures';
 
 /*
@@ -42,6 +43,10 @@ const DECAL_Y = 0.06;
 const EDGE = WALL_D + 0.55;
 const GROUND_OUT = 420;
 const DECK_DEPTH = 1.6;
+/** Bridge box girder is deeper than the viaduct slab. */
+const BRIDGE_DECK = 2.6;
+const PYLON_D = WALL_D + 0.55 + 1.6;
+const PYLON_TOP = 48;
 const POLE_D = WALL_D + 0.25;
 const POLE_H = 9.2;
 const ARM_LEN = 2.6;
@@ -76,9 +81,46 @@ const COL = {
   tunnelCeil: new THREE.Color(0.045, 0.045, 0.05),
   reflectorR: new THREE.Color(1.3, 1.25, 1.1),
   reflectorL: new THREE.Color(1.5, 0.85, 0.25),
+  pylon: new THREE.Color(0x9a9ea5),
+  uplight: new THREE.Color(1.5, 1.65, 1.9),
+  cable: new THREE.Color(0.75, 0.85, 1.05),
+  necklace: new THREE.Color(1.4, 1.5, 1.8),
+  aviation: new THREE.Color(4, 0.2, 0.1),
+  roadEnd: new THREE.Color(3, 1.4, 0.1),
   emergency: new THREE.Color(0.2, 1.4, 0.5),
   white: new THREE.Color(1, 1, 1),
 };
+
+/** Thin lit cable from a to b: two crossed double-sided ribbons, visible from any angle. */
+function cable(mb: MeshBuilder, ax: number, ay: number, az: number, bx: number, by: number, bz: number, w: number): void {
+  let dx = bx - ax;
+  let dy = by - ay;
+  let dz = bz - az;
+  const len = Math.hypot(dx, dy, dz) || 1;
+  dx /= len;
+  dy /= len;
+  dz /= len;
+  // p1 = dir × up (horizontal), p2 = dir × p1.
+  let p1x = -dz;
+  let p1z = dx;
+  const l1 = Math.hypot(p1x, p1z) || 1;
+  p1x /= l1;
+  p1z /= l1;
+  const p2x = dy * p1z;
+  const p2y = dz * p1x - dx * p1z;
+  const p2z = -dy * p1x;
+  for (const [ux, uy, uz] of [
+    [p1x * w, 0, p1z * w],
+    [p2x * w, p2y * w, p2z * w],
+  ]) {
+    const a = mb.v(ax - ux, ay - uy, az - uz, 0, 1, 0);
+    const b = mb.v(ax + ux, ay + uy, az + uz, 0, 1, 0);
+    const c = mb.v(bx + ux, by + uy, bz + uz, 0, 1, 0);
+    const d = mb.v(bx - ux, by - uy, bz - uz, 0, 1, 0);
+    mb.quad(a, b, c, d);
+    mb.quad(a, d, c, b);
+  }
+}
 
 export interface LampAnchor {
   s: number;
@@ -95,6 +137,7 @@ interface RoadMaterials {
   pools: THREE.Material;
   city: THREE.Material;
   signs: THREE.Material;
+  water: THREE.Material;
 }
 
 const tmpColor = new THREE.Color();
@@ -119,6 +162,8 @@ class ChunkView {
   private readonly pools = new MeshBuilder({ maxVerts: 400, maxIndices: 600, uv: true });
   private readonly city = new MeshBuilder({ maxVerts: 3000, maxIndices: 4500, win: true });
   private readonly signs = new MeshBuilder({ maxVerts: 32, maxIndices: 48, uv: true });
+  private readonly water = new MeshBuilder({ maxVerts: ROWS * 6, maxIndices: (ROWS - 1) * 18 });
+  private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly pairs: [MeshBuilder, THREE.Mesh][];
   private c!: RoadChunk;
   private roadRef!: Road;
@@ -137,6 +182,7 @@ class ChunkView {
       mk(this.glow, m.glow),
       mk(this.city, m.city),
       mk(this.signs, m.signs),
+      mk(this.water, m.water),
       mk(this.pools, m.pools, 1),
     ];
     for (let i = 0; i < 48; i++) this.anchors.push({ s: 0, d: 0, y: 0, spacing: 1, color: COL.white });
@@ -152,6 +198,14 @@ class ChunkView {
     this.rng = mulberry32(c.seed);
     this.anchorCount = 0;
     for (const [b] of this.pairs) b.reset();
+    if (c.void) {
+      // Past the end of a finite showcase track: nothing to draw.
+      for (const [b, mesh] of this.pairs) {
+        b.finish();
+        mesh.visible = false;
+      }
+      return;
+    }
     for (let i = 0; i < ROWS; i++) this.gy[i] = road.groundY(c.s0 + i * SAMPLE_DS);
 
     this.buildRoad();
@@ -169,6 +223,10 @@ class ChunkView {
         this.buildViaduct();
         this.buildLamps();
         break;
+      case 'bridge':
+        this.buildBridge();
+        this.buildLamps();
+        break;
       default:
         this.buildLamps();
         this.buildTrees();
@@ -177,6 +235,7 @@ class ChunkView {
     if (c.gantry) this.buildGantry();
     if (c.overpass) this.buildOverpass();
     if (c.kind !== 'tunnel') this.buildCity();
+    if (c.s0 + CHUNK_LEN === road.endS) this.buildRoadEnd();
 
     for (const [b, mesh] of this.pairs) {
       b.finish();
@@ -251,10 +310,12 @@ class ChunkView {
   private buildSides(): void {
     const mb = this.struct;
     const gy = this.gy;
+    const bridge = this.c.kind === 'bridge';
+    const deck = bridge ? BRIDGE_DECK : DECK_DEPTH;
     let face = false;
     for (let i = 0; i < ROWS; i++) {
       const y = gy[i];
-      this.faceY[i] = y < 0 ? Math.max(y, -DECK_DEPTH) : y;
+      this.faceY[i] = y < 0 ? Math.max(y, -deck) : y;
       if (Math.abs(this.faceY[i]) > 0.01) face = true;
     }
     if (face) {
@@ -262,13 +323,92 @@ class ChunkView {
       strip(mb, this.fr, EDGE, 0, EDGE, this.faceY);
       strip(mb, this.fr, -EDGE, this.faceY, -EDGE, 0);
     }
-    mb.color(COL.ground);
-    strip(mb, this.fr, EDGE, gy, GROUND_OUT, gy);
-    strip(mb, this.fr, -GROUND_OUT, gy, -EDGE, gy);
+    // Under a bridge the "ground" is open water with its own glossy material.
+    const ground = bridge ? this.water.color(COL.white) : mb.color(COL.ground);
+    strip(ground, this.fr, EDGE, gy, GROUND_OUT, gy);
+    strip(ground, this.fr, -GROUND_OUT, gy, -EDGE, gy);
+    if (bridge) strip(ground, this.fr, -EDGE, gy, EDGE, gy);
 
-    if (gy.some((y) => y < -DECK_DEPTH)) {
+    if (gy.some((y) => y < -deck)) {
       mb.color(COL.concrete, 0.6);
-      strip(mb, this.fr, EDGE, -DECK_DEPTH, -EDGE, -DECK_DEPTH);
+      strip(mb, this.fr, EDGE, -deck, -EDGE, -deck);
+    }
+  }
+
+  /** Railing, necklace lights and, at two points of the span, the cable-stayed pylons. */
+  private buildBridge(): void {
+    const c = this.c;
+    const fr = this.fr;
+    const mb = this.struct;
+    mb.color(COL.steel);
+    strip(mb, fr, WALL_D + 0.31, 1.2, WALL_D + 0.31, 1.3);
+    strip(mb, fr, -(WALL_D + 0.31), 1.3, -(WALL_D + 0.31), 1.2);
+    for (const [s] of this.every(5)) {
+      const f = this.at(s);
+      box(mb, f, WALL_D + 0.31, 1.1, 0.03, 0.18, 0.03);
+      box(mb, f, -(WALL_D + 0.31), 1.1, 0.03, 0.18, 0.03);
+    }
+    this.glow.color(COL.necklace);
+    for (const [s] of this.every(8)) {
+      const f = this.at(s);
+      box(this.glow, f, EDGE + 0.03, 0.85, 0.04, 0.06, 0.12);
+      box(this.glow, f, -(EDGE + 0.03), 0.85, 0.04, 0.06, 0.12);
+    }
+    if (c.sectionLen >= 6 && (c.sectionIndex === 2 || c.sectionIndex === c.sectionLen - 3)) this.pylon(50);
+  }
+
+  /** H-shaped pylon from the water to ~48 m above the deck, uplit, with fans of lit stay cables. */
+  private pylon(sLocal: number): void {
+    const c = this.c;
+    const mb = this.struct;
+    const g = this.glow;
+    const f0 = this.at(sLocal);
+    const f: Frame = { x: f0.x, z: f0.z, th: f0.th };
+    const base = GROUND_LEVEL.bridge;
+    mb.color(COL.pylon);
+    for (const side of [-1, 1]) {
+      box(mb, f, side * PYLON_D, base / 2, 1.5, -base / 2, 2.2, 0, 0b110111);
+      box(mb, f, side * PYLON_D, PYLON_TOP / 2, 1.0, PYLON_TOP / 2, 1.5);
+      box(mb, f, side * PYLON_D, PYLON_TOP + 1, 1.2, 1, 1.7);
+      g.color(COL.uplight);
+      box(g, f, side * (PYLON_D - 1.03), PYLON_TOP / 2 + 1, 0.04, PYLON_TOP / 2 - 2, 0.25);
+      box(g, f, side * (PYLON_D + 1.03), PYLON_TOP / 2 + 1, 0.04, PYLON_TOP / 2 - 2, 0.25);
+      g.color(COL.aviation);
+      box(g, f, side * PYLON_D, PYLON_TOP + 2.2, 0.25, 0.15, 0.25);
+      // Reflection of the uplights on the water, stretched toward the approaching driver.
+      this.pools.color(COL.uplight, 0.18);
+      flatQuad(this.pools, this.shift(f, -40), side * PYLON_D, base + 0.08, 1.6, 40);
+    }
+    mb.color(COL.pylon, 0.9);
+    box(mb, f, 0, 17, PYLON_D + 1, 1, 1.2);
+    box(mb, f, 0, 41, PYLON_D + 0.8, 1.2, 1.2);
+    box(mb, f, 0, -BRIDGE_DECK - 0.8, PYLON_D + 1.4, 0.8, 1.6);
+
+    // Stay cables: the highest anchor on the pylon goes to the farthest deck anchor.
+    g.color(COL.cable);
+    const rx = Math.cos(f.th);
+    const rz = Math.sin(f.th);
+    for (const side of [-1, 1]) {
+      const px = f.x + rx * side * (PYLON_D - 0.4);
+      const pz = f.z + rz * side * (PYLON_D - 0.4);
+      for (const dir of [-1, 1]) {
+        for (let k = 0; k < 6; k++) {
+          const sAbs = c.s0 + sLocal + dir * (24 + k * 20);
+          this.roadRef.toWorld(sAbs, side * (EDGE - 0.35), this.pt);
+          cable(g, px, 30 + k * 3, pz, this.pt.x - this.x0, 1.3, this.pt.z - this.z0, 0.07);
+        }
+      }
+    }
+  }
+
+  /** Concrete blocks with amber lamps across the road where a showcase track ends. */
+  private buildRoadEnd(): void {
+    const f = this.at(CHUNK_LEN - 4);
+    this.struct.color(COL.concrete);
+    for (let d = -WALL_D + 0.7; d <= WALL_D - 0.6; d += 1.35) {
+      box(this.struct, f, d, 0.45, 0.6, 0.45, 0.35);
+      this.glow.color(COL.roadEnd);
+      box(this.glow, f, d, 1.0, 0.12, 0.1, 0.12);
     }
   }
 
@@ -474,6 +614,14 @@ class ChunkView {
 
   private buildCity(): void {
     const rng = this.rng;
+    if (this.c.kind === 'bridge') {
+      // Open water: only the skyline on the far shores.
+      for (const side of [-1, 1]) {
+        const n = 2 + (rng() < 0.6 ? 1 : 0);
+        for (let k = 0; k < n; k++) this.building(range(rng, 5, 95), side * range(rng, 450, 900), range(rng, 25, 50), range(rng, 25, 50), range(rng, 70, 210));
+      }
+      return;
+    }
     const rows: [number, number, number, number][] = [
       [40, 80, 8, 28],
       [95, 170, 18, 60],
@@ -564,10 +712,12 @@ export class RoadView {
   private readonly mats: RoadMaterials;
   private readonly live = new Map<number, ChunkView>();
   private readonly free: ChunkView[] = [];
+  private road: Road | null = null;
 
-  constructor(anisotropy: number) {
+  constructor(q: QualityPreset, maxAnisotropy: number) {
+    const anisotropy = Math.min(q.anisotropy, maxAnisotropy);
     this.mats = {
-      road: new THREE.MeshStandardMaterial({ map: makeRoadTexture(anisotropy), vertexColors: true, roughness: 0.8, metalness: 0 }),
+      road: new THREE.MeshStandardMaterial({ map: makeRoadTexture(anisotropy, q.roadTex), vertexColors: true, roughness: 0.8, metalness: 0 }),
       struct: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.05 }),
       glow: new THREE.MeshBasicMaterial({ vertexColors: true }),
       pools: new THREE.MeshBasicMaterial({
@@ -579,12 +729,23 @@ export class RoadView {
         depthWrite: false,
       }),
       city: makeCityMaterial(),
-      signs: new THREE.MeshBasicMaterial({ map: makeSignAtlas(anisotropy), color: new THREE.Color(0.8, 0.8, 0.8) }),
+      signs: new THREE.MeshBasicMaterial({ map: makeSignAtlas(anisotropy, q.signScale), color: new THREE.Color(0.8, 0.8, 0.8) }),
+      // Dark glossy water: catches the moon and the lamp lights as highlights.
+      water: new THREE.MeshStandardMaterial({ color: 0x060c16, vertexColors: true, roughness: 0.16, metalness: 0.6 }),
     };
   }
 
   /** Make sure chunks covering [sMin, sMax] are built and placed relative to the floating origin. */
   update(road: Road, sMin: number, sMax: number, ox: number, oz: number): void {
+    if (road !== this.road) {
+      // A new track (test showcase) restarts chunk indices: drop every view of the old one.
+      for (const v of this.live.values()) {
+        this.group.remove(v.group);
+        this.free.push(v);
+      }
+      this.live.clear();
+      this.road = road;
+    }
     const iMin = Math.max(Math.floor(sMin / CHUNK_LEN), road.chunks[0].index);
     const iMax = Math.floor(sMax / CHUNK_LEN);
     for (const [idx, v] of this.live) {

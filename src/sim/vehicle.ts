@@ -10,6 +10,12 @@ export interface DriveInput {
   analog?: boolean;
 }
 
+/**
+ * Yaw-rate tracking gain (1/s) at yawAssist = 1. High enough that the car rotates as soon as the wheel
+ * turns and stops rotating as soon as it centres (like a real car's self-aligning steering), so a
+ * keyboard lane change ends straight instead of overshooting by 1-3 degrees.
+ */
+const YAW_GAIN = 16;
 /** A barrier contact counts as a new hit only after this long away from the wall. */
 const WALL_REHIT = 0.5;
 
@@ -38,6 +44,8 @@ export class PlayerCar {
 
   steerIn = 0;
   steerAngle = 0;
+  /** Seconds the current keyboard steering direction has been held. */
+  private steerHold = 0;
   throttle = 0;
   brake = 0;
   gear = 1;
@@ -118,9 +126,13 @@ export class PlayerCar {
     const v = Math.max(this.vx, 0);
 
     // Steering: ramped input, lock limited so full input ≈ grip limit at any speed.
+    // Keyboard ramp is progressive: a tap gives a small angle for fine corrections, holding the key
+    // speeds the ramp up to full rate within ~0.15 s. Releasing snaps back to centre.
     const target = clamp(inp.steer, -1, 1);
     const releasing = Math.abs(target) < Math.abs(this.steerIn) || target * this.steerIn < 0;
-    const rate = inp.analog ? 12 : releasing ? t.steerReturn : t.steerRate;
+    this.steerHold = target !== 0 && !releasing ? this.steerHold + dt : 0;
+    const press = t.steerRate * (0.4 + 0.6 * Math.min(1, this.steerHold / 0.15));
+    const rate = inp.analog ? 14 : releasing ? t.steerReturn : press;
     this.steerIn = moveTo(this.steerIn, target, rate * dt);
     const gripSteer = (t.steerGripScale * t.gripFront * G * L) / Math.max(v * v, 1);
     this.steerAngle = this.steerIn * Math.min(t.maxSteerLow, gripSteer);
@@ -176,7 +188,7 @@ export class PlayerCar {
       // no snap oversteer). It never steers by itself: with the wheel straight it only stops the rotation.
       const latLimit = (t.gripFront * G) / Math.max(v, 1);
       const rKin = clamp((v * Math.tan(delta)) / L, -latLimit, latLimit);
-      rdot += t.yawAssist * 10 * (rKin - this.r);
+      rdot += t.yawAssist * YAW_GAIN * (rKin - this.r);
 
       this.vx += ax * dt;
       this.vy += ay * dt;

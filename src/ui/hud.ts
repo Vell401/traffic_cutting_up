@@ -33,6 +33,7 @@ export class Hud {
     ev.on('trafficMode', (e) => {
       if (e.label) this.tag(e.label, 3);
     });
+    ev.on('trackEnd', () => this.showBanner('КОНЕЦ ПОКАЗА', 'выбери вид слева · R — заново', 'best', 4));
     ev.on('runEnd', (e) => {
       if (e.score <= 0) return;
       this.showBanner(e.newBest ? 'NEW BEST' : 'RUN OVER', `${fmt.format(e.score)} · ${e.near} near misses · top ${Math.round(e.topKmh)} km/h`, e.newBest ? 'best' : 'bad');
@@ -95,10 +96,10 @@ export class Hud {
     this.modeT = seconds;
   }
 
-  private showBanner(title: string, sub: string, cls: string): void {
+  private showBanner(title: string, sub: string, cls: string, seconds = 2.6): void {
     this.banner.className = `on ${cls}`;
     this.banner.querySelector('.t')!.textContent = title;
     this.banner.querySelector('.s')!.textContent = sub;
-    this.bannerT = 2.6;
+    this.bannerT = seconds;
   }
 }

@@ -3,6 +3,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { lerp } from '../core/math';
 import type { RoadPoint } from '../sim/road';
 import type { Sim } from '../sim/world';
+import type { QualityPreset } from '../settings';
 import { ChaseCamera, type CameraMode } from './camera';
 import { LampLights } from './lampLights';
 import { PlayerView } from './playerView';
@@ -42,10 +43,11 @@ export class View {
   constructor(
     canvas: HTMLCanvasElement,
     private readonly sim: Sim,
+    quality: QualityPreset,
   ) {
     // MSAA, tone mapping and output encoding happen in the post chain, not on the default framebuffer.
     const r = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-    r.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    r.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
     // Count draw calls for the whole frame (scene + post passes), reset once per frame in render().
     r.info.autoReset = false;
     this.renderer = r;
@@ -66,12 +68,12 @@ export class View {
     pmrem.dispose();
 
     const shadowTex = makeRadialTexture(64, 1.2);
-    this.roadView = new RoadView(Math.min(8, r.capabilities.getMaxAnisotropy()));
+    this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy());
     this.playerView = new PlayerView(0x1f4fd8, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
     this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points);
-    this.post = new Post(r, this.scene, this.camera);
+    this.post = new Post(r, this.scene, this.camera, quality);
 
     sim.events.on('nearMiss', (e) => {
       this.chase.kick(0.25);
@@ -135,6 +137,11 @@ export class View {
     if (!this.warmedUp) this.warmUp();
     this.renderer.info.reset();
     this.post.render(dt, p.vAlong * 3.6);
+  }
+
+  /** After a teleport: no camera swing from the old heading. */
+  snapCamera(): void {
+    this.chase.snap();
   }
 
   cycleCamera(): CameraMode {

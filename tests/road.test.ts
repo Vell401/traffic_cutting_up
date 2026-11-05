@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/rng';
 import { CHUNK_LEN, CHUNK_SAMPLES, GROUND_LEVEL, MIN_RADIUS, Road, SAMPLE_DS } from '../src/sim/road';
+import { SHOWCASES } from '../src/sim/testTrack';
 
 describe('Road', () => {
   const road = new Road(mulberry32(7));
@@ -57,7 +58,7 @@ describe('Road', () => {
       if (c.kind === 'tunnel') expect(c.prevKind).not.toBe('viaduct');
       if (c.kind === 'viaduct') expect(c.prevKind).not.toBe('tunnel');
     }
-    expect([...seen].sort()).toEqual(['open', 'tunnel', 'viaduct', 'walls']);
+    expect([...seen].sort()).toEqual(['bridge', 'open', 'tunnel', 'viaduct', 'walls']);
     expect(road.chunks.slice(0, 8).every((c) => c.kind === 'open')).toBe(true);
   });
 
@@ -97,5 +98,43 @@ describe('Road', () => {
     }
     expect(gantries).toBeGreaterThan(5);
     expect(overpasses).toBeGreaterThan(5);
+  });
+
+  it('builds every test showcase as a finite track with its elements, then an end', () => {
+    for (const sc of SHOWCASES) {
+      const t = new Road(mulberry32(1), sc.script);
+      const total = sc.script.sections.reduce((n, st) => n + st.chunks, 0);
+      t.ensure(0, total * CHUNK_LEN + 500);
+      let i = 0;
+      for (const st of sc.script.sections) {
+        for (let k = 0; k < st.chunks; k++, i++) {
+          const c = t.chunks[i];
+          expect(`${c.kind}/${c.light}`).toBe(`${st.kind}/${st.light}`);
+          expect(c.gantry).toBe(!!st.gantry?.includes(k));
+          expect(c.overpass).toBe(!!st.overpass?.includes(k));
+          expect(c.void).toBe(false);
+        }
+      }
+      expect(t.endS).toBe(total * CHUNK_LEN);
+      expect(t.chunks[total].void).toBe(true);
+      for (const c of t.chunks) for (let j = 0; j <= CHUNK_SAMPLES; j++) expect(Math.abs(c.k[j])).toBeLessThanOrEqual(1 / MIN_RADIUS + 1e-9);
+    }
+    const all = new Set(SHOWCASES.flatMap((sc) => sc.script.sections.map((st) => st.kind)));
+    expect([...all].sort()).toEqual(['bridge', 'open', 'tunnel', 'viaduct', 'walls']);
+  });
+
+  it('only reaches a bridge over a viaduct, keeps the water flat and pylon positions known', () => {
+    let bridges = 0;
+    for (const c of road.chunks) {
+      if (c.kind === 'bridge') {
+        bridges++;
+        if (c.prevKind !== 'bridge') expect(c.prevKind).toBe('viaduct');
+        if (c.nextKind !== 'bridge') expect(c.nextKind).toBe('viaduct');
+        expect(road.groundY(c.s0 + 37)).toBe(GROUND_LEVEL.bridge);
+        expect(c.sectionLen).toBeGreaterThanOrEqual(6);
+        expect(c.sectionIndex).toBeLessThan(c.sectionLen);
+      }
+    }
+    expect(bridges).toBeGreaterThan(0);
   });
 });

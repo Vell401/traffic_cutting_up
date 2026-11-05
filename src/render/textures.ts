@@ -5,18 +5,26 @@ import { LANES, LANE_W, ROAD_HALF, WALL_D, laneCenter } from '../config';
 export const ROAD_TEX_PERIOD = 20;
 
 /**
- * Procedural road texture: u spans the full width between the barriers, v one 20 m dash period.
- * Asphalt grain, darker wheel paths, solid edge lines, 8 m dashes every 20 m.
+ * Procedural road texture: u spans the full width between the barriers, v one 20 m dash period
+ * (tiles seamlessly along the road). `size` px square: 1024 on Medium, 2048 on High.
+ *
+ * Layers: two asphalt tones (lanes / shoulders), large soft tone variation, polished wheel paths,
+ * patches and sealed cracks, per-pixel aggregate, rumble strips, worn markings.
+ * Anything that is not per-pixel is drawn at y, y-H and y+H so it wraps across the tile seam.
  */
-export function makeRoadTexture(anisotropy: number): THREE.CanvasTexture {
-  const W = 1024;
-  const H = 1024;
+export function makeRoadTexture(anisotropy: number, size = 1024): THREE.CanvasTexture {
+  const W = size;
+  const H = size;
   const cv = document.createElement('canvas');
   cv.width = W;
   cv.height = H;
   const g = cv.getContext('2d')!;
   const pxPerM = W / (2 * WALL_D);
+  const pxPerS = H / ROAD_TEX_PERIOD;
   const X = (d: number) => (d + WALL_D) * pxPerM;
+  const wrapped = (draw: (dy: number) => void) => {
+    for (const dy of [-H, 0, H]) draw(dy);
+  };
 
   g.fillStyle = '#3a3c40';
   g.fillRect(0, 0, W, H);
@@ -24,14 +32,66 @@ export function makeRoadTexture(anisotropy: number): THREE.CanvasTexture {
   g.fillRect(0, 0, X(-ROAD_HALF), H);
   g.fillRect(X(ROAD_HALF), 0, W - X(ROAD_HALF), H);
 
-  // Wheel paths: polished, slightly darker bands.
+  // Large, soft tone variation so the surface is not a flat grey.
+  for (let i = 0; i < 26; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = (2 + Math.random() * 5) * pxPerM;
+    const dark = Math.random() < 0.6;
+    wrapped((dy) => {
+      const grad = g.createRadialGradient(x, y + dy, 0, x, y + dy, r);
+      grad.addColorStop(0, dark ? 'rgba(0,0,0,0.10)' : 'rgba(255,250,240,0.05)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grad;
+      g.fillRect(x - r, y + dy - r, 2 * r, 2 * r);
+    });
+  }
+
+  // Patches: rectangles of newer, darker asphalt with a slightly lighter seam.
+  for (let i = 0; i < 3; i++) {
+    const lane = Math.floor(Math.random() * LANES);
+    const x = X(laneCenter(lane) - LANE_W * 0.4 + Math.random() * 0.6);
+    const w = (1.2 + Math.random() * 1.6) * pxPerM;
+    const y = Math.random() * H;
+    const h = (1.5 + Math.random() * 4) * pxPerS;
+    wrapped((dy) => {
+      g.fillStyle = 'rgba(14,15,17,0.32)';
+      g.fillRect(x, y + dy, w, h);
+      g.strokeStyle = 'rgba(255,255,255,0.05)';
+      g.lineWidth = Math.max(1, 0.04 * pxPerM);
+      g.strokeRect(x, y + dy, w, h);
+    });
+  }
+
+  // Polished wheel paths.
   g.fillStyle = 'rgba(0,0,0,0.12)';
   for (let l = 0; l < LANES; l++) {
     for (const side of [-0.8, 0.8]) g.fillRect(X(laneCenter(l) + side - 0.35), 0, 0.7 * pxPerM, H);
   }
 
+  // Sealed cracks: thin dark tar lines wandering mostly along the road.
+  g.lineCap = 'round';
+  for (let i = 0; i < 18; i++) {
+    const pts: [number, number][] = [];
+    let x = Math.random() * W;
+    let y = Math.random() * H;
+    const n = 4 + Math.floor(Math.random() * 6);
+    for (let k = 0; k < n; k++) {
+      pts.push([x, y]);
+      x += (Math.random() - 0.5) * 0.6 * pxPerM;
+      y += (0.3 + Math.random() * 0.9) * pxPerS * (Math.random() < 0.2 ? -1 : 1);
+    }
+    const width = Math.max(1, (0.015 + Math.random() * 0.03) * pxPerM);
+    wrapped((dy) => {
+      g.strokeStyle = 'rgba(8,8,10,0.55)';
+      g.lineWidth = width;
+      g.beginPath();
+      pts.forEach(([px, py], k) => (k === 0 ? g.moveTo(px, py + dy) : g.lineTo(px, py + dy)));
+      g.stroke();
+    });
+  }
+
   // Rumble strips on the shoulders, just outside the edge lines.
-  const pxPerS = H / ROAD_TEX_PERIOD;
   for (const side of [-1, 1]) {
     const d0 = side * (ROAD_HALF + 0.2) + (side < 0 ? -0.45 : 0);
     for (let v = 0; v < ROAD_TEX_PERIOD; v += 0.36) {
@@ -42,14 +102,15 @@ export function makeRoadTexture(anisotropy: number): THREE.CanvasTexture {
     }
   }
 
-  // Aggregate grain.
+  // Aggregate: fine per-pixel grain plus sparse light stones (scaled so 2048 px is not noisier).
   const img = g.getImageData(0, 0, W, H);
   const px = img.data;
+  const stones = 0.015 * (1024 / size);
   for (let i = 0; i < px.length; i += 4) {
-    const n = (Math.random() - 0.5) * 16 + (Math.random() < 0.015 ? 14 : 0);
+    const n = (Math.random() - 0.5) * 16 + (Math.random() < stones ? 14 : 0);
     px[i] += n;
-    px[i + 1] += n;
-    px[i + 2] += n;
+    px[i + 1] += n + 0.5;
+    px[i + 2] += n + 1;
   }
   g.putImageData(img, 0, 0);
 
@@ -65,10 +126,12 @@ export function makeRoadTexture(anisotropy: number): THREE.CanvasTexture {
   }
   // Worn paint.
   g.globalCompositeOperation = 'multiply';
-  for (let i = 0; i < 4000; i++) {
+  const wear = 4000 * (size / 1024) ** 2;
+  const dot = size / 1024;
+  for (let i = 0; i < wear; i++) {
     const v = 170 + Math.random() * 60;
     g.fillStyle = `rgb(${v},${v},${v})`;
-    g.fillRect(Math.random() * W, Math.random() * H, 2 + Math.random() * 3, 2 + Math.random() * 3);
+    g.fillRect(Math.random() * W, Math.random() * H, (2 + Math.random() * 3) * dot, (2 + Math.random() * 3) * dot);
   }
   g.globalCompositeOperation = 'source-over';
 
@@ -117,9 +180,9 @@ export const SIGN_COLS = 2;
 export const SIGN_ROWS = 4;
 
 /** Atlas of green overhead sign boards (2 × 4 cells, 512 × 256 each). */
-export function makeSignAtlas(anisotropy: number): THREE.CanvasTexture {
-  const CW = 512;
-  const CH = 256;
+export function makeSignAtlas(anisotropy: number, scale = 1): THREE.CanvasTexture {
+  const CW = 512 * scale;
+  const CH = 256 * scale;
   const cv = document.createElement('canvas');
   cv.width = CW * SIGN_COLS;
   cv.height = CH * SIGN_ROWS;
@@ -127,20 +190,21 @@ export function makeSignAtlas(anisotropy: number): THREE.CanvasTexture {
   SIGNS.forEach(([title, sub, arrow], i) => {
     const x = (i % SIGN_COLS) * CW;
     const y = Math.floor(i / SIGN_COLS) * CH;
+    const k = scale;
     g.fillStyle = '#0f5b37';
     g.fillRect(x, y, CW, CH);
     g.strokeStyle = '#e8efe9';
-    g.lineWidth = 8;
-    g.strokeRect(x + 14, y + 14, CW - 28, CH - 28);
+    g.lineWidth = 8 * k;
+    g.strokeRect(x + 14 * k, y + 14 * k, CW - 28 * k, CH - 28 * k);
     g.fillStyle = '#f2f5f2';
     g.textBaseline = 'middle';
-    g.font = '700 58px "Segoe UI", Arial, sans-serif';
-    g.fillText(title, x + 40, y + 92, CW - 150);
-    g.font = '600 44px "Segoe UI", Arial, sans-serif';
-    g.fillText(sub, x + 40, y + 176, CW - 150);
-    g.font = '700 96px "Segoe UI", Arial, sans-serif';
+    g.font = `700 ${58 * k}px "Segoe UI", Arial, sans-serif`;
+    g.fillText(title, x + 40 * k, y + 92 * k, CW - 150 * k);
+    g.font = `600 ${44 * k}px "Segoe UI", Arial, sans-serif`;
+    g.fillText(sub, x + 40 * k, y + 176 * k, CW - 150 * k);
+    g.font = `700 ${96 * k}px "Segoe UI", Arial, sans-serif`;
     g.textAlign = 'center';
-    g.fillText(arrow, x + CW - 76, y + CH / 2);
+    g.fillText(arrow, x + CW - 76 * k, y + CH / 2);
     g.textAlign = 'start';
   });
   const tex = new THREE.CanvasTexture(cv);

@@ -78,6 +78,7 @@ export class Metrics {
   constructor(
     private readonly renderer: WebGLRenderer,
     private readonly sim: Sim,
+    private readonly extra: () => string = () => '',
   ) {
     this.el = document.createElement('pre');
     this.el.id = 'metrics';
@@ -143,7 +144,7 @@ export class Metrics {
       `GPU  ${gpu}`,
       `draw calls ${info.render.calls}  tris ${fmtK(info.render.triangles)}  programs ${info.programs?.length ?? 0}`,
       `geometries ${info.memory.geometries}  textures ${info.memory.textures}${heap ? `  JS heap ${(heap.usedJSHeapSize / 1048576).toFixed(0)} MB` : ''}`,
-      `buffer ${size.x}×${size.y}  dpr ${dpr.toFixed(2)}`,
+      `buffer ${size.x}×${size.y}  dpr ${dpr.toFixed(2)}  ${this.extra()}`,
       `traffic ${sim.traffic.activeCount}/${sim.traffic.targetCount()}  mode ${d.mode}  difficulty ${(d.intensity * 100).toFixed(0)}%`,
       `road ${(p.s / 1000).toFixed(2)} km  ${c.kind}/${c.light}  chunks ${sim.road.chunks.length}`,
       `car ${(p.vAlong * 3.6).toFixed(0)} km/h  gear ${p.gear}  ${p.rpm.toFixed(0)} rpm  d ${p.d.toFixed(2)} m  ψ ${((p.psi * 180) / Math.PI).toFixed(1)}°`,

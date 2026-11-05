@@ -21,6 +21,10 @@ export class ChaseCamera {
     this.shake = Math.max(this.shake, amount);
   }
 
+  snap(): void {
+    this.first = true;
+  }
+
   cycle(): CameraMode {
     this.mode = MODES[(MODES.indexOf(this.mode) + 1) % MODES.length];
     this.first = true;

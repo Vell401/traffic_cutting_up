@@ -12,6 +12,7 @@ import {
 } from 'postprocessing';
 import * as THREE from 'three';
 import { clamp, smoothstep } from '../core/math';
+import type { QualityPreset } from '../settings';
 
 /**
  * Grading baked into a 3D LUT (applied in sRGB after tone mapping): teal shadows, warm highlights,
@@ -60,9 +61,9 @@ export class Post {
   private readonly ca: ChromaticAberrationEffect;
   private kick = 0;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: QualityPreset) {
     renderer.toneMapping = THREE.NoToneMapping;
-    const samples = Math.min(4, renderer.capabilities.maxSamples);
+    const samples = Math.min(q.msaa, renderer.capabilities.maxSamples);
     this.composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: samples });
     this.composer.addPass(new RenderPass(scene, camera));
 
@@ -82,7 +83,7 @@ export class Post {
       luminanceSmoothing: 0.2,
       intensity: 0.85,
       radius: 0.62,
-      levels: 6,
+      levels: q.bloomLevels,
     });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
     const grade = new LUT3DEffect(makeGradeLUT());
