@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Traffic Cutting Up</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+
+    <div id="hud">
+      <div class="top">
+        <div id="score" class="num">0</div>
+        <div id="combo" class="combo">
+          <span id="mult" class="num">×1</span>
+          <div class="bar"><i id="comboBar"></i></div>
+        </div>
+      </div>
+      <div class="best">BEST <b id="bestNum" class="num">0</b></div>
+      <div id="popups"></div>
+      <div id="shoulder">SHOULDER · NO SCORE</div>
+      <div id="banner"><div class="t"></div><div class="s"></div></div>
+      <div class="speedo">
+        <div class="rpm"><i id="rpmBar"></i></div>
+        <div class="row">
+          <span id="kmh" class="num">0</span>
+          <span class="unit">km/h</span>
+          <span id="gear" class="gear num">1</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="start" class="overlay">
+      <div class="card">
+        <div class="kicker">Night highway · cut up</div>
+        <h1>Traffic<br />Cutting Up</h1>
+        <p class="tag">Проезжай впритирку к машинам, держи комбо. Удар о машину обнуляет заезд, лучший результат сохраняется.</p>
+        <div class="keys">
+          <span><kbd>W</kbd><kbd>S</kbd> газ · тормоз</span>
+          <span><kbd>A</kbd><kbd>D</kbd> руль</span>
+          <span><kbd>R</kbd> на полосу</span>
+          <span><kbd>P</kbd> пауза</span>
+          <span><kbd>`</kbd> тюнинг</span>
+        </div>
+        <button id="startBtn">Поехали <span>Enter</span></button>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay hidden">
+      <div class="card small">
+        <h2>Пауза</h2>
+        <p class="tag">P или Esc — продолжить</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
