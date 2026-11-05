@@ -10,8 +10,6 @@ export interface DriveInput {
   analog?: boolean;
 }
 
-/** Time constant of the heading align assist, s. */
-const ALIGN_TAU = 0.3;
 /** A barrier contact counts as a new hit only after this long away from the wall. */
 const WALL_REHIT = 0.5;
 
@@ -121,7 +119,6 @@ export class PlayerCar {
     const gripSteer = (t.steerGripScale * t.gripFront * G * L) / Math.max(v * v, 1);
     this.steerAngle = this.steerIn * Math.min(t.maxSteerLow, gripSteer);
     const delta = this.steerAngle;
-    const aligning = t.alignAssist > 0 && Math.abs(this.steerIn) < 0.05;
 
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
@@ -169,24 +166,15 @@ export class PlayerCar {
       const ay = (fyFront + Fyr) / m - v * this.r;
       let rdot = (t.cgToFront * fyFront - t.cgToRear * Fyr) / Iz;
 
-      // Assists. Steering: pull the yaw rate toward the kinematic one (sharp turn-in, no snap oversteer).
-      // Released: turn the car back along the road and kill the sideways drift, like a driver catching it.
-      if (aligning) {
-        const rDes = clamp(kRoad * v - this.psi / ALIGN_TAU, -0.8, 0.8);
-        rdot += t.alignAssist * 12 * (rDes - this.r);
-      } else {
-        const latLimit = (t.gripFront * G) / Math.max(v, 1);
-        const rKin = clamp((v * Math.tan(delta)) / L, -latLimit, latLimit);
-        rdot += t.yawAssist * 10 * (rKin - this.r);
-      }
+      // Stability assist: pulls the yaw rate toward what the front wheels ask for (sharper turn-in,
+      // no snap oversteer). It never steers by itself: with the wheel straight it only stops the rotation.
+      const latLimit = (t.gripFront * G) / Math.max(v, 1);
+      const rKin = clamp((v * Math.tan(delta)) / L, -latLimit, latLimit);
+      rdot += t.yawAssist * 10 * (rKin - this.r);
 
       this.vx += ax * dt;
       this.vy += ay * dt;
       this.r += rdot * dt;
-      if (aligning) {
-        const vyRoad = -this.vx * Math.tan(this.psi);
-        this.vy += (vyRoad - this.vy) * (1 - Math.exp(-3 * t.alignAssist * dt));
-      }
       this.accLong = fx / m;
       this.accLat = (fyFront + Fyr) / m;
     } else {

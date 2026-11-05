@@ -30,6 +30,18 @@ export function makeRoadTexture(anisotropy: number): THREE.CanvasTexture {
     for (const side of [-0.8, 0.8]) g.fillRect(X(laneCenter(l) + side - 0.35), 0, 0.7 * pxPerM, H);
   }
 
+  // Rumble strips on the shoulders, just outside the edge lines.
+  const pxPerS = H / ROAD_TEX_PERIOD;
+  for (const side of [-1, 1]) {
+    const d0 = side * (ROAD_HALF + 0.2) + (side < 0 ? -0.45 : 0);
+    for (let v = 0; v < ROAD_TEX_PERIOD; v += 0.36) {
+      g.fillStyle = 'rgba(0,0,0,0.28)';
+      g.fillRect(X(d0), v * pxPerS, 0.45 * pxPerM, 0.16 * pxPerS);
+      g.fillStyle = 'rgba(255,255,255,0.05)';
+      g.fillRect(X(d0), (v + 0.16) * pxPerS, 0.45 * pxPerM, 0.04 * pxPerS);
+    }
+  }
+
   // Aggregate grain.
   const img = g.getImageData(0, 0, W, H);
   const px = img.data;
@@ -87,5 +99,52 @@ export function makeRadialTexture(size = 128, falloff = 1.6): THREE.CanvasTextur
   g.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** Fictional destinations for overhead signs. */
+const SIGNS: [string, string, string][] = [
+  ['HARBOR CITY', 'EXIT 2 km', '↗'],
+  ['NORTH RING', 'CENTRAL', '↑'],
+  ['AIRPORT', '12 km', '✈'],
+  ['BAYSIDE', 'PORT AREA', '↗'],
+  ['OLD TOWN', '5 km', '↑'],
+  ['RIVERFRONT', 'EXIT 1 km', '↗'],
+  ['INDUSTRIAL ZONE', '8 km', '↑'],
+  ['WEST LOOP', 'JCT 3 km', '↑'],
+];
+export const SIGN_COLS = 2;
+export const SIGN_ROWS = 4;
+
+/** Atlas of green overhead sign boards (2 × 4 cells, 512 × 256 each). */
+export function makeSignAtlas(anisotropy: number): THREE.CanvasTexture {
+  const CW = 512;
+  const CH = 256;
+  const cv = document.createElement('canvas');
+  cv.width = CW * SIGN_COLS;
+  cv.height = CH * SIGN_ROWS;
+  const g = cv.getContext('2d')!;
+  SIGNS.forEach(([title, sub, arrow], i) => {
+    const x = (i % SIGN_COLS) * CW;
+    const y = Math.floor(i / SIGN_COLS) * CH;
+    g.fillStyle = '#0f5b37';
+    g.fillRect(x, y, CW, CH);
+    g.strokeStyle = '#e8efe9';
+    g.lineWidth = 8;
+    g.strokeRect(x + 14, y + 14, CW - 28, CH - 28);
+    g.fillStyle = '#f2f5f2';
+    g.textBaseline = 'middle';
+    g.font = '700 58px "Segoe UI", Arial, sans-serif';
+    g.fillText(title, x + 40, y + 92, CW - 150);
+    g.font = '600 44px "Segoe UI", Arial, sans-serif';
+    g.fillText(sub, x + 40, y + 176, CW - 150);
+    g.font = '700 96px "Segoe UI", Arial, sans-serif';
+    g.textAlign = 'center';
+    g.fillText(arrow, x + CW - 76, y + CH / 2);
+    g.textAlign = 'start';
+  });
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = anisotropy;
   return tex;
 }

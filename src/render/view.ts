@@ -4,6 +4,7 @@ import { lerp } from '../core/math';
 import type { RoadPoint } from '../sim/road';
 import type { Sim } from '../sim/world';
 import { ChaseCamera } from './camera';
+import { LampLights } from './lampLights';
 import { PlayerView } from './playerView';
 import { RoadView } from './roadView';
 import { HORIZON, MOON_DIR, makeSky } from './sky';
@@ -12,7 +13,6 @@ import { TrafficView } from './trafficView';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
-const SODIUM = new THREE.Color(1.0, 0.62, 0.3);
 
 export class View {
   readonly renderer: THREE.WebGLRenderer;
@@ -22,6 +22,7 @@ export class View {
   private readonly roadView: RoadView;
   private readonly playerView: PlayerView;
   private readonly trafficView: TrafficView;
+  private readonly lampLights = new LampLights();
   private readonly sky: THREE.Group;
   private readonly chase = new ChaseCamera();
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
@@ -29,6 +30,7 @@ export class View {
   private ox = 0;
   private oz = 0;
   private time = 0;
+  private warmedUp = false;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -55,11 +57,11 @@ export class View {
     pmrem.dispose();
 
     const shadowTex = makeRadialTexture(64, 1.2);
-    this.roadView = new RoadView(Math.min(8, r.capabilities.getMaxAnisotropy()), SODIUM);
+    this.roadView = new RoadView(Math.min(8, r.capabilities.getMaxAnisotropy()));
     this.playerView = new PlayerView(0x1f4fd8, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
-    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky);
+    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group);
 
     sim.events.on('nearMiss', () => this.chase.kick(0.25));
     sim.events.on('laneSplit', () => this.chase.kick(0.35));
@@ -97,9 +99,28 @@ export class View {
     this.playerView.update(dt, p, this.carPos, yaw);
     this.trafficView.update(sim, alpha, this.ox, this.oz, this.time);
     this.roadView.update(sim.road, s - 150, s + 1300, this.ox, this.oz);
+    this.lampLights.update(this.roadView, sim.road, s, this.ox, this.oz);
     this.chase.update(dt, this.camera, this.carPos, yaw, p.vAlong * 3.6);
     this.sky.position.copy(this.camera.position);
 
+    if (!this.warmedUp) this.warmUp();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * Compile every shader up front. Meshes that are hidden at start (sign boards, empty builders)
+   * would otherwise compile the first time they appear and stall that frame by 100+ ms.
+   */
+  private warmUp(): void {
+    this.warmedUp = true;
+    const hidden: THREE.Object3D[] = [];
+    this.scene.traverse((o) => {
+      if (!o.visible) {
+        hidden.push(o);
+        o.visible = true;
+      }
+    });
+    this.renderer.compile(this.scene, this.camera);
+    for (const o of hidden) o.visible = false;
   }
 }

@@ -35,19 +35,39 @@ describe('PlayerCar', () => {
     };
     run(car, { steer: 1, throttle: 0.5, brake: 0 }, 0.6, 0, track);
     run(car, { steer: -1, throttle: 0.5, brake: 0 }, 0.45, 0, track);
-    run(car, { steer: 0, throttle: 0.5, brake: 0 }, 2, 0, track);
-    expect(car.d).toBeGreaterThan(2.5); // moved at least most of a lane to the right
+    run(car, { steer: 0, throttle: 0.5, brake: 0 }, 1, 0, track);
+    expect(car.d).toBeGreaterThan(2.5);
     expect(maxLat).toBeLessThan(1.5 * 9.81);
     expect(maxPsi).toBeLessThan(0.15);
-    expect(Math.abs(car.psi)).toBeLessThan(0.01); // align assist straightened it out
+    expect(Math.abs(car.r)).toBeLessThan(0.005); // rotation dies out: stable, no spin
     expect(Number.isFinite(car.s)).toBe(true);
   });
 
-  it('follows a gentle curve with the steering released', () => {
+  it('does not steer itself back along the road', () => {
     const car = new PlayerCar();
     car.reset(0, 0, 200 / 3.6);
-    run(car, { steer: 0, throttle: 0.4, brake: 0 }, 5, 1 / 1200);
-    expect(Math.abs(car.psi)).toBeLessThan(0.02);
+    car.psi = 0.04;
+    run(car, { steer: 0, throttle: 0.4, brake: 0 }, 2);
+    expect(car.psi).toBeGreaterThan(0.035);
+    expect(car.d).toBeGreaterThan(3);
+  });
+
+  it('needs the driver to steer through a curve, and a small input holds it', () => {
+    const k = 1 / 1200;
+    const free = new PlayerCar();
+    free.reset(0, 0, 200 / 3.6);
+    run(free, { steer: 0, throttle: 0.4, brake: 0 }, 3, k);
+    expect(Math.abs(free.psi)).toBeGreaterThan(0.05);
+
+    const held = new PlayerCar();
+    held.reset(0, 0, 200 / 3.6);
+    const input = { steer: 0, throttle: 0.4, brake: 0, analog: true };
+    let maxD = 0;
+    run(held, input, 10, k, () => {
+      input.steer = Math.max(-1, Math.min(1, 0.15 - 0.3 * held.d - 12 * held.psi));
+      maxD = Math.max(maxD, Math.abs(held.d));
+    });
+    expect(maxD).toBeLessThan(1);
   });
 
   it('brakes to a stop without going backwards', () => {

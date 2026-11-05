@@ -41,8 +41,6 @@ export const carTune = {
   /** Keyboard steering ramp, full lock per second. */
   steerRate: 6,
   steerReturn: 9,
-  /** Turns the car back along the road when steering is released (0..1). */
-  alignAssist: 0.6,
   /** Pulls yaw rate toward the kinematic one: kills snap oversteer (0..1). */
   yawAssist: 0.5,
   redline: 7600,

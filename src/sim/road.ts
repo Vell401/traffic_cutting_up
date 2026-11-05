@@ -1,3 +1,4 @@
+import { smoothstep } from '../core/math';
 import { type Rng, range } from '../core/rng';
 
 /*
@@ -22,8 +23,89 @@ export interface RoadPoint {
   k: number;
 }
 
+/*
+ * Sections give the drive variety. Each 100 m chunk belongs to one of them:
+ *   open    – at grade, street lamps, city behind the barriers
+ *   walls   – tall noise barriers on both sides
+ *   viaduct – elevated deck, ground ~11 m below, city around and under
+ *   tunnel  – enclosed, ceiling light rows, hill above
+ */
+export type SectionKind = 'open' | 'walls' | 'viaduct' | 'tunnel';
+export type LightKind = 'sodium' | 'led';
+
+/** Ground height beside the road for each section; changes blend over ±GROUND_BLEND around a boundary. */
+export const GROUND_LEVEL: Record<SectionKind, number> = { open: 0, walls: 0, viaduct: -11, tunnel: 12 };
+export const GROUND_BLEND = 60;
+
+const NEXT_KIND: Record<SectionKind, [SectionKind, number][]> = {
+  open: [['walls', 2], ['viaduct', 2.2], ['tunnel', 1.4]],
+  walls: [['open', 2], ['viaduct', 1.2], ['tunnel', 1.2]],
+  viaduct: [['open', 2], ['walls', 1]],
+  tunnel: [['open', 2], ['walls', 1]],
+};
+/** Section length in chunks. */
+const KIND_LEN: Record<SectionKind, [number, number]> = {
+  open: [6, 16],
+  walls: [4, 10],
+  viaduct: [5, 14],
+  tunnel: [3, 9],
+};
+
+interface SectionSlot {
+  kind: SectionKind;
+  light: LightKind;
+}
+
+export class SectionPlanner {
+  private kind: SectionKind = 'open';
+  private light: LightKind = 'sodium';
+  private left: number;
+
+  constructor(
+    private readonly rng: Rng,
+    openStart = 8,
+  ) {
+    this.left = openStart;
+  }
+
+  next(): SectionSlot {
+    if (this.left <= 0) this.pick();
+    this.left--;
+    return { kind: this.kind, light: this.light };
+  }
+
+  private pick(): void {
+    const r = this.rng;
+    const opts = NEXT_KIND[this.kind];
+    let total = 0;
+    for (const [, w] of opts) total += w;
+    let x = r() * total;
+    let kind = opts[0][0];
+    for (const [k, w] of opts) {
+      x -= w;
+      if (x <= 0) {
+        kind = k;
+        break;
+      }
+    }
+    const [lo, hi] = KIND_LEN[kind];
+    this.kind = kind;
+    this.left = lo + Math.floor(r() * (hi - lo + 1));
+    this.light = r() < 0.5 ? 'sodium' : 'led';
+  }
+}
+
 export class RoadChunk {
   index = 0;
+  kind: SectionKind = 'open';
+  prevKind: SectionKind = 'open';
+  nextKind: SectionKind = 'open';
+  light: LightKind = 'sodium';
+  /** Overhead sign gantry / crossing overpass in the middle of this chunk. */
+  gantry = false;
+  overpass = false;
+  /** Seed for the renderer's own randomness (building layout etc.), stable for the chunk's lifetime. */
+  seed = 0;
   readonly x = new Float64Array(CHUNK_SAMPLES + 1);
   readonly z = new Float64Array(CHUNK_SAMPLES + 1);
   readonly th = new Float64Array(CHUNK_SAMPLES + 1);
@@ -92,6 +174,11 @@ export class Road {
   /** Bumps whenever chunks are added or dropped. */
   version = 0;
   private readonly profile: CurvatureProfile;
+  private readonly planner: SectionPlanner;
+  private pending: SectionSlot;
+  private lastKind: SectionKind = 'open';
+  private sinceGantry = 0;
+  private sinceOverpass = 0;
   private readonly free: RoadChunk[] = [];
   private nextIndex = 0;
   private lastX = 0;
@@ -99,8 +186,10 @@ export class Road {
   private lastTh = 0;
   private lastK: number;
 
-  constructor(rng: Rng) {
+  constructor(private readonly rng: Rng) {
     this.profile = new CurvatureProfile(rng);
+    this.planner = new SectionPlanner(rng);
+    this.pending = this.planner.next();
     this.lastK = this.profile.next(SAMPLE_DS, 0);
   }
 
@@ -148,6 +237,31 @@ export class Road {
     return this.sample(s, scratch).k;
   }
 
+  chunkAt(s: number): RoadChunk {
+    const chunks = this.chunks;
+    let ci = Math.floor(s / CHUNK_LEN) - chunks[0].index;
+    if (ci < 0) ci = 0;
+    else if (ci >= chunks.length) ci = chunks.length - 1;
+    return chunks[ci];
+  }
+
+  /** Height of the terrain beside the road at s, blended smoothly across section boundaries. */
+  groundY(s: number): number {
+    const c = this.chunkAt(s);
+    const level = GROUND_LEVEL[c.kind];
+    const fromStart = s - c.s0;
+    const toEnd = c.s0 + CHUNK_LEN - s;
+    if (fromStart < GROUND_BLEND && GROUND_LEVEL[c.prevKind] !== level) {
+      const a = GROUND_LEVEL[c.prevKind];
+      return a + (level - a) * smoothstep((fromStart + GROUND_BLEND) / (2 * GROUND_BLEND));
+    }
+    if (toEnd < GROUND_BLEND && GROUND_LEVEL[c.nextKind] !== level) {
+      const b = GROUND_LEVEL[c.nextKind];
+      return level + (b - level) * smoothstep((GROUND_BLEND - toEnd) / (2 * GROUND_BLEND));
+    }
+    return level;
+  }
+
   /** World position of road coordinates (s, d); heading of the road there. */
   toWorld(s: number, d: number, out: RoadPoint): RoadPoint {
     this.sample(s, out);
@@ -159,6 +273,25 @@ export class Road {
   private generate(): RoadChunk {
     const c = this.free.pop() ?? new RoadChunk();
     c.index = this.nextIndex++;
+    const slot = this.pending;
+    this.pending = this.planner.next();
+    c.kind = slot.kind;
+    c.light = slot.light;
+    c.prevKind = this.lastKind;
+    c.nextKind = this.pending.kind;
+    this.lastKind = slot.kind;
+    const stable = c.prevKind === c.kind && c.nextKind === c.kind;
+    this.sinceGantry++;
+    this.sinceOverpass++;
+    c.gantry = c.overpass = false;
+    if (stable && c.kind !== 'tunnel' && this.sinceGantry >= 8 && this.rng() < 0.3) {
+      c.gantry = true;
+      this.sinceGantry = 0;
+    } else if (stable && c.kind === 'open' && this.sinceOverpass >= 6 && this.rng() < 0.25) {
+      c.overpass = true;
+      this.sinceOverpass = 0;
+    }
+    c.seed = Math.floor(this.rng() * 2 ** 31);
     c.x[0] = this.lastX;
     c.z[0] = this.lastZ;
     c.th[0] = this.lastTh;
