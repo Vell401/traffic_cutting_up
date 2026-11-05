@@ -3,10 +3,12 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { lerp } from '../core/math';
 import type { RoadPoint } from '../sim/road';
 import type { Sim } from '../sim/world';
-import { ChaseCamera } from './camera';
+import { ChaseCamera, type CameraMode } from './camera';
 import { LampLights } from './lampLights';
 import { PlayerView } from './playerView';
+import { Post } from './post';
 import { RoadView } from './roadView';
+import { Sparks } from './sparks';
 import { HORIZON, MOON_DIR, makeSky } from './sky';
 import { makeRadialTexture } from './textures';
 import { TrafficView } from './trafficView';
@@ -25,8 +27,13 @@ export class View {
   private readonly lampLights = new LampLights();
   private readonly sky: THREE.Group;
   private readonly chase = new ChaseCamera();
+  private readonly post: Post;
+  private readonly sparks = new Sparks();
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly carPos = new THREE.Vector3();
+  private carYaw = 0;
+  private carWorldX = 0;
+  private carWorldZ = 0;
   private ox = 0;
   private oz = 0;
   private time = 0;
@@ -36,10 +43,11 @@ export class View {
     canvas: HTMLCanvasElement,
     private readonly sim: Sim,
   ) {
-    const r = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // MSAA, tone mapping and output encoding happen in the post chain, not on the default framebuffer.
+    const r = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     r.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    // Count draw calls for the whole frame (scene + post passes), reset once per frame in render().
+    r.info.autoReset = false;
     this.renderer = r;
 
     // Near plane at 0.5 m (the chase camera never gets closer to anything): 5× the depth precision of 0.1.
@@ -62,12 +70,26 @@ export class View {
     this.playerView = new PlayerView(0x1f4fd8, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
-    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group);
+    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points);
+    this.post = new Post(r, this.scene, this.camera);
 
-    sim.events.on('nearMiss', () => this.chase.kick(0.25));
-    sim.events.on('laneSplit', () => this.chase.kick(0.35));
-    sim.events.on('wallHit', (e) => this.chase.kick(Math.min(0.9, 0.3 + e.speed * 0.08)));
-    sim.events.on('crash', (e) => this.chase.kick(Math.min(1.2, 0.5 + e.speed * 0.05)));
+    sim.events.on('nearMiss', (e) => {
+      this.chase.kick(0.25);
+      this.post.pulse(e.gap < 0.3 ? 0.8 : 0.45);
+    });
+    sim.events.on('laneSplit', () => {
+      this.chase.kick(0.35);
+      this.post.pulse(0.9);
+    });
+    sim.events.on('wallHit', (e) => {
+      this.chase.kick(Math.min(0.9, 0.3 + e.speed * 0.08));
+      this.sparkAtWall(Math.round(20 + e.speed * 8), 4 + e.speed);
+    });
+    sim.events.on('crash', (e) => {
+      this.chase.kick(Math.min(1.2, 0.5 + e.speed * 0.05));
+      this.post.pulse(1);
+      this.sparkAtNose(Math.round(40 + e.speed * 4), 5 + e.speed * 0.4);
+    });
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -77,6 +99,7 @@ export class View {
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.renderer.setSize(w, h, false);
+    this.post?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -98,6 +121,11 @@ export class View {
     this.carPos.set(this.pt.x - this.ox, 0, this.pt.z - this.oz);
 
     this.playerView.update(dt, p, this.carPos, yaw);
+    this.carYaw = yaw;
+    this.carWorldX = this.pt.x;
+    this.carWorldZ = this.pt.z;
+    if (p.scrapeSide !== 0 && p.speed > 8) this.sparkAtWall(Math.min(8, Math.max(1, Math.round(p.speed * dt * 6))), 3);
+    this.sparks.update(dt, this.ox, this.oz);
     this.trafficView.update(sim, alpha, this.ox, this.oz, this.time);
     this.roadView.update(sim.road, s - 150, s + 1300, this.ox, this.oz);
     this.lampLights.update(this.roadView, sim.road, s, this.ox, this.oz);
@@ -105,7 +133,39 @@ export class View {
     this.sky.position.copy(this.camera.position);
 
     if (!this.warmedUp) this.warmUp();
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.info.reset();
+    this.post.render(dt, p.vAlong * 3.6);
+  }
+
+  cycleCamera(): CameraMode {
+    const mode = this.chase.cycle();
+    this.playerView.root.visible = mode !== 'bumper';
+    return mode;
+  }
+
+  /** Sparks where the car's flank rubs the barrier; they trail behind at part of the car's speed. */
+  private sparkAtWall(count: number, spread: number): void {
+    const p = this.sim.player;
+    const side = p.wallSide || p.scrapeSide;
+    if (side === 0 || count <= 0) return;
+    const fx = Math.sin(this.carYaw);
+    const fz = -Math.cos(this.carYaw);
+    const rx = Math.cos(this.carYaw) * side;
+    const rz = Math.sin(this.carYaw) * side;
+    // From the rear half of the flank, slower than the car so they trail into the chase camera's view.
+    const along = -Math.random() * p.tune.length * 0.5;
+    const half = p.tune.width / 2;
+    const v = p.vAlong * 0.8;
+    this.sparks.emit(this.carWorldX + rx * half + fx * along, 0.35, this.carWorldZ + rz * half + fz * along, fx * v, fz * v, count, spread);
+  }
+
+  private sparkAtNose(count: number, spread: number): void {
+    const p = this.sim.player;
+    const fx = Math.sin(this.carYaw);
+    const fz = -Math.cos(this.carYaw);
+    const nose = p.tune.length / 2;
+    const v = p.vAlong * 0.4;
+    this.sparks.emit(this.carWorldX + fx * nose, 0.5, this.carWorldZ + fz * nose, fx * v, fz * v, count, spread);
   }
 
   /**

@@ -390,7 +390,7 @@ export class Traffic {
     c.active = true;
     c.spec = spec;
     c.color = spec.colors[Math.floor(rng() * spec.colors.length)];
-    c.color2 = spec.glassTop ? GLASS : spec.cargoColors[Math.floor(rng() * spec.cargoColors.length)];
+    c.color2 = spec.truck ? spec.cargoColors[Math.floor(rng() * spec.cargoColors.length)] : GLASS;
     c.s = c.prevS = s;
     c.d = c.prevD = d;
     c.yaw = c.prevYaw = 0;

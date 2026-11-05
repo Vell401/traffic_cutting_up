@@ -31,10 +31,7 @@ export class Hud {
       if (e.reason === 'wall') this.popup('WALL · COMBO LOST', 0, 'bad');
     });
     ev.on('trafficMode', (e) => {
-      if (!e.label) return;
-      this.modeTag.textContent = e.label;
-      this.modeTag.classList.add('on');
-      this.modeT = 3;
+      if (e.label) this.tag(e.label, 3);
     });
     ev.on('runEnd', (e) => {
       if (e.score <= 0) return;
@@ -89,6 +86,13 @@ export class Hud {
     el.addEventListener('animationend', () => el.remove());
     this.popups.prepend(el);
     while (this.popups.childElementCount > 4) this.popups.lastElementChild!.remove();
+  }
+
+  /** Short status line under the combo (traffic mode, camera). */
+  tag(text: string, seconds = 1.8): void {
+    this.modeTag.textContent = text;
+    this.modeTag.classList.add('on');
+    this.modeT = seconds;
   }
 
   private showBanner(title: string, sub: string, cls: string): void {

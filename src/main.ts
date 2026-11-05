@@ -78,6 +78,7 @@ if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud
 input.onPress = (code) => {
   if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
+  else if (code === 'KeyC') hud.tag(`CAMERA · ${view.cycleCamera().toUpperCase()}`);
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(state === 'play');
   else if (code === 'KeyR' && state === 'play') sim.respawn();
@@ -130,7 +131,8 @@ view.renderer.setAnimationLoop((now: number) => {
   }
   const t1 = performance.now();
   metrics.gpuBegin();
-  view.render(state === 'pause' ? 1 : acc / STEP, dt);
+  // Paused: effects (sparks, camera shake, blinkers) freeze along with the sim.
+  view.render(state === 'pause' ? 1 : acc / STEP, state === 'pause' ? 0 : dt);
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);

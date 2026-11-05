@@ -55,6 +55,7 @@ export class PlayerCar {
   wallHit = false;
   wallImpact = 0;
   private wallFreeT = WALL_REHIT;
+  private lastWallSide = 0;
 
   reset(s: number, d: number, speed: number): void {
     this.s = this.prevS = s;
@@ -75,6 +76,11 @@ export class PlayerCar {
 
   get speed(): number {
     return Math.hypot(this.vx, this.vy);
+  }
+
+  /** Barrier side being rubbed (contact within the last 0.12 s; contacts flicker between steps), else 0. */
+  get scrapeSide(): number {
+    return this.wallFreeT < 0.12 ? this.lastWallSide : 0;
   }
 
   /** Speed along the road (what traffic and scoring compare against). */
@@ -240,6 +246,7 @@ export class PlayerCar {
     this.wallImpact = 0;
     this.wallSide = side;
     if (side === 0) return;
+    this.lastWallSide = side;
 
     let vA = this.vAlong;
     let vL = this.vLat;

@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
 import type { PlayerCar } from '../sim/vehicle';
+import { buildCoupe } from './carModels';
 
 const TAIL_IDLE = new THREE.Color(1.2, 0.05, 0.03);
 const TAIL_BRAKE = new THREE.Color(5, 0.18, 0.1);
 
-/** Grey-box player car built from primitives. Faces -Z; root sits on the ground under the car centre. */
+/** Player coupe: extruded body with clearcoat paint, glasshouse, trim. Faces -Z; root on the ground under the centre. */
 export class PlayerView {
   readonly root = new THREE.Group();
   readonly headlight: THREE.SpotLight;
@@ -39,18 +40,14 @@ export class PlayerView {
       return m;
     };
 
-    box(W, 0.5, L, paintMat, 0, 0.47, 0);
-    box(W * 0.97, 0.1, 1.5, paintMat, 0, 0.75, -1.45); // hood bulge
-    box(1.6, 0.44, 2.15, glassMat, 0, 0.94, 0.2); // cabin
-    box(1.5, 0.05, 1.6, paintMat, 0, 1.18, 0.25); // roof
-    box(W + 0.02, 0.14, L * 0.62, trimMat, 0, 0.27, 0); // skirts
-    box(W * 0.9, 0.16, 0.12, trimMat, 0, 0.28, L / 2 - 0.02); // diffuser
-    box(1.75, 0.04, 0.32, trimMat, 0, 0.98, L / 2 - 0.2); // spoiler
-    box(0.48, 0.09, 0.04, this.tailMat, -0.62, 0.62, L / 2 + 0.01);
-    box(0.48, 0.09, 0.04, this.tailMat, 0.62, 0.62, L / 2 + 0.01);
-    box(0.9, 0.03, 0.03, this.tailMat, 0, 0.62, L / 2 + 0.012);
-    box(0.42, 0.07, 0.04, headMat, -0.63, 0.58, -L / 2 - 0.01);
-    box(0.42, 0.07, 0.04, headMat, 0.63, 0.58, -L / 2 - 0.01);
+    const coupe = buildCoupe(L, W);
+    this.body.add(new THREE.Mesh(coupe.paint, paintMat), new THREE.Mesh(coupe.glass, glassMat), new THREE.Mesh(coupe.trim, trimMat));
+    // Lamps sit just proud of the bevelled body surface.
+    box(0.46, 0.08, 0.06, this.tailMat, -0.6, 0.7, L / 2 + 0.04);
+    box(0.46, 0.08, 0.06, this.tailMat, 0.6, 0.7, L / 2 + 0.04);
+    box(0.8, 0.025, 0.05, this.tailMat, 0, 0.72, L / 2 + 0.05);
+    box(0.42, 0.06, 0.06, headMat, -0.62, 0.6, -L / 2 - 0.01);
+    box(0.42, 0.06, 0.06, headMat, 0.62, 0.6, -L / 2 - 0.01);
 
     const tireGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.26, 24).rotateZ(Math.PI / 2);
     const rimGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.27, 12).rotateZ(Math.PI / 2);
@@ -78,7 +75,8 @@ export class PlayerView {
     shadow.renderOrder = 1;
     this.root.add(shadow);
 
-    this.headlight = new THREE.SpotLight(0xfff0d8, 2600, 160, 0.42, 0.55, 1.4);
+    // Physical falloff (decay 2): with 1.4 cars 30-60 m ahead were lit almost as hard as up close and bloomed.
+    this.headlight = new THREE.SpotLight(0xfff0d8, 900, 120, 0.42, 0.55, 2);
     this.headlight.position.set(0, 0.65, -L / 2);
     this.headlight.target.position.set(0, 0, -40);
     this.root.add(this.headlight, this.headlight.target);
