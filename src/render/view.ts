@@ -100,7 +100,7 @@ export class View {
     // Online, other drivers may bring the other bodies: build and compile them now (hidden), not when
     // their car first comes into view (~150 ms of geometry, livery and shaders).
     if (sim.online) {
-      for (const id of [1, 2] as const) {
+      for (const id of [1, 2, 3] as const) {
         const spare = new PlayerView(id, 0x888888, shadowTex, sim.player.tune.length, sim.player.tune.width, false);
         spare.root.visible = false;
         this.scene.add(spare.root);

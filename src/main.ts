@@ -282,7 +282,7 @@ choice('carSeg', 'carDesc', CARS, car, (id) => {
   saveCar(id);
   view.setCar(id, loadCameraMode(id) as CameraMode);
 });
-choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as 1 | 2, (id) => {
+choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, (id) => {
   savePhysics(id);
   sim.setPhysics(id);
 });

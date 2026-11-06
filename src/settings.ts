@@ -54,12 +54,12 @@ function saveChoice(key: string, v: number): void {
   }
 }
 
-export const loadPhysics = (): 1 | 2 => loadChoice('tcu.physics', [1, 2] as const, 1);
-export const savePhysics = (v: 1 | 2): void => saveChoice('tcu.physics', v);
+export const loadPhysics = (): 1 | 2 | 3 => loadChoice('tcu.physics', [1, 2, 3] as const, 1);
+export const savePhysics = (v: 1 | 2 | 3): void => saveChoice('tcu.physics', v);
 export const loadTraffic = (): 1 | 2 => loadChoice('tcu.traffic', [1, 2] as const, 1);
 export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);
-export const loadCar = (): 1 | 2 => loadChoice('tcu.car', [1, 2] as const, 1);
-export const saveCar = (v: 1 | 2): void => saveChoice('tcu.car', v);
+export const loadCar = (): 1 | 2 | 3 => loadChoice('tcu.car', [1, 2, 3] as const, 1);
+export const saveCar = (v: 1 | 2 | 3): void => saveChoice('tcu.car', v);
 
 /** Last camera mode used with each car (the cameras belong to the car). */
 export function loadCameraMode(car: number): string {

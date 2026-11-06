@@ -30,6 +30,11 @@ export class Sound {
   private send!: GainNode;
   private wet!: GainNode;
   private noise!: AudioBuffer;
+  private mercedesEngine: AudioBuffer | null = null;
+  private mercedesSource: AudioBufferSourceNode | null = null;
+  private mercedesEngineGain!: GainNode;
+  private mercedesEngineFilter!: BiquadFilterNode;
+  private mercedesEngineLoading = false;
 
   private o1!: OscillatorNode;
   private o2!: OscillatorNode;
@@ -176,6 +181,12 @@ export class Sound {
     this.turboGain = this.gainNode(0, this.dry);
     this.turboOsc = this.osc('sine', this.turboGain);
 
+    this.mercedesEngineGain = this.gainNode(0, this.dry);
+    this.mercedesEngineFilter = ctx.createBiquadFilter();
+    this.mercedesEngineFilter.type = 'lowpass';
+    this.mercedesEngineFilter.frequency.value = 1500;
+    this.mercedesEngineFilter.connect(this.mercedesEngineGain);
+
     this.wind = this.noiseVoice('lowpass', 400, 0.5, this.dry);
     this.roar = this.noiseVoice('lowpass', 480, 0.7, this.dry);
     this.squeal = this.noiseVoice('bandpass', 900, 3, this.dry);
@@ -272,6 +283,18 @@ export class Sound {
     const v = Math.max(0, p.vAlong);
     const rpmN = clamp(p.rpm / t.redline, 0, 1.05);
 
+    if (p.physicsId === 3) {
+      this.loadMercedesEngine();
+      this.startMercedesEngine();
+      if (this.mercedesSource) set(this.mercedesSource.playbackRate, clamp(p.rpm / 4000, 0.3, 2.2), 0.06);
+      set(this.mercedesEngineFilter.frequency, 450 + rpmN * 2200 + p.throttle * 900, 0.06);
+      set(this.mercedesEngineGain.gain, 0.1 + this.load * 0.32, 0.08);
+      set(this.engGain.gain, 0, 0.05);
+    } else {
+      set(this.mercedesEngineGain.gain, 0, 0.06);
+      set(this.engGain.gain, 0.11 + this.load * 0.16 + 0.06 * rpmN, 0.015);
+    }
+
     // Engine.
     this.load += (p.throttle - this.load) * Math.min(1, dt * 10);
     // Firing frequency: three pulses per revolution for the straight six, four for the V8 (physics №2).
@@ -291,7 +314,7 @@ export class Sound {
       eg *= 0.25;
     }
     if (p.rpm >= t.redline * 0.995 && p.throttle > 0.5) eg *= Math.sin(this.t * Math.PI * 2 * 17) > 0 ? 1 : 0.35;
-    set(this.engGain.gain, eg, 0.015);
+    if (p.physicsId !== 3) set(this.engGain.gain, eg, 0.015);
 
     // Lift-off: crackle and pop on the overrun, blow-off valve if the turbo was spooled.
     if (this.prevThrottle > 0.6 && p.throttle < 0.15 && rpmN > 0.55) {
@@ -351,6 +374,33 @@ export class Sound {
       w += (c.spec.truck ? 1.7 : 1) / (1 + (ds * ds + dd * dd) / 80);
     }
     set(this.hum.gain.gain, 0.2 * Math.min(1, w), 0.08);
+  }
+
+  private loadMercedesEngine(): void {
+    if (this.mercedesEngine || this.mercedesEngineLoading || !this.ctx) return;
+    this.mercedesEngineLoading = true;
+    void fetch('/audio/mercedes-engine.ogg')
+      .then((response) => {
+        if (!response.ok) throw new Error(`Mercedes engine audio: ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then((data) => this.ctx?.decodeAudioData(data))
+      .then((buffer) => {
+        if (buffer) this.mercedesEngine = buffer;
+      })
+      .catch(() => {
+        this.mercedesEngineLoading = false;
+      });
+  }
+
+  private startMercedesEngine(): void {
+    if (!this.ctx || !this.mercedesEngine || this.mercedesSource) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.mercedesEngine;
+    source.loop = true;
+    source.connect(this.mercedesEngineFilter);
+    source.start();
+    this.mercedesSource = source;
   }
 
   // ---------------------------------------------------------------- one-shots

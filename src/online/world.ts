@@ -208,7 +208,7 @@ export class OnlineWorld {
     this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics, car });
     let slot = 0;
     while (this.drivers.some((d) => d.slot === slot)) slot++;
-    const dr = new Driver(id, clean, physics === 2 ? 2 : 1, DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length], slot, this.rules.inputMax, this.ringLen);
+    const dr = new Driver(id, clean, physics === 2 || physics === 3 ? physics : 1, DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length], slot, this.rules.inputMax, this.ringLen);
     let at = 0;
     while (at < this.drivers.length && this.drivers[at].id < id) at++;
     dr.body = car;

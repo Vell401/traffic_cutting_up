@@ -187,7 +187,7 @@ export class GameServer {
     if (conn.slot) return this.violation(conn, 'second hello');
     if (msg.v !== PROTOCOL_VERSION) return this.reject(conn, 'version', 'Версия игры не совпадает с сервером — обновите страницу');
     if (msg.rules !== rulesHash()) return this.reject(conn, 'rules', 'Правила игры на сервере другие — обновите страницу');
-    const physics = msg.physics === 2 ? 2 : 1;
+    const physics = msg.physics === 2 || msg.physics === 3 ? msg.physics : 1;
     const car = carId(msg.car);
 
     // Reconnect: the slot (car, score, best) is kept for a while after a drop.

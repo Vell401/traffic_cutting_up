@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { WALL_D } from '../src/config';
 import { PlayerCar, type DriveInput } from '../src/sim/vehicle';
 import { DriftCar, driftTune } from '../src/sim/vehicleDrift';
+import { MercedesCar, mercedesTune } from '../src/sim/vehicleMercedes';
 
 const DT = 1 / 120;
 const DEG = Math.PI / 180;
@@ -371,5 +372,26 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
         expect(jump).toBeLessThan(0.01);
       }
     }
+  });
+});
+
+describe('MercedesCar (physics №3, AMG 4MATIC+)', () => {
+  it('uses a separate AWD tune and builds speed through eight gears', () => {
+    const car = new MercedesCar();
+    expect(car.tune).toBe(mercedesTune);
+    expect(car.physicsId).toBe(3);
+    expect(car.tune.frontDrive).toBeGreaterThan(0);
+    const r = rig(car, 0);
+    let elapsed = 0;
+    let t100 = 0;
+    r.run({ steer: 0, throttle: 1, brake: 0 }, 30, () => {
+      elapsed += DT;
+      if (!t100 && kmh(car) >= 100) t100 = elapsed;
+    });
+    expect(t100).toBeGreaterThan(2.5);
+    expect(t100).toBeLessThan(5.5);
+    expect(kmh(car)).toBeGreaterThan(250);
+    expect(car.gear).toBe(8);
+    expect(finite(car)).toBe(true);
   });
 });

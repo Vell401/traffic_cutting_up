@@ -19,6 +19,7 @@
     "postprocessing": "^6.39.6",
     "stats-gl": "^4.2.3",
     "three": "^0.187.0",
+    "three-stdlib": "^2.36.1",
     "tweakpane": "^4.0.5",
     "ws": "^8.22.1"
   },

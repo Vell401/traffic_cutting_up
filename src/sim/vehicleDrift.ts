@@ -96,6 +96,8 @@ export type DriftTune = CarTune & {
   slipSpeed: number;
   /** Integration substeps per step(). */
   substeps: number;
+  /** Engine torque share sent to the front axle (AWD); zero retains rear-wheel drive. */
+  frontDrive: number;
 };
 
 /**
@@ -169,6 +171,7 @@ export const driftTune: DriftTune = {
   lowSpeed: 2.5,
   slipSpeed: 3,
   substeps: 4,
+  frontDrive: 0,
 };
 
 /*
@@ -211,8 +214,8 @@ export class DriftCar extends PlayerCar {
   private tdx = 0;
   private innerGrip = 0;
 
-  constructor() {
-    super(driftTune);
+  constructor(tune: DriftTune = driftTune) {
+    super(tune);
   }
 
   override saveState(out: Float64Array, o = 0): number {
@@ -371,7 +374,8 @@ export class DriftCar extends PlayerCar {
 
     if (vx < t.lowSpeed) {
       // Kinematic bicycle near a standstill.
-      const fx = Math.min(this.driveTq / R, 0.95 * gripRx) - resist;
+      const driveGrip = gripRx + (t.frontDrive > 0 ? gripF : 0);
+      const fx = Math.min(this.driveTq / R, 0.95 * driveGrip) - resist;
       this.vx += (fx / m) * h;
       this.vx = Math.max(0, this.vx - this.brake * t.brakeDecel * h);
       this.vy = 0;
@@ -432,16 +436,18 @@ export class DriftCar extends PlayerCar {
       let kLim = tc > 0 ? t.tcSlip / tc : 1e3;
       kLim += (0.03 - kLim) * u;
       const brakeTq = this.brake * m * t.brakeDecel * R;
+      const driveFront = this.driveTq * t.frontDrive;
+      const driveRear = this.driveTq - driveFront;
 
       const kr = Math.max(0, kR / t.slipRatioPeak) * (R / denR);
       const ir = this.inertiaR + h * R * kr;
-      let wr = this.omegaR + (h * (this.driveTq * (1 - t.escCut * u) - this.dragTq - R * fxR)) / ir;
+      let wr = this.omegaR + (h * (driveRear * (1 - t.escCut * u) - this.dragTq - R * fxR)) / ir;
       wr = Math.max(0, wr - (h * brakeTq * (1 - t.brakeFront)) / ir);
       this.omegaR = clamp(wr, (vx - t.ebdSlip * denR) / R, (vx + kLim * denR) / R);
 
       const kf = Math.max(0, kF / t.slipRatioPeak) * (R / denF);
       const iff = t.wheelInertiaFront + h * R * kf;
-      let wf = this.omegaF - (h * R * fxF) / iff;
+      let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - R * fxF)) / iff;
       wf = Math.max(0, wf - (h * brakeTq * t.brakeFront) / iff);
       this.omegaF = Math.max(wf, (vwF - t.absSlip * denF) / R);
 

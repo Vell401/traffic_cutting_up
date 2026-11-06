@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three-stdlib';
+import { MeshoptDecoder } from 'meshoptimizer';
 import type { CarId } from '../../sim/cars';
-import { buildCoupe } from '../carModels';
+import { buildCoupe, sideExtrude } from '../carModels';
 import { liveryPaint } from './livery';
 import { CHROME, EMIT, GRILLE, PAINT, SHELL, TAIL, TRIM, r34Geometry } from './r34';
 import { buildR34Cockpit, type Cockpit } from './r34Interior';
@@ -53,6 +55,14 @@ export const CAMERA_RIGS: Record<CarId, CameraRig> = {
     cockpit: { fov: 64, fovFast: 71, pitch: -0.05 },
     modes: ['chase', 'far', 'cockpit', 'hood', 'bumper'],
   },
+  3: {
+    chase: { dist: 6.3, height: 2.15, lookAhead: 6, lookHeight: 0.88, fovMin: 58, fovMax: 76, yawLag: 7 },
+    far: { dist: 2.8, height: 0.95, lookAhead: 2, lookHeight: 0.3 },
+    hood: { f: 0.65, y: 1.12, lookHeight: 0.9 },
+    bumper: { f: 2.3, y: 0.52, lookHeight: 0.45 },
+    cockpit: null,
+    modes: ['chase', 'far', 'hood', 'bumper'],
+  },
 };
 
 export interface CarParts {
@@ -97,6 +107,35 @@ function honeycombTexture(): THREE.CanvasTexture {
 
 let r34Wheel: { tyre: THREE.BufferGeometry; rim: THREE.BufferGeometry; caliper: THREE.BufferGeometry } | null = null;
 let coupeWheel: { tyre: THREE.BufferGeometry; rim: THREE.BufferGeometry } | null = null;
+let mercedesModel: THREE.Group | null = null;
+let mercedesLoading = false;
+const mercedesWaiters = new Set<(model: THREE.Group) => void>();
+
+function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
+  if (mercedesModel) {
+    onLoad(mercedesModel);
+    return;
+  }
+  mercedesWaiters.add(onLoad);
+  if (mercedesLoading) return;
+  mercedesLoading = true;
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.load('/models/mercedes-a45s.glb', ({ scene }) => {
+    scene.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    });
+    mercedesModel = scene;
+    for (const waiter of mercedesWaiters) waiter(scene);
+    mercedesWaiters.clear();
+  }, undefined, () => {
+    mercedesLoading = false;
+    mercedesWaiters.clear();
+  });
+}
 
 const TAIL_IDLE = new THREE.Color(1.2, 0.05, 0.03);
 const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
@@ -106,7 +145,98 @@ const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
  * stays silver). `own`: our car (gets the cockpit when the model has one).
  */
 export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean): CarParts {
-  return id === 2 ? buildR34(paint, length, width, own) : buildCoupeParts(paint, length, width);
+  if (id === 2) return buildR34(paint, length, width, own);
+  if (id === 3) return buildMercedesParts(paint, length, width, own);
+  return buildCoupeParts(paint, length, width);
+}
+
+function buildMercedesParts(paint: number, L: number, W: number, importedModel: boolean): CarParts {
+  const body = new THREE.Group();
+  const shell = new THREE.Group();
+  const scale = new THREE.Vector3(W / 1.85, 1, L / 4.42);
+  shell.scale.copy(scale);
+  body.add(shell);
+  const paintMat = new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.52, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.055 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x080b10, metalness: 0.55, roughness: 0.12 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x111316, roughness: 0.62, metalness: 0.28 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xc1c6cc, metalness: 0.88, roughness: 0.22 });
+  const headMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.5, 2.45, 2.25) });
+  const tail = new THREE.MeshBasicMaterial({ color: TAIL_IDLE.clone() });
+  const box = (w: number, h: number, l: number, mat: THREE.Material, x: number, y: number, z: number, group = shell) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), mat);
+    mesh.position.set(x, y, z);
+    group.add(mesh);
+  };
+  const profile: [number, number][] = [
+    [-2.21, 0.3], [-2.21, 0.66], [-2.08, 0.84], [-1.85, 0.93], [-1.15, 0.95],
+    [0.9, 0.95], [1.6, 0.9], [2.08, 0.78], [2.21, 0.62], [2.21, 0.35], [2.08, 0.27], [-2.05, 0.27],
+  ];
+  const glazing: [number, number][] = [
+    [-1.48, 0.92], [-1.24, 1.29], [-0.98, 1.39], [0.45, 1.39], [0.78, 1.31],
+    [1.55, 0.91], [0.88, 0.91], [-0.9, 0.94],
+  ];
+  shell.add(new THREE.Mesh(sideExtrude(profile, 1.85, 1, 0.065), paintMat));
+  shell.add(new THREE.Mesh(sideExtrude(glazing, 1.48, 1, 0.025), glassMat));
+  if (importedModel) loadMercedesModel((model) => {
+    const imported = model.clone(true);
+    imported.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(imported);
+    const size = bounds.getSize(new THREE.Vector3());
+    // Keep the source proportions and fit its wheelbase direction to the car spec.
+    const fit = L / size.z;
+    imported.scale.setScalar(fit);
+    imported.updateMatrixWorld(true);
+    const scaled = new THREE.Box3().setFromObject(imported);
+    imported.position.set(-(scaled.min.x + scaled.max.x) / 2, -scaled.min.y, -(scaled.min.z + scaled.max.z) / 2);
+    body.remove(shell);
+    shell.clear();
+    body.add(imported);
+  });
+  // Low roof and upright rear hatch establish the compact AMG hatchback silhouette.
+  box(1.42, 0.12, 1.38, paintMat, 0, 1.37, -0.18);
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.035, 0.86), glassMat);
+  windshield.position.set(0, 1.17, -0.92);
+  windshield.rotation.x = -0.5;
+  shell.add(windshield);
+  const rearGlass = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.035, 0.72), glassMat);
+  rearGlass.position.set(0, 1.16, 0.98);
+  rearGlass.rotation.x = 0.65;
+  shell.add(rearGlass);
+  // Panamericana grille, twin intake openings, side skirts and quad exhausts.
+  box(0.88, 0.38, 0.045, trimMat, 0, 0.56, -2.205);
+  for (let i = -4; i <= 4; i++) box(0.035, 0.34, 0.012, chromeMat, i * 0.088, 0.56, -2.231);
+  box(0.38, 0.18, 0.06, trimMat, -0.62, 0.48, -2.18);
+  box(0.38, 0.18, 0.06, trimMat, 0.62, 0.48, -2.18);
+  box(1.78, 0.12, 3.15, trimMat, 0, 0.36, 0.03);
+  box(1.7, 0.16, 0.17, trimMat, 0, 0.38, 2.13);
+  for (const x of [-0.62, -0.42, 0.42, 0.62]) {
+    const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.12, 12).rotateX(Math.PI / 2), chromeMat);
+    exhaust.position.set(x, 0.39, 2.19);
+    shell.add(exhaust);
+  }
+  box(0.52, 0.07, 0.055, tail, -0.59, 0.72, 2.15);
+  box(0.52, 0.07, 0.055, tail, 0.59, 0.72, 2.15);
+  box(0.46, 0.08, 0.055, headMat, -0.62, 0.67, -2.15);
+  box(0.46, 0.08, 0.055, headMat, 0.62, 0.67, -2.15);
+  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.06, 0.28), paintMat);
+  spoiler.position.set(0, 1.48, 1.9);
+  shell.add(spoiler);
+  const wheelGeo = sportTyre(0.34, 0.245, 0.2286);
+  const rimGeo = sportRim(0.2286, 0.245);
+  const wheelPos: WheelPos[] = [
+    { x: -0.805, y: 0.34, z: -1.36, front: true }, { x: 0.805, y: 0.34, z: -1.36, front: true },
+    { x: -0.805, y: 0.34, z: 1.36, front: false }, { x: 0.805, y: 0.34, z: 1.36, front: false },
+  ];
+  const wheels = new WheelSet({
+    tyre: wheelGeo, rim: rimGeo, fixed: null,
+    tyreMat: new THREE.MeshStandardMaterial({ color: 0x101112, roughness: 0.9 }),
+    rimMat: new THREE.MeshStandardMaterial({ color: 0xd4d7dc, metalness: 0.9, roughness: 0.25 }),
+    fixedMat: null,
+  }, wheelPos);
+  const wheelRoot = new THREE.Group();
+  wheelRoot.scale.copy(scale);
+  wheelRoot.add(wheels.group);
+  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit: null };
 }
 
 function buildCoupeParts(paint: number, L: number, W: number): CarParts {
