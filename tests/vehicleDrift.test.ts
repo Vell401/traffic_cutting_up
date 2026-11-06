@@ -97,12 +97,14 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     let t = 0;
     let t100 = 0;
     let maxPsi = 0;
-    r.run({ steer: 0, throttle: 0, brake: 1 }, 10, () => {
+    // Until the car stops (holding the brake after that engages reverse, tested elsewhere).
+    while (car.vx > 0 && t < 10) {
+      r.run({ steer: 0, throttle: 0, brake: 1 }, DT);
       t += DT;
       if (!t100 && kmh(car) <= 100) t100 = t;
       maxPsi = Math.max(maxPsi, Math.abs(car.psi));
       expect(car.vx).toBeGreaterThanOrEqual(0);
-    });
+    }
     expect(t100).toBeGreaterThan(2.6);
     expect(t100).toBeLessThan(3.6);
     expect(maxPsi).toBeLessThan(1 * DEG);
@@ -296,7 +298,7 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
       expect(car.vx).toBeGreaterThanOrEqual(0);
     };
     r.run({ steer: 1, throttle: 1, brake: 0 }, 5, check);
-    r.run({ steer: -1, throttle: 0, brake: 1 }, 6, check);
+    for (let i = 0; i < 6 / DT && car.vx > 0; i++) r.run({ steer: -1, throttle: 0, brake: 1 }, DT, check);
     expect(car.vx).toBe(0);
     r.run({ steer: 0, throttle: 0, brake: 0 }, 1, check);
     for (let i = 0; i < 40; i++) {

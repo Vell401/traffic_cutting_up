@@ -15,6 +15,8 @@ export class Hud {
   private readonly kmh = $('kmh');
   private readonly gear = $('gear');
   private readonly blinkL = $('blinkL');
+  private readonly boostBar = $('boostBar');
+  private boostWasOn = false;
   private readonly blinkR = $('blinkR');
   private readonly rpmBar = $('rpmBar');
   private readonly popups = $('popups');
@@ -49,7 +51,13 @@ export class Hud {
     this.set('mult', this.mult, `×${sc.mult.toFixed(sc.mult % 1 === 0 ? 0 : 2)}`);
     this.set('best', this.best, fmt.format(sc.best));
     this.set('kmh', this.kmh, String(Math.round(Math.max(0, p.vAlong) * 3.6)));
-    this.set('gear', this.gear, p.manual ? `M${p.gear}` : String(p.gear));
+    const gear = p.gear === 0 ? 'R' : String(p.gear);
+    this.set('gear', this.gear, p.manual && p.gear !== 0 ? `M${gear}` : gear);
+    this.boostBar.style.transform = `scaleX(${p.boost.toFixed(3)})`;
+    if (p.boostOn !== this.boostWasOn) {
+      this.boostWasOn = p.boostOn;
+      this.boostBar.classList.toggle('on', p.boostOn);
+    }
     this.gear.classList.toggle('manual', p.manual);
     if (p.shiftRefused) {
       // A downshift the engine would not survive: the gear box flashes.

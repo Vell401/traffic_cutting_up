@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WALL_D } from '../src/config';
-import { PlayerCar, type DriveInput } from '../src/sim/vehicle';
+import { REVERSE_MAX, PlayerCar, type DriveInput } from '../src/sim/vehicle';
 
 const DT = 1 / 120;
 const run = (car: PlayerCar, input: DriveInput, seconds: number, k = 0, each?: () => void) => {
@@ -84,17 +84,26 @@ describe('PlayerCar', () => {
     }
   });
 
-  it('brakes to a stop without going backwards', () => {
+  it('brakes to a stop without going backwards; still holding the brake then engages reverse', () => {
     const car = new PlayerCar();
     car.reset(0, 0, 200 / 3.6);
-    let s = 0;
     const s0 = car.s;
-    run(car, { steer: 0, throttle: 0, brake: 1 }, 10, 0, () => {
-      expect(car.vx).toBeGreaterThanOrEqual(0);
-      s = car.s;
-    });
+    const brake = { steer: 0, throttle: 0, brake: 1 };
+    let steps = 0;
+    while (car.vx > 0 && steps++ < 10 / DT) {
+      car.step(DT, brake, 0);
+      if (car.gear !== 0) expect(car.vx).toBeGreaterThanOrEqual(0);
+    }
     expect(car.vx).toBe(0);
-    expect(s - s0).toBeLessThan(200);
+    expect(car.s - s0).toBeLessThan(200);
+    run(car, brake, 3);
+    expect(car.gear).toBe(0);
+    expect(car.vx).toBeLessThan(-3);
+    expect(car.vx).toBeGreaterThanOrEqual(-REVERSE_MAX);
+    // Throttle stops it and, at a standstill, puts first gear back in.
+    run(car, { steer: 0, throttle: 1, brake: 0 }, 3);
+    expect(car.gear).toBeGreaterThan(0);
+    expect(car.vx).toBeGreaterThan(2);
   });
 
   it('is held inside the barriers and reports the hit once', () => {

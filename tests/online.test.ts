@@ -203,8 +203,8 @@ describe('online session', () => {
     expect(net.server.world.byId(a.core.id)?.state).toBe('active');
   });
 
-  it('turns away the sixth driver', () => {
-    const net = new NetSession(7);
+  it('turns away the driver over the limit (set to 5 here)', () => {
+    const net = new NetSession(7, { maxPlayers: 5 });
     const rejected: string[] = [];
     for (let i = 0; i < 6; i++) {
       const c = net.add(spec(`P${i}`, 10 + i, 0));
@@ -213,6 +213,18 @@ describe('online session', () => {
     net.run(1);
     expect(net.server.playerCount).toBe(5);
     expect(rejected.length).toBe(1);
+  });
+
+  it('takes 50 drivers by default, all on the one spawn spot as ghosts', () => {
+    const world = new OnlineWorld(17);
+    const drivers = Array.from({ length: 50 }, (_, i) => world.join(`D${i}`, 1));
+    expect(drivers.every(Boolean)).toBe(true);
+    expect(world.join('one too many', 1)).toBeNull();
+    for (const d of drivers) {
+      expect(d!.car.s).toBe(spawnS(0));
+      expect(d!.car.d).toBe(SPAWN_D);
+      expect(d!.car.ghost).toBe(true);
+    }
   });
 
   it('drops a client that floods or sends garbage', () => {
@@ -244,34 +256,55 @@ describe('online session', () => {
 });
 
 describe('spawn pad', () => {
-  it('puts every driver on their own place, and R brings them back there', () => {
+  it('puts everyone on the same spot as ghosts, and R brings them back there', () => {
     const world = new OnlineWorld(12);
-    const drivers = ['A', 'B', 'C', 'D', 'E'].map((n) => world.join(n, 1)!);
-    expect(new Set(drivers.map((d) => d.slot))).toEqual(new Set([0, 1, 2, 3, 4]));
+    world.traffic.enabled = false;
+    const drivers = ['A', 'B', 'C'].map((n) => world.join(n, 1)!);
     for (const d of drivers) {
-      expect(d.car.s).toBe(spawnS(d.slot));
+      expect(d.car.s).toBe(spawnS(0));
       expect(d.car.d).toBe(SPAWN_D);
       expect(d.car.vAlong).toBe(0);
       expect(d.car.ghost).toBe(true);
     }
-    // Drive A off a full lap and a bit, then R.
+    // Drive A off, a lap and a bit on, then R.
     const a = drivers[0];
     const q = quantizeInput({ steer: 0, throttle: 1, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
+    const idle = quantizeInput({ steer: 0, throttle: 0, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
     for (let i = 1; i <= 600; i++) {
       world.input(a, i, [q], 1);
+      for (const d of drivers.slice(1)) world.input(d, i, [idle], 1);
       world.step();
     }
-    expect(a.car.s - spawnS(a.slot)).toBeGreaterThan(50);
+    expect(a.car.s - spawnS(0)).toBeGreaterThan(50);
+    // Still parked on the spot: the others stay ghosts.
+    expect(drivers[1].car.ghost).toBe(true);
     a.car.s += RING_LEN; // as if a lap later
     const epoch = a.epoch;
     world.respawn(a);
     expect(a.epoch).toBe(epoch + 1);
-    expect(a.car.s).toBe(spawnS(a.slot) + RING_LEN); // same place, on the lap the car is on
+    expect(a.car.s).toBe(spawnS(0) + RING_LEN); // same spot, on the lap the car is on
     expect(a.car.d).toBe(SPAWN_D);
     expect(a.car.vAlong).toBe(0);
-    // A freed place is reused by the next driver.
-    world.leave(drivers[2].id);
-    expect(world.join('F', 2)!.slot).toBe(2);
+    expect(a.car.ghost).toBe(true);
+  });
+
+  it('ghosts pulling away together stay ghosts until they are apart', () => {
+    const world = new OnlineWorld(13);
+    world.traffic.enabled = false;
+    const a = world.join('A', 1)!;
+    const b = world.join('B', 1)!;
+    const go = quantizeInput({ steer: -0.15, throttle: 1, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
+    let hits = 0;
+    for (const dr of [a, b]) for (const e of ['crash', 'bump'] as const) dr.events.on(e, () => hits++);
+    for (let i = 1; i <= 120 * 6; i++) {
+      // The same input: they leave the spot exactly on top of each other.
+      world.input(a, i, [go], 1);
+      world.input(b, i, [go], 1);
+      world.step();
+    }
+    expect(a.car.d).toBeLessThan(SPAWN_D - 2); // both left the pad...
+    expect(a.car.ghost && b.car.ghost).toBe(true); // ...but never solid while inside each other
+    expect(hits).toBe(0);
   });
 
   it('is on an open straight, clear of the lanes', () => {
@@ -390,8 +423,9 @@ describe('driver contacts', () => {
   it('both clients predict their collisions closely', () => {
     const net = new NetSession(23);
     net.server.world.traffic.enabled = false;
-    // Same lane, one fast and one slow: they run into each other again and again.
+    // Same lane, one fast and one slow: B leaves the spawn first, A follows and runs into it again and again.
     const b = net.add(spec('B', 25, 5, { physics: 2, bot: { kmh: 90, weave: false } }));
+    net.run(5);
     const a = net.add(spec('A', 40, 10, { bot: { kmh: 190, weave: false } }));
     const hits = new Map<string, number>();
     net.run(0.1);
@@ -407,13 +441,20 @@ describe('driver contacts', () => {
 
   it('a session with collisions replays exactly from its journal', () => {
     const net = new NetSession(24, {}, true);
-    net.add(spec('B', 25, 5, { physics: 2, bot: { kmh: 120, weave: false } }));
-    net.add(spec('A', 40, 10, { bot: { kmh: 230, weave: false } }));
-    let contacts = 0;
+    net.add(spec('B', 25, 5, { physics: 2, bot: { kmh: 110, weave: false } }));
+    net.run(5);
+    net.add(spec('A', 40, 10, { bot: { kmh: 230, weave: false, reckless: true } }));
+    // A driver contact hits both cars on the same tick (traffic crashes hit one).
+    const ticks = new Map<string, Set<number>>();
     net.run(0.1);
-    for (const dr of net.server.world.drivers) for (const e of ['crash', 'bump'] as const) dr.events.on(e, () => contacts++);
-    net.run(20);
-    expect(contacts).toBeGreaterThan(0);
+    for (const dr of net.server.world.drivers) {
+      const set = new Set<number>();
+      ticks.set(dr.name, set);
+      for (const e of ['crash', 'bump'] as const) dr.events.on(e, () => set.add(net.server.world.tick));
+    }
+    net.run(30);
+    const both = [...ticks.get('A')!].filter((t) => ticks.get('B')!.has(t));
+    expect(both.length).toBeGreaterThan(0);
     const live = net.server.world;
     expect(replay(24, {}, net.journal, live.tick).hash()).toBe(live.hash());
   });

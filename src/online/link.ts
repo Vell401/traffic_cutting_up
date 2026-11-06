@@ -92,6 +92,11 @@ export function serverUrl(params: URLSearchParams): string {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 }
 
+/** The server's HTTP API (…/api) next to its WebSocket URL. */
+export function apiBase(ws: string): string {
+  return ws.replace(/^ws/, 'http').replace(/\/ws\/?$/, '') + '/api';
+}
+
 /** The server's /health endpoint next to its WebSocket URL. */
 export function healthUrl(ws: string): string {
   return ws.replace(/^ws/, 'http').replace(/\/ws\/?$/, '') + '/health';

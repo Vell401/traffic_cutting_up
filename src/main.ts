@@ -12,7 +12,9 @@ import { PHYSICS, type PhysicsId } from './sim/physics';
 import { spawnS } from './sim/ring';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
-import { conditionsFromUrl, healthUrl, serverUrl } from './online/link';
+import { apiBase, conditionsFromUrl, healthUrl, serverUrl } from './online/link';
+import { diagFrame, initDiag, report } from './diag';
+import { Leaderboard } from './ui/leaderboard';
 import { OnlineSession } from './online/session';
 import type { Debug } from './ui/debug';
 import {
@@ -70,6 +72,8 @@ const view = new View(canvas, sim, QUALITY[quality], car);
 // Each car remembers its own camera.
 view.setCar(car, loadCameraMode(car) as CameraMode);
 const hud = new Hud(sim);
+const API = apiBase(serverUrl(params));
+initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.renderer.getContext());
 const input = new Input();
 const sound = new Sound(sim);
 const metrics = new Metrics(view.renderer, sim, () => `quality ${quality}  audio ${sound.state}`);
@@ -85,6 +89,14 @@ const pauseEl = document.getElementById('pause')!;
 
 sim.events.on('runEnd', (e) => {
   if (e.newBest && !TEST && !ONLINE) saveBest(e.best);
+  // Solo runs go to the solo leaderboard (online ones the server records itself).
+  if (!TEST && !ONLINE && e.score >= 1000) {
+    void leaders
+      ?.submitSolo({ name: playerName(), score: e.score, car, physics: sim.player.physicsId, near: e.near, topKmh: e.topKmh, seconds: e.time })
+      .then((rank) => {
+        if (rank && rank <= 10) hud.tag(`ЛИДЕРБОРД · МЕСТО ${rank}`, 3);
+      });
+  }
 });
 
 function start(): void {
@@ -152,7 +164,9 @@ function startOnline(): void {
         menuMessage(text);
       } else if (st === 'reconnecting') {
         ohud.setStatus(text, true);
+        report('warn', 'online: connection lost, reconnecting');
       } else if (st === 'failed') {
+        report('warn', `online failed: ${text}`);
         ohud.setStatus('');
         menuMessage(text, true);
         if (state !== 'menu') {
@@ -169,8 +183,7 @@ function startOnline(): void {
     onFeed: (text) => ohud.addFeed(text),
     onTeleport: () => {
       view.snapCamera();
-      const mine = sim.spawn.mine;
-      if (mine >= 0 && Math.abs(sim.road.rel(sim.player.s, spawnS(mine))) < 3) hud.tag(`SPAWN · МЕСТО ${mine + 1}`, 2.5);
+      if (Math.abs(sim.road.rel(sim.player.s, spawnS(0))) < 3) hud.tag('SPAWN · ВЫ НЕВИДИМЫ, ПОКА НА ПЛОЩАДКЕ', 2.5);
     },
   });
   session.start(name, sim.player.physicsId as PhysicsId, car);
@@ -191,14 +204,18 @@ async function probeServer(): Promise<void> {
   }
 }
 
+// The driver's name: online it is shown to others, both modes put it on the leaderboard.
+const playerName = (): string => nameInput.value.trim().slice(0, 16) || 'Driver';
+nameInput.value = loadName();
+nameInput.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') start();
+  e.stopPropagation(); // typing a name must not drive, pause or switch cameras
+});
+nameInput.addEventListener('keyup', (e) => e.stopPropagation());
+nameInput.addEventListener('change', () => saveName(playerName()));
+const leaders = TEST ? null : new Leaderboard(API, ONLINE ? 'online' : 'solo', playerName);
 if (ONLINE) {
   document.body.classList.add('online');
-  nameInput.value = loadName();
-  nameInput.addEventListener('keydown', (e) => {
-    if (e.code === 'Enter') start();
-    e.stopPropagation(); // typing a name must not drive, pause or switch cameras
-  });
-  nameInput.addEventListener('keyup', (e) => e.stopPropagation());
   void probeServer();
 }
 
@@ -222,6 +239,34 @@ async function toggleDebug(): Promise<void> {
 }
 if (new URLSearchParams(location.search).has('debug')) void toggleDebug();
 if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics, sound } });
+
+// ---------------------------------------------------------------- mouse look
+
+// Left button held on the game view: drag to look around; 2 s without moving and the view eases back.
+let dragging = false;
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  dragging = true;
+  try {
+    canvas.setPointerCapture(e.pointerId);
+  } catch {
+    /* capture is a nicety: dragging works without it */
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (dragging) view.look(e.movementX, e.movementY);
+});
+const endDrag = (e: PointerEvent) => {
+  dragging = false;
+  try {
+    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  } catch {
+    /* see above */
+  }
+};
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------------------------------------------------------------- gearbox and turn signals
 
@@ -422,6 +467,19 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state === 'play' && !ONLINE) setPaused(true);
 });
 
+/** A server correction of our car over 3 m is worth a report (it means the prediction went far off). */
+let correctionsSeen = 0;
+let correctionCheck = 0;
+function watchCorrections(now: number): void {
+  if (!session || now - correctionCheck < 1000) return;
+  correctionCheck = now;
+  const st = session.core.stats;
+  if (st.corrections !== correctionsSeen && st.lastCorrection > 3) {
+    report('warn', 'big prediction correction', `last ${st.lastCorrection.toFixed(2)} m, ping ${st.rtt.toFixed(0)} ms, ahead ${st.horizon} steps`);
+  }
+  correctionsSeen = st.corrections;
+}
+
 /** Online menu card open: no pedals, no steering (the car rolls on). */
 const NEUTRAL: DriveInput = { steer: 0, throttle: 0, brake: 0 };
 
@@ -491,6 +549,8 @@ view.renderer.setAnimationLoop((now: number) => {
   if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);
+  diagFrame(frameMs);
+  watchCorrections(now);
   if (TEST && state === 'play') announceSection();
   if (debugOn) debug?.update();
 });

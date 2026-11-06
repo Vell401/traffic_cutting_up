@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three-stdlib';
 import { MeshoptDecoder } from 'meshoptimizer';
+import { report } from '../../diag';
 import type { CarId } from '../../sim/cars';
 import { buildCoupe, sideExtrude } from '../carModels';
 import { liveryPaint } from './livery';
@@ -226,7 +227,8 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
     mercedesModel = scene;
     for (const waiter of mercedesWaiters) waiter(scene);
     mercedesWaiters.clear();
-  }, undefined, () => {
+  }, undefined, (e) => {
+    report('error', 'model load failed: mercedes-a45s.glb', String((e as { message?: string })?.message ?? e));
     mercedesLoading = false;
     mercedesWaiters.clear();
   });

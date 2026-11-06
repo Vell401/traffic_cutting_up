@@ -253,6 +253,23 @@ body.menu #hud {
 .speedo .rpm i.red {
   background: var(--bad);
 }
+.speedo .boost {
+  height: 3px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: -2px 0 6px;
+}
+.speedo .boost i {
+  display: block;
+  height: 100%;
+  background: #3ad1ff;
+  transform-origin: left;
+}
+.speedo .boost i.on {
+  background: #9af0ff;
+  box-shadow: 0 0 8px rgba(58, 209, 255, 0.9);
+}
 .speedo .row {
   display: flex;
   align-items: baseline;
@@ -311,6 +328,86 @@ body.menu #hud {
 .speedo .blinkers i.on {
   color: #4cff7a;
   text-shadow: 0 0 10px rgba(76, 255, 122, 0.8);
+}
+
+/* ---------- Leaderboard (start menu) ---------- */
+.leaders {
+  position: fixed;
+  right: clamp(16px, 4vw, 64px);
+  bottom: clamp(32px, 12vh, 140px);
+  width: 330px;
+  padding: 16px 18px 12px;
+  background: rgba(8, 10, 16, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  transition: opacity 0.35s;
+}
+body:not(.menu) .leaders,
+body.test .leaders {
+  opacity: 0;
+  pointer-events: none;
+}
+.leaders .lh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.seg.small button {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+.leaders ol {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  min-height: 60px;
+}
+.leaders li {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 14px;
+}
+.leaders li b {
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+.leaders li .n {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.leaders li .n em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.leaders li .s {
+  font-weight: 700;
+}
+.leaders li.me {
+  color: var(--accent);
+}
+.leaders li.empty {
+  display: block;
+  color: var(--ink-dim);
+  border: 0;
+}
+@media (max-width: 980px) {
+  .leaders {
+    display: none;
+  }
 }
 
 /* ---------- Overlays ---------- */

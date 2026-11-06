@@ -17,7 +17,8 @@
     "../src/core/events.ts",
     "../src/config.ts",
     "../scripts/smoke.ts",
-    "../tests/netsim.ts"
+    "../tests/netsim.ts",
+    "../tests/store.test.ts"
   ],
   "exclude": [
     "../src/online/link.ts",

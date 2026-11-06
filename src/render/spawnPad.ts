@@ -69,15 +69,16 @@ export class SpawnPad {
         m.position.set(x, 0.035, z);
         root.add(m);
       }
-      // The number sits behind the box (cars face -Z), readable from the chase camera.
-      const num = new THREE.Mesh(ground(1.5, 1.5), new THREE.MeshBasicMaterial({ map: numberTexture(i + 1), transparent: true, depthWrite: false }));
-      num.position.set(0, 0.035, BOX_L / 2 + 1.1);
-      root.add(num);
+      if (count > 1) {
+        // The number sits behind the box (cars face -Z), readable from the chase camera; it shares the box colour.
+        const num = new THREE.Mesh(ground(1.5, 1.5), new THREE.MeshBasicMaterial({ map: numberTexture(i + 1), transparent: true, depthWrite: false }));
+        num.position.set(0, 0.035, BOX_L / 2 + 1.1);
+        (num.material as THREE.MeshBasicMaterial).color = mat.color;
+        root.add(num);
+      }
       root.visible = false;
       this.group.add(root);
       this.places.push({ root, mat });
-      // Number shares the box colour.
-      (num.material as THREE.MeshBasicMaterial).color = mat.color;
     }
     this.word = new THREE.Mesh(
       // Across the shoulder, stretched along the road like painted road text (read at a grazing angle).
@@ -102,7 +103,8 @@ export class SpawnPad {
       p.root.position.set(this.pt.x - ox, 0, this.pt.z - oz);
       p.root.rotation.y = -this.pt.th;
       const owner = owners[i];
-      if (i === mine) p.mat.color.copy(MINE);
+      // One shared place: always in the accent colour.
+      if (i === mine || this.places.length === 1) p.mat.color.copy(MINE);
       else if (owner != null) p.mat.color.setHex(owner).multiplyScalar(1.6);
       else p.mat.color.copy(FREE);
     }

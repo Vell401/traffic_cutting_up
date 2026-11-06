@@ -10,6 +10,7 @@ export default defineConfig(({ isSsrBuild }) => ({
     proxy: {
       '/ws': { target: GAME_SERVER, ws: true },
       '/health': { target: GAME_SERVER },
+      '/api': { target: GAME_SERVER },
     },
   },
   // three.js + postprocessing (~740 kB minified) plus the sim and online code: ~810 kB, ~220 kB gzip.
@@ -17,8 +18,8 @@ export default defineConfig(({ isSsrBuild }) => ({
     target: 'es2022',
     sourcemap: true,
     chunkSizeWarningLimit: 900,
-    // npm run build:server: the game server and the smoke-test client, side by side in dist-server/.
-    ...(isSsrBuild ? { copyPublicDir: false, rollupOptions: { input: { main: 'server/main.ts', smoke: 'scripts/smoke.ts' } } } : {}),
+    // npm run build:server: the game server, the smoke-test client and the log reader, side by side in dist-server/.
+    ...(isSsrBuild ? { copyPublicDir: false, rollupOptions: { input: { main: 'server/main.ts', smoke: 'scripts/smoke.ts', logs: 'server/logs.ts' } } } : {}),
   },
   test: { include: ['tests/**/*.test.ts'] },
 }));

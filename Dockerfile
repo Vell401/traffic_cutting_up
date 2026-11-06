@@ -22,6 +22,8 @@ COPY --from=build /app/node_modules/ws ./node_modules/ws
 COPY --from=build /app/dist-server ./dist-server
 ARG GIT_SHA=dev
 ENV GIT_SHA=$GIT_SHA
+# The data volume (leaderboard, diagnostics) is created from this directory, owned by the app user.
+RUN mkdir -p /data && chown node:node /data
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \

@@ -16,10 +16,14 @@ services:
     environment:
       PORT: "8787"
       ORIGINS: https://${SITE_ADDRESS:?set SITE_ADDRESS}
-      MAX_PLAYERS: ${MAX_PLAYERS:-5}
+      MAX_PLAYERS: ${MAX_PLAYERS:-50}
       LOG_EVERY: "60"
+      DB_PATH: /data/traffic.db
     expose:
       - "8787"
+    volumes:
+      # Leaderboard and diagnostics log: kept across deploys.
+      - game_data:/data
     mem_limit: 512m
 
   web:
@@ -45,5 +49,6 @@ services:
     mem_limit: 256m
 
 volumes:
+  game_data:
   caddy_data:
   caddy_config:

@@ -180,6 +180,7 @@ export class View {
       this.anchor.car = p;
       cockpit = this.anchor;
     }
+    this.chase.boost = p.boostOn;
     this.chase.update(dt, this.camera, this.carPos, yaw, p.vAlong * 3.6, cockpit);
     this.sky.position.copy(this.camera.position);
     this.farGround.update(sim.road, s, this.camera.position);
@@ -210,7 +211,8 @@ export class View {
       entry.frame = frame;
       const c = r.car;
       const s = lerp(c.prevS, c.s, alpha);
-      const near = r.visible && s > ownS - 400 && s < ownS + 1300;
+      // Others' ghosts (on the spawn pad, back from the pits) are invisible; ours is see-through.
+      const near = r.visible && !c.ghost && s > ownS - 400 && s < ownS + 1300;
       entry.view.root.visible = near;
       if (!near) continue;
       const d = lerp(c.prevD, c.d, alpha);
@@ -248,6 +250,11 @@ export class View {
   /** Our car's turn signal lamp is lit this frame (HUD arrow, relay click). */
   get blinkLit(): boolean {
     return this.playerView.blinkLit;
+  }
+
+  /** Mouse drag with the left button: look around (see ChaseCamera.mouseLook). */
+  look(dx: number, dy: number): void {
+    this.chase.mouseLook(dx, dy);
   }
 
   get cameraMode(): CameraMode {

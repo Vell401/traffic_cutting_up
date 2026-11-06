@@ -11,7 +11,7 @@
 	tls /certs/cert.pem /certs/key.pem
 	encode zstd gzip
 
-	@game path /ws /health
+	@game path /ws /health /api/*
 	reverse_proxy @game game:8787
 
 	@hashed path /assets/*

@@ -180,8 +180,9 @@ export const IN_SHIFT_UP = 4;
 export const IN_SHIFT_DOWN = 8;
 export const IN_BLINK_LEFT = 16;
 export const IN_BLINK_RIGHT = 32;
+export const IN_BOOST = 64;
 /** Every input flag bit a client may set (the server masks the rest off). */
-export const IN_ALL = 63;
+export const IN_ALL = 127;
 
 /** Integer form of one input step: steer -32767..32767, pedals 0..255, flags (IN_*). */
 export interface InputQ {
@@ -200,7 +201,8 @@ export function quantizeInput(inp: DriveInput, out: InputQ): InputQ {
     (inp.analog ? IN_ANALOG : 0) |
     (inp.manual ? IN_MANUAL : 0) |
     (shift > 0 ? IN_SHIFT_UP : shift < 0 ? IN_SHIFT_DOWN : 0) |
-    (inp.blinker === 1 ? IN_BLINK_LEFT : inp.blinker === 2 ? IN_BLINK_RIGHT : 0);
+    (inp.blinker === 1 ? IN_BLINK_LEFT : inp.blinker === 2 ? IN_BLINK_RIGHT : 0) |
+    (inp.boost ? IN_BOOST : 0);
   return out;
 }
 
@@ -213,6 +215,7 @@ export function inputFromQ(q: InputQ, out: DriveInput): DriveInput {
   out.manual = (q.flags & IN_MANUAL) !== 0;
   out.shift = q.flags & IN_SHIFT_UP ? 1 : q.flags & IN_SHIFT_DOWN ? -1 : 0;
   out.blinker = q.flags & IN_BLINK_LEFT ? 1 : q.flags & IN_BLINK_RIGHT ? 2 : 0;
+  out.boost = (q.flags & IN_BOOST) !== 0;
   return out;
 }
 

@@ -72,7 +72,7 @@ export const SPAWN_GAP = 22;
 /** On the shoulder: between the edge line and the barrier. */
 export const SPAWN_D = ROAD_HALF + SHOULDER / 2;
 /** Places drawn on the pad (servers with more drivers queue further back). */
-export const SPAWN_PLACES = 5;
+export const SPAWN_PLACES = 1;
 
 /** s (on lap 0) of spawn place i. */
 export const spawnS = (i: number): number => SPAWN_S - i * SPAWN_GAP;

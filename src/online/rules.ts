@@ -5,7 +5,7 @@ import { VEHICLES } from '../sim/vehicles';
 import type { TrafficPreset } from '../sim/director';
 
 /** Bumped on any change to the message formats. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /**
  * Session settings the server decides and sends in `welcome`. The client never picks traffic: it is one
@@ -39,7 +39,7 @@ export interface OnlineRules {
 export const DEFAULT_RULES: OnlineRules = {
   tickHz: SIM_HZ,
   snapshotEvery: 4,
-  maxPlayers: 5,
+  maxPlayers: 50,
   traffic: 1,
   intensity: 0.45,
   modeSeconds: 40,

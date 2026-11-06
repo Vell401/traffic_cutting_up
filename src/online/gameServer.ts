@@ -30,6 +30,8 @@ export interface ServerOptions {
   journal?: (s: Stimulus) => void;
   /** Random token for reconnects. */
   token?: () => string;
+  /** A driver's run ended (for the leaderboard). */
+  onRun?: (dr: Driver, run: SimEvents['runEnd']) => void;
 }
 
 /** Skip snapshots to a socket with more than this queued (a slow link catches up instead of lagging further). */
@@ -124,12 +126,14 @@ export class GameServer {
   /** Totals for /health and the periodic log line. */
   readonly totals = { snapshots: 0, snapshotBytes: 0, skipped: 0, kicked: 0, joins: 0 };
   readonly steps: StepStats = { count: 0, total: 0, max: 0 };
+  private readonly onRun: ServerOptions['onRun'] | null;
 
   constructor(opts: ServerOptions) {
     this.world = new OnlineWorld(opts.seed, opts.rules);
     this.world.journal = opts.journal ?? null;
     this.log = opts.log ?? (() => {});
     this.token = opts.token ?? (() => globalThis.crypto.randomUUID());
+    this.onRun = opts.onRun ?? null;
     this.world.events.on('trafficMode', (e) => this.broadcast({ t: 'mode', mode: e.mode, label: e.label }));
   }
 
@@ -234,6 +238,7 @@ export class GameServer {
     if (slot?.conn) this.send(slot.conn, { t: 'ev', name, data });
     if (name === 'runEnd') {
       const e = data as unknown as SimEvents['runEnd'];
+      this.onRun?.(dr, e);
       if (e.newBest && e.score >= 5000) this.feed(`${dr.name}: новый рекорд ${e.score.toLocaleString('ru-RU')}`);
       this.pushPlayers(true);
     }

@@ -5,6 +5,9 @@ import { CAMERA_RIGS, type CameraMode, type CameraRig } from './car';
 
 export type { CameraMode } from './car';
 
+/** Mouse look holds this long after the last move, then eases back, s. */
+const LOOK_HOLD = 2;
+
 /** What the first-person camera rides on. */
 export interface CockpitAnchor {
   eye: THREE.Object3D;
@@ -46,6 +49,9 @@ class Spring {
 export class ChaseCamera {
   mode: CameraMode = 'chase';
   rig: CameraRig = CAMERA_RIGS[1];
+  /** Boost on: the view widens a little. */
+  boost = false;
+  private boostFov = 0;
   private yaw = 0;
   private shake = 0;
   private t = 0;
@@ -60,6 +66,25 @@ export class ChaseCamera {
   private readonly q = new THREE.Quaternion();
   private readonly qHead = new THREE.Quaternion();
   private readonly e = new THREE.Euler(0, 0, 0, 'YXZ');
+  /** Mouse look (left button dragged): offsets in rad, eased back to zero 2 s after the last move. */
+  private lookYaw = 0;
+  private lookPitch = 0;
+  private lookT = 1e9;
+
+  /** Drag by (dx, dy) px: around the car in the chase views, the head in the cockpit, the view on the hood and bumper. */
+  mouseLook(dx: number, dy: number): void {
+    const cockpit = this.mode === 'cockpit';
+    this.lookYaw = clamp(this.lookYaw - dx * 0.006, cockpit ? -2.4 : -Math.PI, cockpit ? 2.4 : Math.PI);
+    this.lookPitch = clamp(this.lookPitch - dy * 0.004, cockpit ? -0.6 : -0.25, cockpit ? 0.5 : 0.7);
+    this.lookT = 0;
+  }
+
+  private easeLook(dt: number): void {
+    this.lookT += dt;
+    if (this.lookT < LOOK_HOLD) return;
+    this.lookYaw = damp(this.lookYaw, 0, 3, dt);
+    this.lookPitch = damp(this.lookPitch, 0, 3, dt);
+  }
 
   kick(amount: number): void {
     this.shake = Math.max(this.shake, amount);
@@ -102,8 +127,12 @@ export class ChaseCamera {
     const rigid = this.rigid;
     this.yaw = rigid ? dampAngle(this.yaw, carYaw, 30, dt) : dampAngle(this.yaw, carYaw, ct.yawLag, dt);
     const sp = clamp((kmh - 40) / 260, 0, 1);
+    this.easeLook(dt);
+    // The car's heading (for looking ahead) and the camera's own direction (turned by the mouse).
     const fx = Math.sin(this.yaw);
     const fz = -Math.cos(this.yaw);
+    const cx = Math.sin(this.yaw + this.lookYaw);
+    const cz = -Math.cos(this.yaw + this.lookYaw);
 
     const [n1, n2] = this.noise(dt, sp, rigid ? 0.35 : 1);
 
@@ -140,12 +169,24 @@ export class ChaseCamera {
     // The hood sits ~0.3 m under the hood camera: only that mode needs a near plane closer than 0.5 m
     // (the rest keep 0.5 m for depth precision on far road decals).
     this.setNear(camera, this.mode === 'hood' ? 0.15 : 0.5);
-    camera.position.set(target.x - fx * back + n1, target.y + h + n2, target.z - fz * back + n2 * 0.5);
-    this.look.set(target.x + fx * lookAhead, target.y + lookH, target.z + fz * lookAhead);
+    if (rigid) {
+      // Hood and bumper: the camera stays put and turns.
+      camera.position.set(target.x - fx * back + n1, target.y + h + n2, target.z - fz * back + n2 * 0.5);
+      const ahead = lookAhead * Math.cos(this.lookPitch);
+      this.look.set(camera.position.x + cx * ahead, target.y + lookH + lookAhead * Math.sin(this.lookPitch), camera.position.z + cz * ahead);
+    } else {
+      // Chase: orbit around the car, framing it more centrally the further round the camera goes.
+      const flat = back * Math.cos(this.lookPitch);
+      const up = h + back * Math.sin(this.lookPitch);
+      const ahead = lookAhead * Math.max(0, Math.cos(this.lookYaw));
+      camera.position.set(target.x - cx * flat + n1, target.y + up + n2, target.z - cz * flat + n2 * 0.5);
+      this.look.set(target.x + fx * ahead, target.y + lookH, target.z + fz * ahead);
+    }
     camera.lookAt(this.look);
 
     const base = rigid ? 8 : 0;
-    this.setFov(camera, damp(camera.fov, lerp(ct.fovMin + base, ct.fovMax + base, sp), 3, dt));
+    this.boostFov = damp(this.boostFov, this.boost ? 6 : 0, 4, dt);
+    this.setFov(camera, damp(camera.fov, lerp(ct.fovMin + base, ct.fovMax + base, sp) + this.boostFov, 3, dt));
   }
 
   /** Driver's eye on the suspended body; the head sways with the g-forces and glances into turns. */
@@ -165,13 +206,14 @@ export class ChaseCamera {
     const roll = this.headRoll.step(latG * 0.018, dt);
     const pitch = this.headPitch.step(longG * 0.018, dt);
     this.glance = damp(this.glance, clamp(car.r * 0.11 + car.steerIn * 0.025, -0.12, 0.12), 3, dt);
+    this.easeLook(dt);
     const sp = clamp((kmh - 40) / 260, 0, 1);
     const [n1, n2] = this.noise(dt, sp, 0.12);
 
     a.eye.updateWorldMatrix(true, false);
     camera.position.set(hx + n1, n2, hz).applyMatrix4(a.eye.matrixWorld);
     a.body.getWorldQuaternion(this.q);
-    this.e.set(rig.pitch + pitch + n2 * 0.6, -this.glance, roll);
+    this.e.set(rig.pitch + pitch + n2 * 0.6 + this.lookPitch, -this.glance + this.lookYaw, roll);
     this.qHead.setFromEuler(this.e);
     camera.quaternion.copy(this.q).multiply(this.qHead);
 

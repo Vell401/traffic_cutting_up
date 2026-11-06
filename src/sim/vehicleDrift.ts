@@ -198,6 +198,8 @@ export class DriftCar extends PlayerCar {
 
   /** Shift request of the current step (manual gearbox). */
   private shiftReq = 0;
+  /** Boost push of the current step, N. */
+  private boostF = 0;
   /** Rear / front wheel angular speed, rad/s. */
   omegaR = 0;
   omegaF = 0;
@@ -288,6 +290,15 @@ export class DriftCar extends PlayerCar {
     const L = t.cgToFront + t.cgToRear;
     const v = Math.max(this.vx, 0);
     this.rampSteer(dt, inp, clamp(t.steerRateSpeed / Math.max(v, 1), 0.4, 1));
+    if (this.reverse(dt, inp, kRoad)) {
+      this.omegaR = this.omegaF = this.vx / t.wheelRadius;
+      this.slipRear = this.slipAngleRear = this.esc = this.escCmd = 0;
+      this.axLag = this.accLong;
+      this.ayLag = 0;
+      this.driveTq = this.dragTq = 0;
+      return;
+    }
+    this.boostF = this.updateBoost(dt, inp);
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
     this.manual = inp.manual === true;
@@ -393,7 +404,7 @@ export class DriftCar extends PlayerCar {
     if (vx < t.lowSpeed) {
       // Kinematic bicycle near a standstill.
       const driveGrip = gripRx + (t.frontDrive > 0 ? gripF : 0);
-      const fx = Math.min(this.driveTq / R, 0.95 * driveGrip) - resist;
+      const fx = Math.min(this.driveTq / R, 0.95 * driveGrip) - resist + this.boostF;
       this.vx += (fx / m) * h;
       this.vx = Math.max(0, this.vx - this.brake * t.brakeDecel * h);
       this.vy = 0;
@@ -427,7 +438,7 @@ export class DriftCar extends PlayerCar {
 
       const fxFront = fxF * cosd - fyF * sind;
       const fyFront = fxF * sind + fyF * cosd;
-      let fx = fxFront + fxR - resist;
+      let fx = fxFront + fxR - resist + this.boostF;
       const fy = fyFront + fyR;
       let mz = a * fyFront - b * fyR;
       const Iz = m * a * b * t.yawInertia;

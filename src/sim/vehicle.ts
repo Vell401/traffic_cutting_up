@@ -14,7 +14,18 @@ export interface DriveInput {
   shift?: number;
   /** Turn signal: 0 off, 1 left, 2 right (cosmetic; others see it online). */
   blinker?: number;
+  /** Shift held: spend the boost reserve on extra push. */
+  boost?: boolean;
 }
+
+/** Reverse (gear 0): top speed and pull of the slow kinematic reverse, m/s and m/s². */
+export const REVERSE_MAX = 7;
+const REVERSE_ACC = 3.2;
+/** Boost: extra push (m/s², bypasses the gearbox and the tyres' traction limit), seconds of reserve, seconds to refill, share needed to start again. */
+export const BOOST_ACC = 2.2;
+const BOOST_SECONDS = 4;
+const BOOST_REFILL = 14;
+const BOOST_RESTART = 0.15;
 
 /** Engine power available in a manual gear at rpm share x of the redline (the automatic keeps the revs high). */
 export const manualPowerShare = (x: number): number => clamp(0.2 + 0.95 * x, 0.3, 1);
@@ -78,6 +89,9 @@ export class PlayerCar {
   protected lastWallSide = 0;
   /** Online spawn protection: traffic ignores the car and contacts are off. Not part of the physics state. */
   ghost = false;
+  /** Boost reserve 0..1 and whether it is being spent (both carried step to step). */
+  boost = 1;
+  boostOn = false;
   /** Gearbox mode of the last step, the turn signal shown, a refused downshift (would over-rev). Cosmetic. */
   manual = false;
   blinker = 0;
@@ -115,6 +129,8 @@ export class PlayerCar {
     out[o++] = this.wallImpact;
     out[o++] = this.wallFreeT;
     out[o++] = this.lastWallSide;
+    out[o++] = this.boost;
+    out[o++] = this.boostOn ? 1 : 0;
     return o;
   }
 
@@ -146,12 +162,14 @@ export class PlayerCar {
     this.wallImpact = src[o++];
     this.wallFreeT = src[o++];
     this.lastWallSide = src[o++];
+    this.boost = src[o++];
+    this.boostOn = src[o++] !== 0;
     return o;
   }
 
   /** Number of values saveState() writes. */
   get stateSize(): number {
-    return 26;
+    return 28;
   }
 
   reset(s: number, d: number, speed: number): void {
@@ -169,6 +187,8 @@ export class PlayerCar {
     this.wallSide = 0;
     this.wallHit = false;
     this.wallFreeT = WALL_REHIT;
+    this.boost = 1;
+    this.boostOn = false;
   }
 
   get speed(): number {
@@ -208,6 +228,8 @@ export class PlayerCar {
     this.prevS = this.s;
     this.prevD = this.d;
     this.prevPsi = this.psi;
+    if (this.reverse(dt, inp, kRoad)) return;
+    const boostF = this.updateBoost(dt, inp);
 
     const L = t.cgToFront + t.cgToRear;
     const m = t.mass;
@@ -271,7 +293,7 @@ export class PlayerCar {
       const cosd = Math.cos(delta);
       const sind = Math.sin(delta);
 
-      const fx = fxRear + fxFront * cosd - Fyf * sind - resist;
+      const fx = fxRear + fxFront * cosd - Fyf * sind - resist + boostF;
       const fyFront = Fyf * cosd + fxFront * sind;
       const ax = fx / m + this.vy * this.r;
       const ay = (fyFront + Fyr) / m - v * this.r;
@@ -290,7 +312,7 @@ export class PlayerCar {
       this.accLat = (fyFront + Fyr) / m;
     } else {
       // Low speed: kinematic bicycle, the tire model is singular near standstill.
-      const fx = drive - resist;
+      const fx = drive - resist + boostF;
       this.vx += (fx / m) * dt;
       this.vx = Math.max(0, this.vx - this.brake * t.brakeDecel * dt);
       this.vy = 0;
@@ -321,6 +343,73 @@ export class PlayerCar {
    * speeds the ramp up to full rate within ~0.15 s. Releasing snaps back to centre.
    * pressScale scales the keyboard press rate (1 = as tuned).
    */
+  /**
+   * Direction: holding the brake at a standstill engages reverse (gear 0), the throttle at a
+   * standstill (or X in manual) goes back to first; Z in first at a standstill also selects reverse.
+   * In reverse this runs the step and returns true.
+   */
+  protected reverse(dt: number, inp: DriveInput, kRoad: number): boolean {
+    // Forward needs the car fully stopped before reverse goes in; out of reverse a nearly stopped car is enough.
+    const shift = inp.manual ? (inp.shift ?? 0) : 0;
+    if (this.gear !== 0 && this.vx < 1e-3 && ((inp.brake > 0.5 && inp.throttle < 0.05) || (this.gear === 1 && shift < 0))) {
+      this.gear = 0;
+      this.shiftT = 0;
+    } else if (this.gear === 0 && this.vx > -0.3 && ((inp.throttle > 0.1 && inp.brake < 0.05) || shift > 0)) {
+      this.gear = 1;
+      this.vx = Math.max(this.vx, 0);
+    }
+    if (this.gear !== 0) return false;
+    this.manual = inp.manual === true;
+    this.blinker = inp.blinker ?? 0;
+    this.shiftRefused = false;
+    this.boostOn = false;
+    this.boost = Math.min(1, this.boost + dt / BOOST_REFILL);
+    this.stepReverse(dt, inp, kRoad);
+    return true;
+  }
+
+  /** Reverse: a slow kinematic bicycle backwards. The brake pedal drives, the throttle stops the car. */
+  protected stepReverse(dt: number, inp: DriveInput, kRoad: number): void {
+    const t = this.tune;
+    const L = t.cgToFront + t.cgToRear;
+    this.rampSteer(dt, inp);
+    this.steerAngle = this.steerIn * t.maxSteerLow;
+    this.throttle = clamp(inp.brake, 0, 1);
+    this.brake = clamp(inp.throttle, 0, 1);
+    const v0 = this.vx;
+    let vx = this.vx;
+    if (vx > -REVERSE_MAX) vx = Math.max(-REVERSE_MAX, vx - this.throttle * REVERSE_ACC * dt);
+    vx = Math.min(0, vx + this.brake * t.brakeDecel * dt);
+    if (this.throttle < 0.05) vx = moveTo(vx, 0, 0.8 * dt);
+    this.vx = vx;
+    this.vy = 0;
+    this.r = (vx * Math.tan(this.steerAngle)) / L;
+    this.accLong = (vx - v0) / dt;
+    this.accLat = 0;
+    this.rpm = t.idleRpm + (t.redline * 0.45 - t.idleRpm) * (-vx / REVERSE_MAX);
+    const cp = Math.cos(this.psi);
+    const sp = Math.sin(this.psi);
+    const sDot = (vx * cp) / (1 - kRoad * this.d);
+    this.s += sDot * dt;
+    this.d += vx * sp * dt;
+    this.psi += (this.r - kRoad * sDot) * dt;
+    this.wheelSpin += (vx / 0.34) * dt;
+    this.resolveWalls(dt);
+    this.onShoulder = Math.abs(this.d) > ROAD_HALF;
+  }
+
+  /**
+   * Boost (Shift with the throttle down): extra push from a reserve that lasts about 4 s and refills
+   * in about 14 s; once empty it starts again only with some reserve back. Returns the force, N.
+   */
+  protected updateBoost(dt: number, inp: DriveInput): number {
+    const want = inp.boost === true && clamp(inp.throttle, 0, 1) > 0.3;
+    this.boostOn = want && this.boost > (this.boostOn ? 0 : BOOST_RESTART);
+    if (this.boostOn) this.boost = Math.max(0, this.boost - dt / BOOST_SECONDS);
+    else this.boost = Math.min(1, this.boost + dt / BOOST_REFILL);
+    return this.boostOn ? this.tune.mass * BOOST_ACC : 0;
+  }
+
   /**
    * Manual gearbox request: up (not past top gear) or down, refused when the lower gear would take
    * the engine past the redline. One shift at a time. k: rpm in a gear = k / its top speed (km/h).

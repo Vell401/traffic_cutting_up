@@ -6,7 +6,7 @@ const DEADZONE = 0.12;
 
 /** Keyboard (layout independent, by KeyboardEvent.code) and gamepad. */
 export class Input {
-  readonly drive: DriveInput = { steer: 0, throttle: 0, brake: 0, analog: false };
+  readonly drive: DriveInput = { steer: 0, throttle: 0, brake: 0, analog: false, boost: false };
   /** Fired once per key press (no auto-repeat). Gamepad buttons are mapped to key codes. */
   onPress: ((code: string) => void) | null = null;
 
@@ -28,6 +28,7 @@ export class Input {
     let steer = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
     let throttle = k.has('KeyW') || k.has('ArrowUp') ? 1 : 0;
     let brake = k.has('KeyS') || k.has('ArrowDown') ? 1 : 0;
+    let boost = k.has('ShiftLeft') || k.has('ShiftRight');
     let analog = false;
 
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -40,6 +41,7 @@ export class Input {
       }
       throttle = Math.max(throttle, pad.buttons[7]?.value ?? 0);
       brake = Math.max(brake, pad.buttons[6]?.value ?? 0);
+      boost ||= pad.buttons[5]?.pressed ?? false;
       this.padButton(pad, 9, 'KeyP');
       this.padButton(pad, 0, 'Enter');
       this.padButton(pad, 3, 'KeyR');
@@ -50,6 +52,7 @@ export class Input {
     this.drive.throttle = throttle;
     this.drive.brake = brake;
     this.drive.analog = analog;
+    this.drive.boost = boost;
   }
 
   private padButton(pad: Gamepad, index: number, code: string): void {

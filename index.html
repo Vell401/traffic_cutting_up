@@ -35,6 +35,7 @@
       <div class="speedo">
         <div class="blinkers"><i id="blinkL">◀</i><i id="blinkR">▶</i></div>
         <div class="rpm"><i id="rpmBar"></i></div>
+        <div class="boost" title="Shift — ускорение"><i id="boostBar"></i></div>
         <div class="row">
           <span id="kmh" class="num">0</span>
           <span class="unit">km/h</span>
@@ -59,6 +60,9 @@
           <span><kbd>G</kbd> автомат · ручная</span>
           <span><kbd>Z</kbd><kbd>X</kbd> передача ↓ ↑</span>
           <span><kbd>Q</kbd><kbd>E</kbd> поворотники</span>
+          <span><kbd>Shift</kbd> ускорение</span>
+          <span><kbd>S</kbd> на месте — задний ход</span>
+          <span><kbd>ЛКМ</kbd> обзор</span>
           <span><kbd>M</kbd> звук</span>
           <span><kbd>P</kbd> пауза</span>
           <span><kbd>`</kbd> тюнинг</span>
@@ -70,10 +74,10 @@
             <div id="modeSeg" class="seg"></div>
             <div id="modeDesc" class="odesc"></div>
           </div>
-          <span class="ol online-only">Имя</span>
-          <div class="online-only">
+          <span class="ol">Имя</span>
+          <div>
             <input id="nameInput" maxlength="16" spellcheck="false" autocomplete="nickname" placeholder="Driver" />
-            <div id="serverInfo" class="odesc"></div>
+            <div id="serverInfo" class="odesc online-only"></div>
           </div>
           <span class="ol">Машина</span>
           <div>
@@ -104,6 +108,15 @@
         <button id="startBtn"><em class="solo-only">Поехали</em><em class="online-only">Подключиться</em> <span>Enter</span></button>
       </div>
     </div>
+
+    <aside id="leaders" class="leaders">
+      <div class="lh">
+        <span>Лидерборд</span>
+        <div id="leadersTabs" class="seg small"><button data-mode="solo">Одиночный</button><button data-mode="online">Онлайн</button></div>
+      </div>
+      <ol id="leadersList"></ol>
+      <div id="leadersNote" class="odesc"></div>
+    </aside>
 
     <aside id="testPanel" hidden>
       <div class="ph">Test · виды трассы</div>

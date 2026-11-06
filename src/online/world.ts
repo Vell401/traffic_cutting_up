@@ -151,6 +151,8 @@ export class Driver {
  * their way); with more than `inputHigh` queued it applies two per tick to catch up. So a driver's car
  * sees every input exactly once, and the client can predict it exactly.
  */
+/** Most traffic cars the ring ever needs (12 km × 4 lanes, dense mode, with margin). */
+const RING_TRAFFIC = 480;
 /** Ticks two drivers must stay apart before their next contact counts again (0.5 s). */
 const PAIR_QUIET = 60;
 
@@ -194,7 +196,8 @@ export class OnlineWorld {
     this.director.preset = this.rules.traffic;
     this.director.fixedIntensity = this.rules.intensity;
     this.director.resetRun();
-    this.traffic = new Traffic(this.rng, this.director, this.rules.maxPlayers * MAX_TRAFFIC);
+    // Room for every driver's window, but never more than the whole ring holds.
+    this.traffic = new Traffic(this.rng, this.director, Math.min(this.rules.maxPlayers * MAX_TRAFFIC, RING_TRAFFIC));
     this.traffic.ringLen = this.ringLen;
     this.contacts = new Contacts(this.rng);
     this.contacts.ringLen = this.ringLen;
@@ -355,7 +358,20 @@ export class OnlineWorld {
     dr.ghostT -= dt;
     // No scoring while passing through traffic.
     dr.score.grace = Math.max(dr.score.grace, 0.25);
-    if (dr.ghostT <= 0 && !this.touchesTraffic(dr.car) && !this.onSpawnPad(dr.car)) dr.car.ghost = false;
+    if (dr.ghostT <= 0 && !this.touchesTraffic(dr.car) && !this.onSpawnPad(dr.car) && !this.touchesDriver(dr)) dr.car.ghost = false;
+  }
+
+  /** Overlapping (or nearly) another driver's car: everyone spawns on one spot, so pulling away together is common. */
+  private touchesDriver(dr: Driver): boolean {
+    const p = dr.car;
+    for (const o of this.drivers) {
+      if (o === dr || o.state !== 'active') continue;
+      const c = o.car;
+      if (Math.abs(this.traffic.rel(c.s, p.s)) < (c.tune.length + p.tune.length) / 2 + 1.5 && Math.abs(c.d - p.d) < (c.tune.width + p.tune.width) / 2 + 0.4) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -406,7 +422,8 @@ export class OnlineWorld {
     if (how === 'return') {
       car.reset(car.s, laneCenter(this.freeLane(car.s)), 90 / 3.6);
     } else {
-      const home = spawnS(dr.slot);
+      // Everyone spawns on the same spot; ghosts there, so nobody collides with anybody.
+      const home = spawnS(0);
       const lap = how === 'join' ? 0 : Math.round((car.s - home) / this.ringLen);
       car.reset(home + this.ringLen * lap, SPAWN_D, 0);
     }

@@ -41,6 +41,7 @@ node dist-server/smoke.js --url wss://185.225.200.161/ws --origin https://185.22
 - Контейнеры перезапускаются сами (`restart: unless-stopped`), в том числе после перезагрузки сервера.
 - Логи ограничены: по 10 МБ × 3 файла на контейнер.
 - Память ограничена: игре 512 МБ, Caddy 256 МБ.
+- Лидерборд и журнал проблем лежат в SQLite на томе `game_data`, поэтому переживают деплои.
 - Старые образы и кэш сборки старше недели удаляются после каждого деплоя.
 
 ## HTTPS без домена
@@ -85,6 +86,8 @@ cd /opt/actions-runner/_work/traffic_cutting_up/traffic_cutting_up   # посл�
 docker compose ps                        # состояние, здоровье
 docker compose logs -f --tail 100 game   # логи игрового сервера
 curl -sk https://localhost/health        # метрики сервера (через Caddy)
+docker compose exec game node dist-server/logs.js 100     # журнал проблем (сервер и страницы игроков)
+docker compose exec game node dist-server/logs.js top solo  # лидерборд (solo | online)
 systemctl status 'actions.runner.*'      # раннер
 journalctl -u 'actions.runner.*' -f      # логи раннера
 ```

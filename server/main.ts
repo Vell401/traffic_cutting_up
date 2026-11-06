@@ -5,6 +5,7 @@
  *   npm run build:server    → dist-server/main.js, run with `node dist-server/main.js`
  *
  * HTTP  GET /health  JSON status (tick, players, step times, traffic, memory)
+ *       /api/...     leaderboard, solo runs, page diagnostics (server/api.ts)
  * WS    /ws          the game protocol (src/online/protocol.ts)
  *
  * Environment:
@@ -16,14 +17,17 @@
  *   JOURNAL_DIR    write a replayable session journal there (off by default)
  *   JOURNAL_MAX_MB stop journalling past this size (200)
  *   LOG_EVERY      seconds between status log lines (60)
+ *   DB_PATH        SQLite file for the leaderboard and the diagnostics log (./data/traffic.db)
  */
 import { createWriteStream, mkdirSync, type WriteStream } from 'node:fs';
 import { createServer } from 'node:http';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { GameServer, type LogLevel } from '../src/online/gameServer';
 import { rulesHash, type OnlineRules } from '../src/online/rules';
 import type { Stimulus } from '../src/online/world';
+import { Api } from './api';
+import { Store } from './store';
 
 const env = process.env;
 const PORT = Number(env.PORT ?? 8787);
@@ -33,11 +37,14 @@ const LOG_EVERY = Number(env.LOG_EVERY ?? 60);
 const seed = Number(env.SEED) || Math.floor(Math.random() * 2 ** 31);
 
 const rules: Partial<OnlineRules> = {};
-if (env.MAX_PLAYERS) rules.maxPlayers = Math.max(1, Math.min(16, Number(env.MAX_PLAYERS)));
+if (env.MAX_PLAYERS) rules.maxPlayers = Math.max(1, Math.min(64, Number(env.MAX_PLAYERS)));
 if (env.TRAFFIC) rules.traffic = env.TRAFFIC === '2' ? 2 : 1;
 if (env.INTENSITY) rules.intensity = Math.max(0, Math.min(1, Number(env.INTENSITY)));
 
 // ------------------------------------------------------------------------- logging (bounded)
+
+/** Diagnostics sink (set up below, once the database is open). */
+let api: Api | undefined;
 
 let logBurst = 0;
 let logWindow = 0;
@@ -49,6 +56,8 @@ function log(level: LogLevel, text: string): void {
     logWindow = now;
     logBurst = 0;
   }
+  // Warnings and errors also go to the diagnostics log (deduplicated and capped there).
+  if (level !== 'info') api?.diag(level, text);
   if (++logBurst > 50) return;
   const line = `${new Date().toISOString()} ${level} ${text}`;
   if (level === 'error') console.error(line);
@@ -83,7 +92,38 @@ function record(s: Stimulus): void {
 
 // ------------------------------------------------------------------------- game
 
-const game = new GameServer({ seed, rules, log, journal: env.JOURNAL_DIR ? record : undefined });
+// ------------------------------------------------------------------------- storage and API
+
+const DB_PATH = env.DB_PATH ?? join('data', 'traffic.db');
+mkdirSync(dirname(DB_PATH), { recursive: true });
+const store = new Store(DB_PATH);
+api = new Api(store, { origins: ORIGINS, log, version: env.GIT_SHA ?? 'dev' });
+
+process.on('uncaughtException', (e) => {
+  api?.diag('error', `uncaught: ${e.message}`, e.stack);
+  log('error', `uncaught: ${e.stack ?? e.message}`);
+  // State may be broken: let the supervisor (Docker) restart the process.
+  setTimeout(() => process.exit(1), 100);
+});
+process.on('unhandledRejection', (e) => {
+  const err = e instanceof Error ? e : new Error(String(e));
+  log('error', `unhandled rejection: ${err.message}`);
+  api?.diag('error', `unhandled rejection: ${err.message}`, err.stack);
+});
+
+const game = new GameServer({
+  seed,
+  rules,
+  log,
+  journal: env.JOURNAL_DIR ? record : undefined,
+  onRun: (dr, run) => {
+    try {
+      store.addRun({ mode: 'online', name: dr.name, score: run.score, car: dr.body, physics: dr.physics, near: run.near, topKmh: run.topKmh, seconds: run.time });
+    } catch (e) {
+      log('error', `leaderboard write failed: ${(e as Error).message}`);
+    }
+  },
+});
 
 function health(reset: boolean) {
   const mem = process.memoryUsage();
@@ -101,6 +141,7 @@ function health(reset: boolean) {
 }
 
 const http = createServer((req, res) => {
+  if (api?.handle(req, res)) return;
   const url = (req.url ?? '/').split('?')[0];
   if (url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
@@ -171,13 +212,18 @@ function loop(): void {
   const t = now();
   let n = 0;
   while (t >= next && n < 12) {
+    const t0 = now();
     game.tick(now);
+    const ms = now() - t0;
+    // A tick over its whole budget (8.3 ms) is a real problem: note it with what was going on.
+    if (ms > tickMs) api?.diag('warn', 'slow tick', { ms: +ms.toFixed(2), players: game.playerCount, traffic: game.world.traffic.activeCount });
     next += tickMs;
     n++;
   }
   if (t - next > 250) {
     // Fell far behind (paused VM, GC storm): drop the backlog instead of fast-forwarding the world.
     lagDrops++;
+    api?.diag('warn', 'server fell behind, backlog dropped', { behindMs: Math.round(t - next) });
     next = t;
   }
   setTimeout(loop, Math.max(0, next - now() - 0.5));
@@ -185,8 +231,11 @@ function loop(): void {
 
 const status = setInterval(() => {
   const h = health(true);
+  if (h.rssMB > 400) api?.diag('warn', 'high memory', { rssMB: h.rssMB, heapMB: h.heapMB, players: h.players });
   log('info', `tick ${h.tick} players ${h.players} conn ${h.connections} traffic ${h.traffic} step avg ${h.stepAvgMs} max ${h.stepMaxMs} ms rss ${h.rssMB} MB snaps ${h.snapshots} skipped ${h.skipped} lagDrops ${lagDrops}`);
 }, LOG_EVERY * 1000);
+
+api?.diag('info', `start ${env.GIT_SHA ?? 'dev'}`, { rules: rulesHash(), seed, maxPlayers: game.world.rules.maxPlayers });
 
 http.listen(PORT, HOST, () => {
   log('info', `listening on ${HOST}:${PORT} (rules ${rulesHash()}, seed ${seed}, max ${game.world.rules.maxPlayers} players, traffic ${game.world.rules.traffic})`);
@@ -199,6 +248,8 @@ function shutdown(signal: string): void {
   clearInterval(heartbeat);
   clearInterval(status);
   journal?.end();
+  api?.close();
+  store.close();
   wss.close();
   http.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 2000).unref();

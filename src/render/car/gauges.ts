@@ -95,7 +95,7 @@ export function drawDigital(cv: HTMLCanvasElement, gear: number, kmh: number, sh
   g.textBaseline = 'middle';
   g.fillStyle = shift ? '#ff5a3c' : '#ffb23e';
   g.font = `700 92px ${FONT}`;
-  g.fillText(String(gear), cv.width * 0.3, cv.height * 0.54);
+  g.fillText(gear === 0 ? 'R' : String(gear), cv.width * 0.3, cv.height * 0.54);
   g.fillStyle = '#e9eef4';
   g.font = `600 52px ${FONT}`;
   g.fillText(String(Math.round(kmh)), cv.width * 0.72, cv.height * 0.5);
