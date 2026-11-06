@@ -1,13 +1,13 @@
 import { WALL_D, laneCenter, trafficTune } from '../config';
 import { lerp, smoothstep } from '../core/math';
 import { Emitter } from '../core/events';
-import { Contacts, type Hit } from '../sim/contact';
+import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
 import type { SimEvents } from '../sim/events';
 import { carId, type CarId } from '../sim/cars';
 import { createCar, type PhysicsId } from '../sim/physics';
 import { Scoring } from '../sim/scoring';
 import { TrafficCar } from '../sim/traffic';
-import type { DriveInput } from '../sim/vehicle';
+import type { DriveInput, PlayerCar } from '../sim/vehicle';
 import { VEHICLES } from '../sim/vehicles';
 import type { RemoteDriver, Sim } from '../sim/world';
 import {
@@ -15,6 +15,8 @@ import {
   MSG_INPUT,
   MSG_SNAPSHOT,
   OWN_GHOST,
+  REMOTE_BLINK_LEFT,
+  REMOTE_BLINK_RIGHT,
   REMOTE_BRAKE,
   REMOTE_GHOST,
   Reader,
@@ -72,6 +74,13 @@ interface NetDriver {
   seen: number;
   remote: RemoteDriver;
   fresh: boolean;
+  /**
+   * The other car as we predict it, in our road frame: set from each snapshot, then moved along its
+   * velocity step by step (replays included) and pushed by our contacts with it. Drawn from here.
+   */
+  pred: PlayerCar;
+  /** When a contact with this driver was last shown (a long scrape is one bump). */
+  contactShown: number;
 }
 
 export interface ClientStats {
@@ -152,6 +161,7 @@ export class ClientCore {
   /** Our own contacts already shown (car id → generation), so a long scrape is one crash. */
   private readonly hitShown = new Map<number, number>();
   private lastLocalCrash = -1e9;
+  private lastLocalBump = -1e9;
   private replaying = false;
   private pingT = 0;
 
@@ -263,6 +273,11 @@ export class ClientCore {
       if (now - this.lastLocalCrash > 600 + this.stats.rtt) ev.emit('crash', data as SimEvents['crash']);
       return;
     }
+    if (name === 'bump') {
+      const quiet = 600 + this.stats.rtt;
+      if (now - this.lastLocalBump > quiet && now - this.lastLocalCrash > quiet) ev.emit('bump', data as SimEvents['bump']);
+      return;
+    }
     if (name === 'nearMiss' || name === 'laneSplit' || name === 'comboEnd' || name === 'runEnd') {
       ev.emit(name, data as never);
     }
@@ -318,6 +333,8 @@ export class ClientCore {
       this.stepCar(this.hist[k % HIST]);
       this.advanceCars();
       this.collideCars(k);
+      this.advanceDrivers();
+      this.collideDrivers();
       st.replayed++;
     }
     this.replaying = false;
@@ -520,7 +537,7 @@ export class ClientCore {
           visible: true,
         };
         remotes.push(remote);
-        nd = { ...b, es: 0, ed: 0, seen: 0, remote, fresh: true };
+        nd = { ...b, es: 0, ed: 0, seen: 0, remote, fresh: true, pred: createCar(info?.physics ?? 1), contactShown: -1e9 };
         this.drivers.set(b.id, nd);
       } else {
         nd.flags = b.flags;
@@ -534,6 +551,16 @@ export class ClientCore {
         nd.gear = b.gear;
       }
       nd.seen = this.snapIndex;
+      this.applyInfo(nd);
+      // Prediction restarts from the server's state (same tick as our rewound car).
+      const p = nd.pred;
+      p.s = p.prevS = nd.s + this.unwrapShift(nd.s, this.sim.player.s);
+      p.d = p.prevD = nd.d;
+      p.psi = p.prevPsi = nd.psi;
+      p.vx = nd.vx;
+      p.vy = nd.vy;
+      p.r = nd.r;
+      p.ghost = (nd.flags & REMOTE_GHOST) !== 0;
     }
     for (const [id, nd] of this.drivers) {
       if (nd.seen === this.snapIndex) continue;
@@ -542,26 +569,69 @@ export class ClientCore {
     }
   }
 
+  /** Name, paint, body and physics from the player list (it may arrive after the first snapshot). */
+  private applyInfo(nd: NetDriver): void {
+    const info = this.players.find((p) => p.id === nd.id);
+    if (!info) return;
+    const r = nd.remote;
+    r.name = info.name;
+    r.color = info.color;
+    r.carId = carId(info.car);
+    if (r.car.physicsId !== info.physics) {
+      r.car = createCar(info.physics);
+      nd.pred = createCar(info.physics);
+    }
+  }
+
+  /** One step of the other drivers as predicted: along their velocity, heading turning at half rate. */
+  private advanceDrivers(): void {
+    const dt = this.dt;
+    const lim = WALL_D - 1;
+    for (const nd of this.drivers.values()) {
+      const p = nd.pred;
+      const vA = p.vAlong;
+      const vL = p.vLat;
+      p.s += vA * dt;
+      p.d = Math.max(-lim, Math.min(lim, p.d + vL * dt));
+      p.psi += p.r * dt * 0.5;
+    }
+  }
+
+  /** Our car against the others as predicted (the server does the same with the real ones). */
+  private collideDrivers(): void {
+    if (this.ghost) return;
+    const me = this.sim.player;
+    for (const nd of this.drivers.values()) {
+      if (nd.pred.ghost) continue;
+      const speed = this.contacts.collidePair(me, nd.pred);
+      if (speed < 0 || this.replaying) continue;
+      const now = performance.now();
+      const quiet = now - nd.contactShown > 500;
+      nd.contactShown = now;
+      if (!quiet) continue;
+      if (speed >= DRIVER_CRASH_SPEED) {
+        this.lastLocalCrash = now;
+        this.sim.events.emit('crash', { speed });
+      } else {
+        this.lastLocalBump = now;
+        this.sim.events.emit('bump', { speed });
+      }
+    }
+  }
+
   private dropRemote(nd: NetDriver): void {
     const i = this.sim.remotes.indexOf(nd.remote);
     if (i >= 0) this.sim.remotes.splice(i, 1);
   }
 
-  /** Others are drawn where they will be at our step: their last state moved on along its velocity. */
+  /** Others are drawn where we predict them at our step (see NetDriver.pred). */
   private drawDrivers(afterSnapshot: boolean): void {
-    const h = (this.seq - this.ack) * this.dt;
-    const own = this.sim.player.s;
     for (const nd of this.drivers.values()) {
       const c = nd.remote.car;
-      const cp = Math.cos(nd.psi);
-      const sp = Math.sin(nd.psi);
-      const vA = nd.vx * cp - nd.vy * sp;
-      const vL = nd.vx * sp + nd.vy * cp;
-      const s0 = nd.s + this.unwrapShift(nd.s, own);
-      const s = s0 + vA * h;
-      const lim = WALL_D - 1;
-      const d = Math.max(-lim, Math.min(lim, nd.d + vL * h));
-      const psi = nd.psi + nd.r * h * 0.5;
+      const p = nd.pred;
+      const s = p.s;
+      const d = p.d;
+      const psi = p.psi;
       if (afterSnapshot && !nd.fresh) {
         nd.es = c.s - s;
         nd.ed = c.d - d;
@@ -580,6 +650,7 @@ export class ClientCore {
       c.brake = (nd.flags & REMOTE_BRAKE) !== 0 ? 1 : 0;
       c.gear = nd.gear || 1;
       c.ghost = (nd.flags & REMOTE_GHOST) !== 0;
+      c.blinker = nd.flags & REMOTE_BLINK_LEFT ? 1 : nd.flags & REMOTE_BLINK_RIGHT ? 2 : 0;
       c.wheelSpin += (nd.vx / 0.34) * this.dt;
       nd.remote.visible = true;
       nd.fresh = false;
@@ -607,6 +678,8 @@ export class ClientCore {
     if (car.wallHit) sim.events.emit('wallHit', { speed: car.wallImpact });
     this.advanceCars();
     this.collideCars(this.seq);
+    this.advanceDrivers();
+    this.collideDrivers();
     for (const nc of this.cars.values()) this.drawCar(nc, false);
     this.drawDrivers(false);
     this.cosmetic.step(this.dt, car, sim.traffic);

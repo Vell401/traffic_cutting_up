@@ -7,6 +7,8 @@ export interface SimEvents {
   comboEnd: { reason: 'timeout' | 'wall' };
   wallHit: { speed: number };
   crash: { speed: number };
+  /** A soft contact with another driver (online): the combo ends, the run goes on. */
+  bump: { speed: number };
   runEnd: { score: number; best: number; newBest: boolean; time: number; near: number; topKmh: number };
   trafficMode: { mode: string; label: string };
   /** Stopped at the end barrier of a finite (showcase) track. */

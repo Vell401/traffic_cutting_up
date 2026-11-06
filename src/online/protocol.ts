@@ -173,7 +173,17 @@ const clampInt = (v: number, lo: number, hi: number): number => (v < lo ? lo : v
 
 // ------------------------------------------------------------------------- inputs
 
-/** Integer form of one input step: steer -32767..32767, pedals 0..255, flags bit 0 = analog. */
+/** Input flag bits. A shift request sits in exactly one input, so both sides shift on the same step. */
+export const IN_ANALOG = 1;
+export const IN_MANUAL = 2;
+export const IN_SHIFT_UP = 4;
+export const IN_SHIFT_DOWN = 8;
+export const IN_BLINK_LEFT = 16;
+export const IN_BLINK_RIGHT = 32;
+/** Every input flag bit a client may set (the server masks the rest off). */
+export const IN_ALL = 63;
+
+/** Integer form of one input step: steer -32767..32767, pedals 0..255, flags (IN_*). */
 export interface InputQ {
   steer: number;
   throttle: number;
@@ -185,7 +195,12 @@ export function quantizeInput(inp: DriveInput, out: InputQ): InputQ {
   out.steer = clampInt((Number.isFinite(inp.steer) ? inp.steer : 0) * 32767, -32767, 32767);
   out.throttle = clampInt((Number.isFinite(inp.throttle) ? inp.throttle : 0) * 255, 0, 255);
   out.brake = clampInt((Number.isFinite(inp.brake) ? inp.brake : 0) * 255, 0, 255);
-  out.flags = inp.analog ? 1 : 0;
+  const shift = inp.shift ?? 0;
+  out.flags =
+    (inp.analog ? IN_ANALOG : 0) |
+    (inp.manual ? IN_MANUAL : 0) |
+    (shift > 0 ? IN_SHIFT_UP : shift < 0 ? IN_SHIFT_DOWN : 0) |
+    (inp.blinker === 1 ? IN_BLINK_LEFT : inp.blinker === 2 ? IN_BLINK_RIGHT : 0);
   return out;
 }
 
@@ -194,7 +209,10 @@ export function inputFromQ(q: InputQ, out: DriveInput): DriveInput {
   out.steer = q.steer / 32767;
   out.throttle = q.throttle / 255;
   out.brake = q.brake / 255;
-  out.analog = (q.flags & 1) !== 0;
+  out.analog = (q.flags & IN_ANALOG) !== 0;
+  out.manual = (q.flags & IN_MANUAL) !== 0;
+  out.shift = q.flags & IN_SHIFT_UP ? 1 : q.flags & IN_SHIFT_DOWN ? -1 : 0;
+  out.blinker = q.flags & IN_BLINK_LEFT ? 1 : q.flags & IN_BLINK_RIGHT ? 2 : 0;
   return out;
 }
 
@@ -223,7 +241,7 @@ export function readInputs(r: Reader, out: InputQ[]): { firstSeq: number; count:
     q.steer = Math.max(-32767, r.i16());
     q.throttle = r.u8();
     q.brake = r.u8();
-    q.flags = r.u8() & 1;
+    q.flags = r.u8() & IN_ALL;
   }
   return { firstSeq, count };
 }
@@ -234,6 +252,8 @@ export const OWN_GHOST = 1;
 export const OWN_AWAY = 2;
 export const REMOTE_GHOST = 1;
 export const REMOTE_BRAKE = 2;
+export const REMOTE_BLINK_LEFT = 4;
+export const REMOTE_BLINK_RIGHT = 8;
 
 export interface SnapScore {
   score: number;

@@ -49,7 +49,7 @@ export class View {
   private time = 0;
   private warmedUp = false;
   /** Online: other drivers' cars (id → view, with the body and paint it was built with). */
-  private readonly remoteViews = new Map<number, { view: PlayerView; color: number; car: CarId; frame: number }>();
+  private readonly remoteViews = new Map<number, { view: PlayerView; color: number; car: CarId; physics: number; frame: number }>();
   private frame = 0;
   private readonly shadowTex: THREE.Texture;
   private readonly v3 = new THREE.Vector3();
@@ -101,7 +101,7 @@ export class View {
     // their car first comes into view (~150 ms of geometry, livery and shaders).
     if (sim.online) {
       for (const id of [1, 2, 3] as const) {
-        const spare = new PlayerView(id, 0x888888, shadowTex, sim.player.tune.length, sim.player.tune.width, false);
+        const spare = new PlayerView(id, 0x888888, shadowTex, sim.player.tune.length, sim.player.tune.width, false, true);
         spare.root.visible = false;
         this.scene.add(spare.root);
       }
@@ -123,6 +123,11 @@ export class View {
       this.chase.kick(Math.min(1.2, 0.5 + e.speed * 0.05));
       this.post.pulse(1);
       this.sparkAtNose(Math.round(40 + e.speed * 4), 5 + e.speed * 0.4);
+    });
+    // Rubbing another driver's car.
+    sim.events.on('bump', (e) => {
+      this.chase.kick(Math.min(0.7, 0.25 + e.speed * 0.06));
+      this.post.pulse(0.4);
     });
 
     this.resize();
@@ -192,14 +197,14 @@ export class View {
     const frame = ++this.frame;
     for (const r of sim.remotes) {
       let entry = this.remoteViews.get(r.id);
-      if (entry && (entry.color !== r.color || entry.car !== r.carId)) {
+      if (entry && (entry.color !== r.color || entry.car !== r.carId || entry.physics !== r.car.physicsId)) {
         entry.view.dispose();
         entry = undefined;
       }
       if (!entry) {
         const view = new PlayerView(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, false);
         this.scene.add(view.root);
-        entry = { view, color: r.color, car: r.carId, frame };
+        entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame };
         this.remoteViews.set(r.id, entry);
       }
       entry.frame = frame;
@@ -238,6 +243,11 @@ export class View {
   /** After a teleport: no camera swing from the old heading. */
   snapCamera(): void {
     this.chase.snap();
+  }
+
+  /** Our car's turn signal lamp is lit this frame (HUD arrow, relay click). */
+  get blinkLit(): boolean {
+    return this.playerView.blinkLit;
   }
 
   get cameraMode(): CameraMode {

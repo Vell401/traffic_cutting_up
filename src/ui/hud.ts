@@ -14,6 +14,8 @@ export class Hud {
   private readonly best = $('bestNum');
   private readonly kmh = $('kmh');
   private readonly gear = $('gear');
+  private readonly blinkL = $('blinkL');
+  private readonly blinkR = $('blinkR');
   private readonly rpmBar = $('rpmBar');
   private readonly popups = $('popups');
   private readonly banner = $('banner');
@@ -47,7 +49,14 @@ export class Hud {
     this.set('mult', this.mult, `×${sc.mult.toFixed(sc.mult % 1 === 0 ? 0 : 2)}`);
     this.set('best', this.best, fmt.format(sc.best));
     this.set('kmh', this.kmh, String(Math.round(Math.max(0, p.vAlong) * 3.6)));
-    this.set('gear', this.gear, String(p.gear));
+    this.set('gear', this.gear, p.manual ? `M${p.gear}` : String(p.gear));
+    this.gear.classList.toggle('manual', p.manual);
+    if (p.shiftRefused) {
+      // A downshift the engine would not survive: the gear box flashes.
+      this.gear.classList.remove('deny');
+      void this.gear.offsetWidth;
+      this.gear.classList.add('deny');
+    }
 
     const active = sc.combo > 0;
     if (active !== this.last.combo) {
@@ -72,6 +81,14 @@ export class Hud {
       this.bannerT -= dt;
       if (this.bannerT <= 0) this.banner.classList.remove('on');
     }
+  }
+
+  /** Turn signal arrows by the speedometer, lit in step with the car's lamps. */
+  setBlinkers(side: number, lit: boolean): void {
+    const l = side === 1 && lit;
+    const r = side === 2 && lit;
+    if (l !== this.blinkL.classList.contains('on')) this.blinkL.classList.toggle('on', l);
+    if (r !== this.blinkR.classList.contains('on')) this.blinkR.classList.toggle('on', r);
   }
 
   private set(key: 'score' | 'mult' | 'best' | 'kmh' | 'gear', el: HTMLElement, text: string): void {

@@ -8,7 +8,16 @@ export interface DriveInput {
   brake: number;
   /** Analog stick: follow the input almost directly instead of the keyboard ramp. */
   analog?: boolean;
+  /** Manual gearbox: gears change only on `shift` requests (else the automatic shifts). */
+  manual?: boolean;
+  /** Shift request for this step: 1 up, -1 down, 0 none (one step per key press). */
+  shift?: number;
+  /** Turn signal: 0 off, 1 left, 2 right (cosmetic; others see it online). */
+  blinker?: number;
 }
+
+/** Engine power available in a manual gear at rpm share x of the redline (the automatic keeps the revs high). */
+export const manualPowerShare = (x: number): number => clamp(0.2 + 0.95 * x, 0.3, 1);
 
 /**
  * Yaw-rate tracking gain (1/s) at yawAssist = 1. High enough that the car rotates as soon as the wheel
@@ -69,6 +78,10 @@ export class PlayerCar {
   protected lastWallSide = 0;
   /** Online spawn protection: traffic ignores the car and contacts are off. Not part of the physics state. */
   ghost = false;
+  /** Gearbox mode of the last step, the turn signal shown, a refused downshift (would over-rev). Cosmetic. */
+  manual = false;
+  blinker = 0;
+  shiftRefused = false;
 
   /**
    * Every value step() carries from one call to the next, in a fixed order: the server sends it so a
@@ -210,24 +223,35 @@ export class PlayerCar {
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
 
-    // Drivetrain: power-limited thrust, automatic gearbox with a short torque cut on upshifts.
+    // Drivetrain: power-limited thrust, a gearbox with a short torque cut on upshifts. The automatic
+    // shifts by itself; the manual one only on requests, and then the revs matter (power share by rpm,
+    // the limiter in any gear).
     const gears = t.gearTopKmh;
-    const gearTop = gears[this.gear - 1] / 3.6;
-    this.rpm = Math.max(t.idleRpm, (t.redline * v) / gearTop);
-    if (this.shiftT > 0) {
+    // Engine rpm in gear g is k / (top speed of g, km/h).
+    const k = t.redline * v * 3.6;
+    this.manual = inp.manual === true;
+    this.blinker = inp.blinker ?? 0;
+    this.rpm = Math.max(t.idleRpm, k / gears[this.gear - 1]);
+    if (this.manual) {
+      if (this.shiftT > 0) this.shiftT -= dt;
+      this.manualShift(inp.shift ?? 0, k);
+      this.rpm = Math.max(t.idleRpm, k / gears[this.gear - 1]);
+    } else if (this.shiftT > 0) {
       this.shiftT -= dt;
     } else if (this.rpm > t.redline * 0.97 && this.gear < gears.length && this.throttle > 0.1) {
       this.gear++;
       this.shiftT = t.shiftTime;
-    } else if (this.gear > 1 && (t.redline * v) / (gears[this.gear - 2] / 3.6) < t.redline * 0.6) {
+    } else if (this.gear > 1 && k / gears[this.gear - 2] < t.redline * 0.6) {
       this.gear--;
     }
-    const limiter = this.gear === gears.length && this.rpm >= t.redline;
+    const limiter = (this.manual || this.gear === gears.length) && this.rpm >= t.redline;
     const Fzf = (m * G * t.cgToRear) / L;
     const Fzr = (m * G * t.cgToFront) / L;
     let drive = 0;
     if (this.shiftT <= 0 && !limiter) {
-      drive = this.throttle * Math.min((t.powerKW * 1000) / Math.max(v, 6), this.tractionLimit(v, delta, Fzr, L));
+      // Manual: clutch slip holds the revs up in first, otherwise a too-high gear pulls weakly.
+      const share = this.manual ? manualPowerShare(Math.max(this.rpm / t.redline, this.gear === 1 ? 0.55 : 0)) : 1;
+      drive = this.throttle * Math.min((t.powerKW * 1000 * share) / Math.max(v, 6), this.tractionLimit(v, delta, Fzr, L));
     }
     const brakeF = this.brake * m * t.brakeDecel;
     const resist = t.aeroDrag * v * v + t.rollingRes * v;
@@ -297,6 +321,28 @@ export class PlayerCar {
    * speeds the ramp up to full rate within ~0.15 s. Releasing snaps back to centre.
    * pressScale scales the keyboard press rate (1 = as tuned).
    */
+  /**
+   * Manual gearbox request: up (not past top gear) or down, refused when the lower gear would take
+   * the engine past the redline. One shift at a time. k: rpm in a gear = k / its top speed (km/h).
+   */
+  protected manualShift(dir: number, k: number): void {
+    this.shiftRefused = false;
+    if (dir === 0 || this.shiftT > 0) return;
+    const t = this.tune;
+    if (dir > 0 && this.gear < t.gearTopKmh.length) {
+      this.gear++;
+      this.shiftT = t.shiftTime;
+    } else if (dir < 0 && this.gear > 1) {
+      if (k / t.gearTopKmh[this.gear - 2] > t.redline * 1.02) {
+        this.shiftRefused = true;
+        return;
+      }
+      this.gear--;
+      // A blipped downshift is quicker than an upshift.
+      this.shiftT = t.shiftTime * 0.6;
+    }
+  }
+
   protected rampSteer(dt: number, inp: DriveInput, pressScale = 1): void {
     const t = this.tune;
     const target = clamp(inp.steer, -1, 1);

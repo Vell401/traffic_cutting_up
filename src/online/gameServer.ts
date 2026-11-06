@@ -41,7 +41,7 @@ const MSG_RATE = 400;
 /** Malformed or out-of-contract messages tolerated before the socket is closed. */
 const MAX_VIOLATIONS = 50;
 /** Driver events forwarded to their client. */
-const FORWARD: readonly (keyof SimEvents)[] = ['nearMiss', 'laneSplit', 'comboEnd', 'runEnd', 'crash'];
+const FORWARD: readonly (keyof SimEvents)[] = ['nearMiss', 'laneSplit', 'comboEnd', 'runEnd', 'crash', 'bump'];
 
 interface Slot {
   driver: Driver;

@@ -189,6 +189,8 @@ export class DriftCar extends PlayerCar {
   override readonly physicsId: number = 2;
   declare readonly tune: DriftTune;
 
+  /** Shift request of the current step (manual gearbox). */
+  private shiftReq = 0;
   /** Rear / front wheel angular speed, rad/s. */
   omegaR = 0;
   omegaF = 0;
@@ -281,6 +283,9 @@ export class DriftCar extends PlayerCar {
     this.rampSteer(dt, inp, clamp(t.steerRateSpeed / Math.max(v, 1), 0.4, 1));
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
+    this.manual = inp.manual === true;
+    this.blinker = inp.blinker ?? 0;
+    this.shiftReq = inp.shift ?? 0;
 
     // Steering lock: grip-matched like №1 (plus the understeer gradient) so full input reaches about
     // the grip limit at any speed, but measured from the direction the rear axle travels when it
@@ -314,7 +319,10 @@ export class DriftCar extends PlayerCar {
     return tq;
   }
 
-  /** Automatic gearbox (shifts on rear wheel speed, kickdown), rpm and the wheel torques for this step. */
+  /**
+   * Gearbox (automatic: shifts on rear wheel speed, kickdown; manual: on requests only), rpm and the
+   * wheel torques for this step. The fuel cut at the redline works in every gear.
+   */
   private drivetrain(dt: number): void {
     const t = this.tune;
     const gears = t.gearTopKmh;
@@ -322,7 +330,10 @@ export class DriftCar extends PlayerCar {
     const k = t.redline * this.omegaR * t.wheelRadius * 3.6;
     let rpmW = k / gears[this.gear - 1];
     // Upshift point follows the pedal: 97 % of the redline flat out, earlier when cruising.
-    if (this.shiftT > 0) {
+    if (this.manual) {
+      if (this.shiftT > 0) this.shiftT -= dt;
+      this.manualShift(this.shiftReq, k);
+    } else if (this.shiftT > 0) {
       this.shiftT -= dt;
     } else if (rpmW > t.redline * (0.68 + 0.29 * this.throttle) && this.gear < gears.length && this.throttle > 0.1) {
       this.gear++;

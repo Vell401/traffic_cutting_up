@@ -4,7 +4,7 @@ import { MeshoptDecoder } from 'meshoptimizer';
 import type { CarId } from '../../sim/cars';
 import { buildCoupe, sideExtrude } from '../carModels';
 import { liveryPaint } from './livery';
-import { CHROME, EMIT, GRILLE, PAINT, SHELL, TAIL, TRIM, r34Geometry } from './r34';
+import { CHROME, EMIT, GRILLE, IND_L, IND_R, PAINT, SHELL, TAIL, TRIM, r34Geometry } from './r34';
 import { buildR34Cockpit, type Cockpit } from './r34Interior';
 import { LENGTH, TRACK_HALF, AXLES, TYRE_W, WHEEL_R, WIDTH } from './r34Shape';
 import { WheelSet, caliper, plainWheel, sportRim, sportTyre, type WheelPos } from './wheels';
@@ -65,6 +65,29 @@ export const CAMERA_RIGS: Record<CarId, CameraRig> = {
   },
 };
 
+/** Turn signal lamps of one car, one material per side (PlayerView switches their colour). */
+export interface Indicators {
+  left: THREE.MeshBasicMaterial;
+  right: THREE.MeshBasicMaterial;
+}
+
+/** Amber lens unlit, and lit (bright enough to bloom). */
+export const INDICATOR_OFF = new THREE.Color(0.11, 0.045, 0.004);
+export const INDICATOR_ON = new THREE.Color(4.2, 1.75, 0.08);
+
+function indicatorMats(): Indicators {
+  return { left: new THREE.MeshBasicMaterial({ color: INDICATOR_OFF.clone() }), right: new THREE.MeshBasicMaterial({ color: INDICATOR_OFF.clone() }) };
+}
+
+/** Small lamp boxes [x, y, z, w, h, l] in car space; x < 0 blinks left, x > 0 right. */
+function indicatorBoxes(parent: THREE.Object3D, ind: Indicators, spots: readonly (readonly [number, number, number, number, number, number])[]): void {
+  for (const [x, y, z, w, h, l] of spots) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), x < 0 ? ind.left : ind.right);
+    m.position.set(x, y, z);
+    parent.add(m);
+  }
+}
+
 export interface CarParts {
   /** Pitches and rolls with the suspension. */
   body: THREE.Group;
@@ -76,6 +99,7 @@ export interface CarParts {
   tailBrake: THREE.Color;
   /** Headlight spot position, car space. */
   lamp: THREE.Vector3;
+  indicators: Indicators;
   /** Interior and eye (own R34 only). */
   cockpit: Cockpit | null;
 }
@@ -142,11 +166,13 @@ const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 
 /**
  * Build a car body. `paint` is the body colour of the coupe, the stripe colour of the R34 (its body
- * stays silver). `own`: our car (gets the cockpit when the model has one).
+ * stays silver). `own`: our car (gets the cockpit when the model has one). `full`: load the heavy
+ * imported model where there is one (every real car, ours or another driver's; not the hidden
+ * spares a session builds up front for shader warm-up).
  */
-export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean): CarParts {
+export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean, full = true): CarParts {
   if (id === 2) return buildR34(paint, length, width, own);
-  if (id === 3) return buildMercedesParts(paint, length, width, own);
+  if (id === 3) return buildMercedesParts(paint, length, width, full);
   return buildCoupeParts(paint, length, width);
 }
 
@@ -236,7 +262,15 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   const wheelRoot = new THREE.Group();
   wheelRoot.scale.copy(scale);
   wheelRoot.add(wheels.group);
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit: null };
+  // Turn signals on the body itself (the imported model replaces the procedural shell, not these).
+  const indicators = indicatorMats();
+  indicatorBoxes(body, indicators, [
+    [-(W / 2 - 0.13), 0.66, -L / 2 + 0.06, 0.12, 0.045, 0.06],
+    [W / 2 - 0.13, 0.66, -L / 2 + 0.06, 0.12, 0.045, 0.06],
+    [-(W / 2 - 0.1), 0.84, L / 2 - 0.08, 0.1, 0.05, 0.06],
+    [W / 2 - 0.1, 0.84, L / 2 - 0.08, 0.1, 0.05, 0.06],
+  ]);
+  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit: null, indicators };
 }
 
 function buildCoupeParts(paint: number, L: number, W: number): CarParts {
@@ -280,7 +314,14 @@ function buildCoupeParts(paint: number, L: number, W: number): CarParts {
   );
   const wheelRoot = new THREE.Group();
   wheelRoot.add(wheels.group);
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.65, -L / 2), cockpit: null };
+  const indicators = indicatorMats();
+  indicatorBoxes(body, indicators, [
+    [-0.86, 0.58, -L / 2 + 0.01, 0.12, 0.05, 0.05],
+    [0.86, 0.58, -L / 2 + 0.01, 0.12, 0.05, 0.05],
+    [-0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
+    [0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
+  ]);
+  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.65, -L / 2), cockpit: null, indicators };
 }
 
 function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts {
@@ -301,6 +342,9 @@ function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts 
   mats[TAIL] = tail;
   mats[GRILLE] = new THREE.MeshStandardMaterial({ color: 0x9a9da3, map: honeycombTexture(), roughness: 0.8, metalness: 0.2 });
   mats[SHELL] = null;
+  const indicators = indicatorMats();
+  mats[IND_L] = indicators.left;
+  mats[IND_R] = indicators.right;
   geo.parts.forEach((g, i) => {
     const m = mats[i];
     if (m && g.index && g.index.count > 0) model.add(new THREE.Mesh(g, m));
@@ -340,5 +384,6 @@ function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts 
     tailBrake: new THREE.Color(3.4, 0.1, 0.05),
     lamp: geo.lamp.clone().multiply(scale),
     cockpit,
+    indicators,
   };
 }

@@ -19,12 +19,14 @@ import {
   QUALITY,
   loadCameraMode,
   loadCar,
+  loadManual,
   loadName,
   loadPhysics,
   loadQuality,
   loadTraffic,
   saveCameraMode,
   saveCar,
+  saveManual,
   saveName,
   savePhysics,
   saveQuality,
@@ -221,6 +223,43 @@ async function toggleDebug(): Promise<void> {
 if (new URLSearchParams(location.search).has('debug')) void toggleDebug();
 if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics, sound } });
 
+// ---------------------------------------------------------------- gearbox and turn signals
+
+/** G switches the gearbox; Z / X shift down / up in manual (one shift per press, in the next step). */
+let manualGears = loadManual();
+let pendingShift = 0;
+/** Turn signal: 0 off, 1 left, 2 right. Q / E toggle it; it cancels itself after the lane change. */
+let blinker = 0;
+let blinkFromD = 0;
+let blinkWasLit = false;
+
+function setBlinker(side: number): void {
+  blinker = blinker === side ? 0 : side;
+  blinkFromD = sim.player.d;
+}
+
+/** Controls that are not pedals or steering, written into the input of the next step. */
+function withControls(d: DriveInput): DriveInput {
+  d.manual = manualGears;
+  d.blinker = blinker;
+  d.shift = pendingShift;
+  pendingShift = 0;
+  return d;
+}
+
+/** Per frame: the turn signal goes off once the car has moved over a lane that way and the wheel is straight. */
+function updateBlinker(): void {
+  const p = sim.player;
+  if (blinker !== 0) {
+    const moved = (p.d - blinkFromD) * (blinker === 1 ? -1 : 1);
+    if (moved > 3 && Math.abs(p.steerIn) < 0.15) blinker = 0;
+  }
+  const lit = view.blinkLit;
+  if (lit !== blinkWasLit) sound.tick(lit);
+  blinkWasLit = lit;
+  hud.setBlinkers(p.blinker, lit);
+}
+
 input.onPress = (code) => {
   if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
@@ -230,6 +269,15 @@ input.onPress = (code) => {
     hud.tag(`CAMERA · ${mode.toUpperCase()}`);
   }
   else if (code === 'KeyM') hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
+  else if (code === 'KeyG') {
+    manualGears = !manualGears;
+    saveManual(manualGears);
+    hud.tag(manualGears ? 'КОРОБКА · РУЧНАЯ  (Z ↓  X ↑)' : 'КОРОБКА · АВТОМАТ', 2);
+  } else if ((code === 'KeyX' || code === 'KeyZ') && state === 'play') {
+    if (manualGears) pendingShift = code === 'KeyX' ? 1 : -1;
+    else hud.tag('ПЕРЕДАЧИ Z / X — В РУЧНОМ РЕЖИМЕ (G)', 2);
+  } else if (code === 'KeyQ' && state === 'play') setBlinker(1);
+  else if (code === 'KeyE' && state === 'play') setBlinker(2);
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(ONLINE ? !onlineMenu : state === 'play');
   else if (code === 'KeyR' && state === 'play') {
@@ -414,7 +462,7 @@ view.renderer.setAnimationLoop((now: number) => {
     // runs in real time, so a slow frame is caught up further than offline (up to 0.25 s).
     acc += Math.min(frameMs / 1000, 0.25);
     while (acc >= STEP && n < 30) {
-      session.step(onlineMenu ? NEUTRAL : input.drive);
+      session.step(withControls(onlineMenu ? NEUTRAL : input.drive));
       acc -= STEP;
       n++;
     }
@@ -426,7 +474,7 @@ view.renderer.setAnimationLoop((now: number) => {
   } else if (state !== 'pause') {
     acc += dt;
     while (acc >= STEP && n < 12) {
-      sim.step(STEP, state === 'play' ? input.drive : autopilot());
+      sim.step(STEP, state === 'play' ? withControls(input.drive) : autopilot());
       acc -= STEP;
       n++;
     }
@@ -439,6 +487,7 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);
+  updateBlinker();
   if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);

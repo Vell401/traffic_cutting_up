@@ -308,3 +308,111 @@ describe('ring traffic', () => {
     expect(w1.hash()).toBe(w2.hash());
   });
 });
+
+describe('driver contacts', () => {
+  /** Two drivers in lane 1, B `gap` metres ahead of A, both off spawn protection and driving on. */
+  const pair = (gap: number, kmhA: number, kmhB: number, ghostB = false) => {
+    const world = new OnlineWorld(31);
+    world.traffic.enabled = false;
+    const a = world.join('A', 1)!;
+    const b = world.join('B', 2)!;
+    const events = { a: [] as string[], b: [] as string[] };
+    for (const [dr, s, v, log] of [[a, 1000, kmhA, events.a], [b, 1000 + gap, kmhB, events.b]] as const) {
+      dr.state = 'active';
+      dr.car.reset(s, laneCenter(1), v / 3.6);
+      dr.car.ghost = false;
+      dr.score.grace = 0;
+      dr.score.score = 5000;
+      dr.events.on('crash', () => log.push('crash'));
+      dr.events.on('bump', () => log.push('bump'));
+    }
+    b.car.ghost = ghostB;
+    const q = quantizeInput({ steer: 0, throttle: 0.4, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
+    let seq = 0;
+    const steps = (n: number) => {
+      for (let i = 0; i < n; i++) {
+        seq++;
+        world.input(a, seq, [q], 1);
+        world.input(b, seq, [q], 1);
+        world.step();
+      }
+    };
+    return { world, a, b, events, steps };
+  };
+
+  it('a hard hit ends both runs and pushes the cars apart', () => {
+    const { a, b, events, steps } = pair(6, 110, 60);
+    steps(60);
+    expect(events.a).toEqual(['crash']);
+    expect(events.b).toEqual(['crash']);
+    expect(a.score.score).toBe(0);
+    expect(b.score.score).toBe(0);
+    expect(b.car.vAlong).toBeGreaterThan(a.car.vAlong - 1); // B was shoved, A slowed
+    expect(b.car.s - a.car.s).toBeGreaterThan(4.4); // no longer inside each other
+  });
+
+  it('a soft touch is a bump: the combo ends, the run goes on, a long scrape counts once', () => {
+    const { a, events, steps } = pair(5.2, 80, 65);
+    a.score.combo = 3;
+    steps(240);
+    expect(events.a).toEqual(['bump']);
+    expect(events.b).toEqual(['bump']);
+    expect(a.score.score).toBeGreaterThan(0);
+    expect(a.score.combo).toBe(0);
+  });
+
+  it('spawn-protected drivers pass through', () => {
+    const { a, b, events, steps } = pair(6, 110, 60, true);
+    steps(120);
+    expect(events.a).toEqual([]);
+    expect(a.car.s).toBeGreaterThan(b.car.s); // drove straight through
+  });
+
+  it('both clients predict their collisions closely', () => {
+    const net = new NetSession(23);
+    net.server.world.traffic.enabled = false;
+    // Same lane, one fast and one slow: they run into each other again and again.
+    const b = net.add(spec('B', 25, 5, { physics: 2, bot: { kmh: 90, weave: false } }));
+    const a = net.add(spec('A', 40, 10, { bot: { kmh: 190, weave: false } }));
+    const hits = new Map<string, number>();
+    net.run(0.1);
+    for (const dr of net.server.world.drivers) dr.events.on('crash', () => hits.set(dr.name, (hits.get(dr.name) ?? 0) + 1));
+    net.run(20);
+    expect(hits.get('A') ?? 0).toBeGreaterThan(0);
+    expect(hits.get('B')).toBe(hits.get('A'));
+    for (const c of [a, b]) {
+      expect(c.localCrashes + (c.events.get('crash') ?? 0)).toBeGreaterThan(0);
+      expect(c.core.stats.maxCorrection).toBeLessThan(3);
+    }
+  });
+
+  it('a session with collisions replays exactly from its journal', () => {
+    const net = new NetSession(24, {}, true);
+    net.add(spec('B', 25, 5, { physics: 2, bot: { kmh: 120, weave: false } }));
+    net.add(spec('A', 40, 10, { bot: { kmh: 230, weave: false } }));
+    let contacts = 0;
+    net.run(0.1);
+    for (const dr of net.server.world.drivers) for (const e of ['crash', 'bump'] as const) dr.events.on(e, () => contacts++);
+    net.run(20);
+    expect(contacts).toBeGreaterThan(0);
+    const live = net.server.world;
+    expect(replay(24, {}, net.journal, live.tick).hash()).toBe(live.hash());
+  });
+
+  it('turn signals and the manual gearbox go through the server; others see the signal', () => {
+    const net = new NetSession(5);
+    net.server.world.traffic.enabled = false;
+    // B is slower than A can go in first gear: they never touch.
+    const b = net.add(spec('B', 30, 5, { bot: { kmh: 50, weave: false } }));
+    const a = net.add(spec('A', 30, 5, { bot: { kmh: 200, weave: false } }));
+    a.bot.input.blinker = 2;
+    a.bot.input.manual = true; // never shifts: stays in first
+    net.run(8);
+    const srvA = net.server.world.drivers.find((d) => d.name === 'A')!;
+    expect(srvA.car.gear).toBe(1);
+    expect(srvA.car.vAlong * 3.6).toBeLessThan(75);
+    expect(a.sim.player.gear).toBe(1);
+    expect(a.core.stats.maxCorrection).toBeLessThan(1e-6);
+    expect(b.sim.remotes.find((r) => r.name === 'A')!.car.blinker).toBe(2);
+  });
+});

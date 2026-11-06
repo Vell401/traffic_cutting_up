@@ -71,6 +71,49 @@ const BLIMP_SCALE = 2.1;
  * lit advert panels on both flanks (bloom), blinking navigation lights. Nothing of it is fogged: the
  * haze is a ground layer, and a fogged hull behind unfogged signs looked like floating panels.
  */
+/**
+ * Part of the hull's surface (ellipsoid with radius rx across, rz along) on one side, lifted a hair
+ * off it: z from zFrom to zTo (texture u runs that way), up to halfAngle above and below the side.
+ * Faces outward; the advert on it reads left to right from outside on either side.
+ */
+function hullPatch(side: number, zFrom: number, zTo: number, halfAngle: number, rx: number, rz: number): THREE.BufferGeometry {
+  const NZ = 28;
+  const NA = 10;
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  for (let i = 0; i <= NZ; i++) {
+    const t = i / NZ;
+    const z = zFrom + (zTo - zFrom) * t;
+    const r = rx * Math.sqrt(Math.max(0, 1 - (z / rz) ** 2));
+    for (let j = 0; j <= NA; j++) {
+      const a = (j / NA - 0.5) * 2 * halfAngle;
+      pos.push(side * r * Math.cos(a), r * Math.sin(a), z);
+      uv.push(t, j / NA);
+    }
+  }
+  for (let i = 0; i < NZ; i++) {
+    for (let j = 0; j < NA; j++) {
+      const a = i * (NA + 1) + j;
+      const b = a + NA + 1;
+      idx.push(a, b, b + 1, a, b + 1, a + 1);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  // Winding depends on the side and the direction of z: make the faces point away from the hull.
+  const n = g.getAttribute('normal');
+  if (n.getX(Math.floor(n.count / 2)) * side < 0) {
+    for (let k = 0; k < idx.length; k += 3) [idx[k + 1], idx[k + 2]] = [idx[k + 2], idx[k + 1]];
+    g.setIndex(idx);
+    g.computeVertexNormals();
+  }
+  return g;
+}
+
 export class Blimp {
   readonly group = new THREE.Group();
   private readonly navRed: THREE.MeshBasicMaterial;
@@ -86,12 +129,19 @@ export class Blimp {
     this.group.add(hull);
 
     // Lit parts ignore the fog: a glowing sign reads through the haze long before the hull does.
-    const adMat = new THREE.MeshBasicMaterial({ map: blimpAd(), color: new THREE.Color(1.7, 1.7, 1.7), fog: false });
+    // The advert is printed on the hull itself (a flat board used to cut through its bulge mid-flank).
+    const adMat = new THREE.MeshBasicMaterial({
+      map: blimpAd(),
+      color: new THREE.Color(1.7, 1.7, 1.7),
+      fog: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
     for (const side of [-1, 1]) {
-      const panel = new THREE.Mesh(new THREE.PlaneGeometry(40, 10), adMat);
-      panel.position.set(side * 8.7, 0.5, 0);
-      panel.rotation.y = side * (Math.PI / 2);
-      this.group.add(panel);
+      // Seen from the right (+x) the text runs toward the nose (-z), from the left toward the tail.
+      const [from, to] = side > 0 ? [19, -19] : [-19, 19];
+      this.group.add(new THREE.Mesh(hullPatch(side, from, to, 0.5, 9.06, 37.15), adMat));
     }
     const gondola = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 11), dark);
     gondola.position.set(0, -9.6, -4);
@@ -115,8 +165,9 @@ export class Blimp {
       m.position.set(x, y, z);
       this.group.add(m);
     };
-    add(this.navRed, -9.1, 0, -6);
-    add(this.navGreen, 9.1, 0, -6);
+    // Nav lights ahead of the advert (on it they blotted out a letter).
+    add(this.navRed, -7, 0, -24);
+    add(this.navGreen, 7, 0, -24);
     add(this.strobe, 0, 9.2, 0);
     add(this.strobe, 0, 0, 37.3);
     this.group.scale.setScalar(BLIMP_SCALE);

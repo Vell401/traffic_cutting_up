@@ -1,7 +1,7 @@
 import { LANES, LANE_W, laneCenter } from '../config';
 import { Emitter } from '../core/events';
 import { mulberry32, type Rng } from '../core/rng';
-import { Contacts, type Hit } from '../sim/contact';
+import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
 import { Director } from '../sim/director';
 import type { SimEvents } from '../sim/events';
 import type { CarId } from '../sim/cars';
@@ -16,6 +16,8 @@ import {
   OWN_AWAY,
   OWN_GHOST,
   REMOTE_BRAKE,
+  REMOTE_BLINK_LEFT,
+  REMOTE_BLINK_RIGHT,
   REMOTE_GHOST,
   inputFromQ,
   writeCar,
@@ -149,6 +151,9 @@ export class Driver {
  * their way); with more than `inputHigh` queued it applies two per tick to catch up. So a driver's car
  * sees every input exactly once, and the client can predict it exactly.
  */
+/** Ticks two drivers must stay apart before their next contact counts again (0.5 s). */
+const PAIR_QUIET = 60;
+
 export class OnlineWorld {
   // Drivers' s is never wrapped: a car's s counts the laps, so the client holds the very same number
   // (bit-exact prediction) and draws a continuous road. Traffic lives in [0, ringLen); every
@@ -168,6 +173,8 @@ export class OnlineWorld {
   private readonly rng: Rng;
   private readonly contacts: Contacts;
   private readonly cars: PlayerCar[] = [];
+  /** Last tick each pair of drivers (a.id·256 + b.id) touched. */
+  private readonly pairContact = new Map<number, number>();
   private readonly awayTicks: number;
   private readonly stateBuf = new Float64Array(64);
   private readonly picks: TrafficCar[] = [];
@@ -222,6 +229,7 @@ export class OnlineWorld {
     if (i < 0) return;
     this.journal?.({ k: 'leave', t: this.tick, id });
     this.drivers.splice(i, 1);
+    for (const key of this.pairContact.keys()) if (key >> 8 === id || (key & 255) === id) this.pairContact.delete(key);
   }
 
   /** Queue inputs [firstSeq, firstSeq + count). Old or repeated seqs are ignored; a gap is skipped over. */
@@ -298,7 +306,41 @@ export class OnlineWorld {
       for (let i = 0; i < dr.stepped; i++) dr.score.step(dt, car, this.traffic);
       if (car.ghost) this.updateGhost(dr, dt * dr.stepped);
     }
+
+    // Drivers collide with each other; spawn-protected (ghost) and away cars pass through.
+    const ds = this.drivers;
+    for (let i = 0; i < ds.length; i++) {
+      const a = ds[i];
+      if (a.state !== 'active' || a.car.ghost) continue;
+      for (let j = i + 1; j < ds.length; j++) {
+        const b = ds[j];
+        if (b.state !== 'active' || b.car.ghost) continue;
+        const speed = this.contacts.collidePair(a.car, b.car);
+        if (speed >= 0) this.onDriverContact(a, b, speed);
+      }
+    }
     this.tick++;
+  }
+
+  /**
+   * A contact between two drivers. A hard hit (closing at DRIVER_CRASH_SPEED or more) ends both runs; a
+   * softer one ends both combos. Cars that stay pressed together count as one contact until they
+   * part for a while.
+   */
+  private onDriverContact(a: Driver, b: Driver, speed: number): void {
+    const key = a.id * 256 + b.id;
+    const last = this.pairContact.get(key);
+    this.pairContact.set(key, this.tick);
+    if (last !== undefined && this.tick - last < PAIR_QUIET) return;
+    for (const dr of [a, b]) {
+      if (speed >= DRIVER_CRASH_SPEED) {
+        dr.events.emit('crash', { speed });
+        dr.score.onCrash();
+      } else {
+        dr.events.emit('bump', { speed });
+        dr.score.onWall();
+      }
+    }
   }
 
   private onHit(dr: Driver, h: Hit): void {
@@ -414,7 +456,10 @@ export class OnlineWorld {
     for (const o of this.drivers) {
       if (o === dr || o.state !== 'active') continue;
       const c = o.car;
-      const flags = (c.ghost ? REMOTE_GHOST : 0) | (c.brake > 0.05 ? REMOTE_BRAKE : 0);
+      const flags =
+        (c.ghost ? REMOTE_GHOST : 0) |
+        (c.brake > 0.05 ? REMOTE_BRAKE : 0) |
+        (c.blinker === 1 ? REMOTE_BLINK_LEFT : c.blinker === 2 ? REMOTE_BLINK_RIGHT : 0);
       writeDriver(w, o.id, flags, this.traffic.wrap(c.s), c.d, c.psi, c.vx, c.vy, c.r, c.steerIn, c.gear);
     }
 

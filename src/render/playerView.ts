@@ -2,7 +2,11 @@ import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
 import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
-import { buildCar, type CarParts } from './car';
+import { INDICATOR_OFF, INDICATOR_ON, buildCar, type CarParts } from './car';
+
+/** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
+const BLINK_PERIOD = 0.7;
+const BLINK_LIT = 0.38;
 
 /**
  * A driver's car: the chosen body (built in render/car), suspension pitch and roll, steering and
@@ -17,6 +21,10 @@ export class PlayerView {
   private roll = 0;
   private ghost = false;
   private cockpitOn = false;
+  private blinkSide = 0;
+  private blinkT = 0;
+  /** A turn signal lamp is lit right now (the HUD arrow and the relay click follow it). */
+  blinkLit = false;
   private readonly mats: THREE.Material[] = [];
   private readonly inside: THREE.Material[];
 
@@ -28,10 +36,12 @@ export class PlayerView {
     length = 4.6,
     width = 1.9,
     own = true,
+    /** A hidden spare built only to compile shaders: skip heavy downloads. */
+    spare = false,
   ) {
     const L = length;
     const W = width;
-    this.parts = buildCar(car, paint, L, W, own);
+    this.parts = buildCar(car, paint, L, W, own, !spare);
     const p = this.parts;
 
     const shadow = new THREE.Mesh(
@@ -108,6 +118,14 @@ export class PlayerView {
     p.body.rotation.set(this.pitch, 0, this.roll);
     if (!this.cockpitOn) p.wheels.update(car.steerIn * 0.32, car.wheelSpin % (Math.PI * 2));
     p.tail.color.copy(car.brake > 0.05 ? p.tailBrake : p.tailIdle);
+    // Turn signals: a new side starts lit, like a real relay.
+    if (car.blinker !== this.blinkSide) {
+      this.blinkSide = car.blinker;
+      this.blinkT = 0;
+    } else this.blinkT += dt;
+    this.blinkLit = this.blinkSide !== 0 && this.blinkT % BLINK_PERIOD < BLINK_LIT;
+    p.indicators.left.color.copy(this.blinkLit && this.blinkSide === 1 ? INDICATOR_ON : INDICATOR_OFF);
+    p.indicators.right.color.copy(this.blinkLit && this.blinkSide === 2 ? INDICATOR_ON : INDICATOR_OFF);
     if (this.cockpitOn) p.cockpit!.update(car, dt);
   }
 

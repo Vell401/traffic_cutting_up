@@ -82,6 +82,7 @@ export class Sound {
     });
     ev.on('comboEnd', (e) => (e.reason === 'wall' ? this.buzz() : this.notes([7, 0], 392, 0.07, 0.11)));
     ev.on('wallHit', (e) => this.thump(clamp(0.25 + e.speed * 0.06, 0.25, 0.8)));
+    ev.on('bump', (e) => this.thump(clamp(0.3 + e.speed * 0.08, 0.3, 0.9)));
     ev.on('crash', (e) => this.crash(clamp(0.5 + e.speed * 0.03, 0.5, 1)));
     ev.on('runEnd', (e) => {
       if (e.score <= 0) return;
@@ -521,6 +522,14 @@ export class Sound {
     this.env(g, at, 0.12, 0.01, 0.22);
     o.start(at);
     o.stop(at + 0.3);
+  }
+
+  /** Turn signal relay: a click when the lamp lights, a softer one when it goes dark. */
+  tick(lit: boolean): void {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const at = ctx.currentTime;
+    this.noiseHit(at, 'bandpass', lit ? 3400 : 2300, lit ? 0.05 : 0.03, 0.018);
   }
 
   private thump(strength: number): void {

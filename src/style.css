@@ -272,7 +272,8 @@ body.menu #hud {
 .gear {
   align-self: center;
   margin-left: 6px;
-  width: 34px;
+  min-width: 34px;
+  padding: 0 6px;
   height: 34px;
   display: grid;
   place-items: center;
@@ -281,6 +282,35 @@ body.menu #hud {
   font-size: 20px;
   font-weight: 700;
   background: var(--panel);
+}
+
+.gear.manual {
+  border-color: var(--accent);
+}
+.gear.deny {
+  animation: gear-deny 0.45s ease-out;
+}
+@keyframes gear-deny {
+  0%,
+  40% {
+    background: var(--bad);
+    color: #fff;
+  }
+}
+.speedo .blinkers {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 18px;
+  line-height: 1;
+}
+.speedo .blinkers i {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.12);
+}
+.speedo .blinkers i.on {
+  color: #4cff7a;
+  text-shadow: 0 0 10px rgba(76, 255, 122, 0.8);
 }
 
 /* ---------- Overlays ---------- */

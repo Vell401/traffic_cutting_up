@@ -3,6 +3,9 @@ import { obbOverlap, type Contact, type OBB } from './collision';
 import type { TrafficCar } from './traffic';
 import type { PlayerCar } from './vehicle';
 
+/** Closing speed between two drivers that counts as a crash (≈ 29 km/h), m/s; slower is a bump. */
+export const DRIVER_CRASH_SPEED = 8;
+
 /** What happened in one car-vs-traffic contact. */
 export interface Hit {
   car: TrafficCar;
@@ -60,6 +63,62 @@ export class Contacts {
         A.y = p.d;
       }
     }
+  }
+
+  /**
+   * Driver vs driver (online): overlap test, then both cars are pushed apart by mass and exchange an
+   * impulse (a little bounce, off-centre hits spin them). Returns the closing speed along the contact
+   * normal (m/s, 0 for a resting contact), or -1 without contact. The client's prediction calls it
+   * with its own copy of the other car (`b`), so moving `b` only changes that copy.
+   */
+  collidePair(a: PlayerCar, b: PlayerCar): number {
+    const ds = this.rel(b.s, a.s);
+    if (Math.abs(ds) > 12) return -1;
+    const A = this.boxA;
+    A.x = 0;
+    A.y = a.d;
+    A.hx = a.tune.length / 2;
+    A.hy = a.tune.width / 2;
+    A.rot = a.psi;
+    const B = this.boxB;
+    B.x = ds;
+    B.y = b.d;
+    B.hx = b.tune.length / 2;
+    B.hy = b.tune.width / 2;
+    B.rot = b.psi;
+    if (!obbOverlap(A, B, this.contact)) return -1;
+
+    const n = this.contact;
+    const m1 = a.tune.mass;
+    const m2 = b.tune.mass;
+    const w1 = m2 / (m1 + m2);
+    const w2 = m1 / (m1 + m2);
+    a.s -= n.nx * n.depth * w1;
+    a.d -= n.ny * n.depth * w1;
+    b.s += n.nx * n.depth * w2;
+    b.d += n.ny * n.depth * w2;
+
+    let aA = a.vAlong;
+    let aL = a.vLat;
+    let bA = b.vAlong;
+    let bL = b.vLat;
+    const rel = (aA - bA) * n.nx + (aL - bL) * n.ny;
+    if (rel > 0) {
+      const j = (1.3 * rel) / (1 / m1 + 1 / m2);
+      aA -= (j * n.nx) / m1;
+      aL -= (j * n.ny) / m1;
+      bA += (j * n.nx) / m2;
+      bL += (j * n.ny) / m2;
+      // Contact point ≈ midway between the centres; the same torque turns both cars the same way.
+      const rx = ds * 0.5;
+      const ry = (b.d - a.d) * 0.5;
+      const tq = rx * -j * n.ny - ry * -j * n.nx;
+      a.r += tq / (m1 * a.tune.cgToFront * a.tune.cgToRear);
+      b.r += tq / (m2 * b.tune.cgToFront * b.tune.cgToRear);
+      a.setRoadVelocity(aA, aL);
+      b.setRoadVelocity(bA, bL);
+    }
+    return Math.max(rel, 0);
   }
 
   /** Impulse response. The hit car turns into a wreck. */

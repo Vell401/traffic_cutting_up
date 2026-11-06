@@ -61,6 +61,23 @@ export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);
 export const loadCar = (): 1 | 2 | 3 => loadChoice('tcu.car', [1, 2, 3] as const, 1);
 export const saveCar = (v: 1 | 2 | 3): void => saveChoice('tcu.car', v);
 
+/** Gearbox: automatic (default) or manual, switched with G. */
+export function loadManual(): boolean {
+  try {
+    return localStorage.getItem('tcu.gearbox') === 'manual';
+  } catch {
+    return false;
+  }
+}
+
+export function saveManual(manual: boolean): void {
+  try {
+    localStorage.setItem('tcu.gearbox', manual ? 'manual' : 'auto');
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 /** Last camera mode used with each car (the cameras belong to the car). */
 export function loadCameraMode(car: number): string {
   try {
