@@ -91,7 +91,7 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     expect(Math.abs(car.psi)).toBeLessThan(1e-9);
   });
 
-  it('B: brakes 200→100 in about 3 s, straight, and stops without going backwards', () => {
+  it('B: brakes 200→100 in about 2.3 s, straight, and stops without going backwards', () => {
     const car = new DriftCar();
     const r = rig(car, 200);
     let t = 0;
@@ -105,8 +105,9 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
       maxPsi = Math.max(maxPsi, Math.abs(car.psi));
       expect(car.vx).toBeGreaterThanOrEqual(0);
     }
-    expect(t100).toBeGreaterThan(2.6);
-    expect(t100).toBeLessThan(3.6);
+    // Brakes about 30 % stronger than at first (was ~2.9 s): more pedal and the rear axle allowed 6 % slip.
+    expect(t100).toBeGreaterThan(2);
+    expect(t100).toBeLessThan(2.7);
     expect(maxPsi).toBeLessThan(1 * DEG);
     expect(car.vx).toBe(0);
   });
@@ -446,6 +447,29 @@ describe('lifting off mid-corner (physics №2 and №3)', () => {
       r.run({ steer: 0, throttle: 0, brake: 0 }, 1.6);
       // Before the rear tyre retune: up to 0.9°. (The AMG has the most lock at speed: the same input is a sharper move.)
       expect(Math.abs(r.car.psi)).toBeLessThan(0.5 * DEG);
+    });
+  }
+});
+
+describe('brakes (physics №2 and №3)', () => {
+  for (const [name, make, maxStop] of [
+    ['V8 RWD', () => new DriftCar(), 35],
+    ['AMG 4MATIC+', () => new MercedesCar(), 31.5],
+  ] as const) {
+    it(`${name}: stops from 100 km/h in under ${maxStop} m, and braking into a turn keeps the tail in line`, () => {
+      // Straight: about 30 % stronger than the first tune (42 / 37 m before).
+      const r = rig(make(), 100);
+      const s0 = r.car.s;
+      while (r.car.vx > 0.3) r.run({ steer: 0, throttle: 0, brake: 1 }, DT);
+      expect(r.car.s - s0).toBeLessThan(maxStop);
+      // In a turn at 140 km/h the rear is held back (cornering brake control).
+      for (const steer of [0.25, 0.4, 0.6]) {
+        const t = rig(make(), 140);
+        t.run({ steer, throttle: 0.3, brake: 0 }, 0.5);
+        let slip = 0;
+        t.run({ steer, throttle: 0, brake: 1 }, 1.25, () => (slip = Math.max(slip, Math.abs(beta(t.car)))));
+        expect(slip).toBeLessThan(5 * DEG);
+      }
     });
   }
 });

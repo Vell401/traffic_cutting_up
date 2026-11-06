@@ -4,6 +4,8 @@ import { PlayerCar, type DriveInput } from './vehicle';
 
 /** rpm → rad/s */
 const RPM = Math.PI / 30;
+/** Cornering brake control: at this lateral acceleration (m/s²) the rear braking slip is cut by the tune's cbcCut. */
+const CBC_AY = 3.5;
 /** Handbrake torque on the rear axle, N·m (locks the wheels at any speed). */
 const HANDBRAKE_TQ = 4000;
 /** Handbrake below the tyre model's speed range, m/s². */
@@ -68,6 +70,8 @@ export type DriftTune = CarTune & {
   absSlip: number;
   /** EBD keeps the rear braking slip ratio under this with the brake pedal down (rear stays planted). */
   ebdSlip: number;
+  /** Cornering brake control: share of ebdSlip taken away in a turn (a rear-drive saloon keeps a little rotation). */
+  cbcCut: number;
   /**
    * Engine drag control (MSR): off the throttle and off the brakes, engine braking may pull a wheel
    * only this far into braking slip. Without it lifting mid-corner took enough rear grip to make the
@@ -137,7 +141,7 @@ export const driftTune: DriftTune = {
   tireC: 1.45,
   aeroDrag: 0.5,
   rollingRes: 5,
-  brakeDecel: 9.6,
+  brakeDecel: 12.5,
   maxSteerLow: 0.55,
   steerGripScale: 1.75,
   yawAssist: 0,
@@ -173,7 +177,9 @@ export const driftTune: DriftTune = {
   lsdLock: 0.8,
   brakeFront: 0.64,
   absSlip: 0.08,
-  ebdSlip: 0.035,
+  // Brakes ~30 % stronger than at first (was 9.6 / 0.035): more pedal and the rear axle let work in a straight line.
+  ebdSlip: 0.06,
+  cbcCut: 0.45,
   dragSlip: 0.01,
   tcSlip: 0.13,
   escAssist: 1,
@@ -493,7 +499,10 @@ export class DriftCar extends PlayerCar {
       const ir = this.inertiaR + h * R * kr;
       let wr = this.omegaR + (h * (driveRear * (1 - t.escCut * u) - dragRear - R * fxR)) / ir;
       wr = Math.max(0, wr - (h * (brakeTq * (1 - t.brakeFront) + (hb ? HANDBRAKE_TQ : 0))) / ir);
-      const rearSlipMin = hb ? 1 : coasting ? t.dragSlip : t.ebdSlip;
+      // Cornering brake control: braking in a straight line the rear may take ebdSlip, in a turn
+      // (lateral g) it is held back (by cbcCut) so the tail stays behind the car.
+      const turning = clamp(Math.abs(this.ayLag) / CBC_AY, 0, 1);
+      const rearSlipMin = hb ? 1 : coasting ? t.dragSlip : t.ebdSlip * (1 - t.cbcCut * turning);
       this.omegaR = clamp(wr, (vx - rearSlipMin * denR) / R, (vx + kLim * denR) / R);
       const kf = Math.max(0, kF / t.slipRatioPeak) * (R / denF);
       const iff = t.wheelInertiaFront + h * R * kf;
