@@ -90,3 +90,32 @@ describe('input flags', () => {
     }
   });
 });
+
+describe('manual gearbox, nearly stopped', () => {
+  for (const physics of [1, 2, 3] as const) {
+    it(`physics ${physics}: first gear goes in by itself, the car pulls away`, () => {
+      const car = createCar(physics);
+      car.reset(0, 0, 3 / 3.6);
+      car.gear = 5;
+      const inp: DriveInput = { steer: 0, throttle: 1, brake: 0, manual: true };
+      car.step(DT, inp, 0);
+      expect(car.gear).toBe(1);
+      run(car, inp, 2);
+      expect(kmh(car)).toBeGreaterThan(30);
+    });
+  }
+});
+
+describe('AWD pulling away (physics 3)', () => {
+  it('steers under full throttle: the driven front axle keeps grip for turning', () => {
+    const car = createCar(3);
+    car.reset(0, 0, 0);
+    const inp: DriveInput = { steer: 0, throttle: 1, brake: 0 };
+    run(car, inp, 1.5);
+    inp.steer = -1;
+    run(car, inp, 0.7);
+    // Before the front traction control the front wheels spun up and the car went on straight (≈ -0.03).
+    expect(car.psi).toBeLessThan(-0.15);
+    expect(kmh(car)).toBeGreaterThan(60);
+  });
+});

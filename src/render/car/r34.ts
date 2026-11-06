@@ -21,6 +21,9 @@ export const SHELL = 6;
 /** Turn signals, right side (x > 0) and its mirror image: each side blinks with its own material. */
 export const IND_R = 7;
 export const IND_L = 8;
+/** Rear turn signals: the centres of the inner round tail lamps, right side and its mirror image. */
+export const RIND_R = 9;
+export const RIND_L = 10;
 
 export interface R34Geometry {
   parts: THREE.BufferGeometry[];
@@ -326,8 +329,12 @@ function buildFront(b: Bucket[]): void {
     b[EMIT].rgb = [3.4, 3.3, 3.05];
     pair(b[EMIT], placed(new THREE.CircleGeometry(0.03, 24), p, n));
   }
-  // Turn signals at the corners under the headlights (right side; the left one is its mirror image).
-  nosePatch(0.6, 0.735, () => 0.578, () => 0.596, 4, 1, 0.004).emit(b, () => IND_R, () => [0, 0], { flip: true });
+  // Turn signals in the bumper corners under the headlights: a chrome-rimmed amber lens (right side;
+  // the left one is its mirror image).
+  b[CHROME].rgb = [0.75, 0.77, 0.8];
+  nosePatch(0.515, 0.675, () => 0.551, () => 0.604, 8, 2, 0.003).emit(b, () => CHROME, () => [0, 0], { flip: true });
+  b[CHROME].resetKeys();
+  nosePatch(0.523, 0.667, () => 0.557, () => 0.598, 8, 2, 0.0055).emit(b, () => IND_R, () => [0, 0], { flip: true });
   // Upper grille between the headlights.
   const gx = (x: number) => [x * 9, 0] as [number, number];
   const grille = nosePatch(0, 0.27, () => 0.622, (x) => 0.694 - 0.01 * (x / 0.27), 6, 3, 0.003);
@@ -372,11 +379,18 @@ function buildRear(b: Bucket[]): void {
     pair(b[CHROME], housing);
     b[CHROME].rgb = [0.95, 0.96, 0.98];
     pair(b[CHROME], new THREE.RingGeometry(0.066, 0.077, 32).translate(x, y, zr + 0.025));
-    pair(b[CHROME], new THREE.RingGeometry(0.026, 0.031, 24).translate(x, y, zr + 0.0265));
     b[TAIL].rgb = [1, 1, 1];
-    pair(b[TAIL], new THREE.RingGeometry(0.031, 0.066, 32).translate(x, y, zr + 0.024));
-    b[TAIL].rgb = [0.5, 0.5, 0.5];
-    pair(b[TAIL], new THREE.CircleGeometry(0.026, 20).translate(x, y, zr + 0.024));
+    if (x < 0.5) {
+      // Inner lamps: a wider centre that flashes amber (the rear turn signals), red ring around it.
+      pair(b[CHROME], new THREE.RingGeometry(0.041, 0.046, 28).translate(x, y, zr + 0.0265));
+      pair(b[TAIL], new THREE.RingGeometry(0.046, 0.066, 32).translate(x, y, zr + 0.024));
+      b[RIND_R].addGeometry(new THREE.CircleGeometry(0.041, 28).translate(x, y, zr + 0.024));
+    } else {
+      pair(b[CHROME], new THREE.RingGeometry(0.026, 0.031, 24).translate(x, y, zr + 0.0265));
+      pair(b[TAIL], new THREE.RingGeometry(0.031, 0.066, 32).translate(x, y, zr + 0.024));
+      b[TAIL].rgb = [0.5, 0.5, 0.5];
+      pair(b[TAIL], new THREE.CircleGeometry(0.026, 20).translate(x, y, zr + 0.024));
+    }
   }
   // Diffuser with fins, single big exhaust on the right.
   b[TRIM].addGeometry(new THREE.BoxGeometry(1.12, 0.014, 0.3).rotateX(-0.12).translate(0, 0.3, 2.18));
@@ -431,8 +445,7 @@ function buildSides(b: Bucket[]): void {
   // Side repeaters on the front fenders (blink with the turn signals).
   const my = 0.6;
   b[IND_R].addGeometry(box(0.01, 0.022, 0.07, S.sideX(1.85, my) * S.planS(1.85) + 0.003, my, 1.85));
-  // Rear turn signals: amber strips low on the tail, under the outer lamps.
-  b[IND_R].addGeometry(new THREE.PlaneGeometry(0.17, 0.04).translate(0.585, 0.655, -S.F_REAR + 0.003));
+
   // Wipers resting at the base of the windshield.
   for (const [x0, x1] of [[-0.12, 0.58], [-0.62, 0.02]]) {
     const xm = (x0 + x1) / 2;
@@ -446,7 +459,7 @@ let cached: R34Geometry | null = null;
 /** Exterior and cabin lining geometry, built once. */
 export function r34Geometry(): R34Geometry {
   if (cached) return cached;
-  const b = [new Bucket(), new Bucket(), new Bucket(true), new Bucket(true), new Bucket(true), new Bucket(), new Bucket(), new Bucket(), new Bucket()];
+  const b = [new Bucket(), new Bucket(), new Bucket(true), new Bucket(true), new Bucket(true), new Bucket(), new Bucket(), new Bucket(), new Bucket(), new Bucket(), new Bucket()];
   buildTub(b);
   buildGreenhouse(b);
   buildFront(b);
@@ -455,6 +468,7 @@ export function r34Geometry(): R34Geometry {
   buildSides(b);
   const parts = b.map((bk) => bk.geometry());
   parts[IND_L] = mirrorX(parts[IND_R]);
+  parts[RIND_L] = mirrorX(parts[RIND_R]);
   cached = { parts, lamp: new THREE.Vector3(0, 0.66, -2.2) };
   return cached;
 }

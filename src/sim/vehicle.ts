@@ -327,8 +327,14 @@ export class PlayerCar {
    */
   protected manualShift(dir: number, k: number): void {
     this.shiftRefused = false;
-    if (dir === 0 || this.shiftT > 0) return;
     const t = this.tune;
+    // Nearly stopped (after a crash, say): first gear goes in by itself, like a driver would, so
+    // the car never sits stalled in a high gear.
+    if (this.gear > 1 && k / t.gearTopKmh[0] < t.idleRpm && this.shiftT <= 0) {
+      this.gear = 1;
+      return;
+    }
+    if (dir === 0 || this.shiftT > 0) return;
     if (dir > 0 && this.gear < t.gearTopKmh.length) {
       this.gear++;
       this.shiftT = t.shiftTime;

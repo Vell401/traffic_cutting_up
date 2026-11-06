@@ -6,7 +6,7 @@ import { Director } from '../sim/director';
 import type { SimEvents } from '../sim/events';
 import type { CarId } from '../sim/cars';
 import { createCar, type PhysicsId } from '../sim/physics';
-import { SPAWN_D, ringScript, spawnS } from '../sim/ring';
+import { SPAWN_D, SPAWN_GAP, SPAWN_PLACES, ringScript, spawnS } from '../sim/ring';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
 import { MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
@@ -355,7 +355,17 @@ export class OnlineWorld {
     dr.ghostT -= dt;
     // No scoring while passing through traffic.
     dr.score.grace = Math.max(dr.score.grace, 0.25);
-    if (dr.ghostT <= 0 && !this.touchesTraffic(dr.car)) dr.car.ghost = false;
+    if (dr.ghostT <= 0 && !this.touchesTraffic(dr.car) && !this.onSpawnPad(dr.car)) dr.car.ghost = false;
+  }
+
+  /**
+   * Still on the spawn pad: on the shoulder alongside the places (a little before and after). Cars
+   * there stay ghosts, so pulling away never runs into someone parked on the next place.
+   */
+  private onSpawnPad(p: PlayerCar): boolean {
+    if (p.d < SPAWN_D - 1.6) return false;
+    const first = this.traffic.rel(p.s, spawnS(0));
+    return first < 30 && first > -(SPAWN_PLACES - 1) * SPAWN_GAP - 12;
   }
 
   private touchesTraffic(p: PlayerCar): boolean {

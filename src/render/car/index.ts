@@ -4,7 +4,7 @@ import { MeshoptDecoder } from 'meshoptimizer';
 import type { CarId } from '../../sim/cars';
 import { buildCoupe, sideExtrude } from '../carModels';
 import { liveryPaint } from './livery';
-import { CHROME, EMIT, GRILLE, IND_L, IND_R, PAINT, SHELL, TAIL, TRIM, r34Geometry } from './r34';
+import { CHROME, EMIT, GRILLE, IND_L, IND_R, PAINT, RIND_L, RIND_R, SHELL, TAIL, TRIM, r34Geometry } from './r34';
 import { buildR34Cockpit, type Cockpit } from './r34Interior';
 import { LENGTH, TRACK_HALF, AXLES, TYRE_W, WHEEL_R, WIDTH } from './r34Shape';
 import { WheelSet, caliper, plainWheel, sportRim, sportTyre, type WheelPos } from './wheels';
@@ -65,27 +65,98 @@ export const CAMERA_RIGS: Record<CarId, CameraRig> = {
   },
 };
 
-/** Turn signal lamps of one car, one material per side (PlayerView switches their colour). */
-export interface Indicators {
-  left: THREE.MeshBasicMaterial;
-  right: THREE.MeshBasicMaterial;
-}
-
 /** Amber lens unlit, and lit (bright enough to bloom). */
 export const INDICATOR_OFF = new THREE.Color(0.11, 0.045, 0.004);
 export const INDICATOR_ON = new THREE.Color(4.2, 1.75, 0.08);
+/** Lit amber as an emissive (lamps inside an imported model). */
+const AMBER_GLOW = new THREE.Color(6, 2.5, 0.12);
 
-function indicatorMats(): Indicators {
-  return { left: new THREE.MeshBasicMaterial({ color: INDICATOR_OFF.clone() }), right: new THREE.MeshBasicMaterial({ color: INDICATOR_OFF.clone() }) };
+type LampMat = THREE.MeshBasicMaterial | THREE.MeshStandardMaterial;
+
+/**
+ * Turn signals and tail lamps that are part of a body: each lamp has its own look when dark (an
+ * amber lens, a red tail lamp, a white running light) and when lit. Lamps of an imported model are
+ * added when it has loaded. Left = -1, right = 1; side 0 is a tail lamp that brightens on braking.
+ */
+export class Indicators {
+  private readonly lamps: { mat: LampMat; side: number; off: THREE.Color; on: THREE.Color }[] = [];
+
+  /** `off`/`on` default to the amber indicator lens; plain materials change colour, lit ones glow. */
+  add(mat: LampMat, side: number, off: THREE.Color = INDICATOR_OFF, on: THREE.Color = 'emissive' in mat ? AMBER_GLOW : INDICATOR_ON): void {
+    this.lamps.push({ mat, side, off: off.clone(), on: on.clone() });
+    this.paint(this.lamps[this.lamps.length - 1], false);
+  }
+
+  /** Remove every lamp made of one of these materials (a placeholder replaced by the real model). */
+  drop(mats: readonly THREE.Material[]): void {
+    for (let i = this.lamps.length - 1; i >= 0; i--) if (mats.includes(this.lamps[i].mat)) this.lamps.splice(i, 1);
+  }
+
+  set(left: boolean, right: boolean, brake: boolean): void {
+    for (const l of this.lamps) this.paint(l, l.side < 0 ? left : l.side > 0 ? right : brake);
+  }
+
+  private paint(l: { mat: LampMat; off: THREE.Color; on: THREE.Color }, lit: boolean): void {
+    const c = 'emissive' in l.mat ? l.mat.emissive : l.mat.color;
+    c.copy(lit ? l.on : l.off);
+  }
 }
 
-/** Small lamp boxes [x, y, z, w, h, l] in car space; x < 0 blinks left, x > 0 right. */
-function indicatorBoxes(parent: THREE.Object3D, ind: Indicators, spots: readonly (readonly [number, number, number, number, number, number])[]): void {
-  for (const [x, y, z, w, h, l] of spots) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), x < 0 ? ind.left : ind.right);
+/** Small amber lamp boxes [x, y, z, w, h, l] in car space; x < 0 blinks left, x > 0 right. */
+function indicatorBoxes(parent: THREE.Object3D, ind: Indicators, spots: readonly (readonly [number, number, number, number, number, number])[]): THREE.Mesh[] {
+  const left = new THREE.MeshBasicMaterial();
+  const right = new THREE.MeshBasicMaterial();
+  ind.add(left, -1);
+  ind.add(right, 1);
+  return spots.map(([x, y, z, w, h, l]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), x < 0 ? left : right);
     m.position.set(x, y, z);
     parent.add(m);
-  }
+    return m;
+  });
+}
+
+/*
+ * Lamps of the imported A45 (by node name; sides by where they sit): the running-light strip in each
+ * headlight and the repeater in each mirror turn amber, so does the LED light guide of each tail lamp;
+ * the red tail lamp glass glows and brightens on braking.
+ */
+const A45_SIGNAL_NODES = new Set([
+  'SM_Light_F_101007_1', 'SM_Light_F_101028_1', 'SM_Light_F_101036_1', 'SM_Light_F_101058_1',
+  'SK_Trunk_101032_1', 'SK_Trunk_101036_1', 'SM_Light_B_101002_1', 'SM_Light_B_101015_1',
+]);
+const DRL_WHITE = new THREE.Color(1.6, 1.6, 1.5);
+const TAIL_GLOW = new THREE.Color(0.9, 0.03, 0.015);
+const TAIL_GLOW_BRAKE = new THREE.Color(3.2, 0.1, 0.04);
+const LED_TAIL = new THREE.Color(1.4, 0.05, 0.02);
+
+function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
+  model.updateMatrixWorld(true);
+  const clones = new Map<string, THREE.MeshStandardMaterial>();
+  const p = new THREE.Vector3();
+  model.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    const signal = mat.name === 'Signals' || A45_SIGNAL_NODES.has(mesh.name);
+    const tail = mat.name === 'tailights_red_glass';
+    if (!signal && !tail) return;
+    // Materials are shared between both sides and every car using the model: one clone per car,
+    // per side and per original material.
+    mesh.getWorldPosition(p);
+    const side = tail ? 0 : p.x < 0 ? -1 : 1;
+    const key = `${mat.uuid}/${side}`;
+    let m = clones.get(key);
+    if (!m) {
+      m = mat.clone();
+      clones.set(key, m);
+      const front = mesh.name.startsWith('SM_Light_F');
+      const rearLed = mesh.name.startsWith('SK_Trunk') || mesh.name.startsWith('SM_Light_B');
+      if (tail) ind.add(m, 0, TAIL_GLOW, TAIL_GLOW_BRAKE);
+      else ind.add(m, side, front ? DRL_WHITE : rearLed ? LED_TAIL : m.emissive.clone(), AMBER_GLOW);
+    }
+    mesh.material = m;
+  });
 }
 
 export interface CarParts {
@@ -162,6 +233,7 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
 }
 
 const TAIL_IDLE = new THREE.Color(1.2, 0.05, 0.03);
+const R34_REAR_OFF = new THREE.Color(0.75, 0.03, 0.02);
 const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 
 /**
@@ -203,21 +275,6 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   ];
   shell.add(new THREE.Mesh(sideExtrude(profile, 1.85, 1, 0.065), paintMat));
   shell.add(new THREE.Mesh(sideExtrude(glazing, 1.48, 1, 0.025), glassMat));
-  if (importedModel) loadMercedesModel((model) => {
-    const imported = model.clone(true);
-    imported.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(imported);
-    const size = bounds.getSize(new THREE.Vector3());
-    // Keep the source proportions and fit its wheelbase direction to the car spec.
-    const fit = L / size.z;
-    imported.scale.setScalar(fit);
-    imported.updateMatrixWorld(true);
-    const scaled = new THREE.Box3().setFromObject(imported);
-    imported.position.set(-(scaled.min.x + scaled.max.x) / 2, -scaled.min.y, -(scaled.min.z + scaled.max.z) / 2);
-    body.remove(shell);
-    shell.clear();
-    body.add(imported);
-  });
   // Low roof and upright rear hatch establish the compact AMG hatchback silhouette.
   box(1.42, 0.12, 1.38, paintMat, 0, 1.37, -0.18);
   const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.035, 0.86), glassMat);
@@ -262,14 +319,33 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   const wheelRoot = new THREE.Group();
   wheelRoot.scale.copy(scale);
   wheelRoot.add(wheels.group);
-  // Turn signals on the body itself (the imported model replaces the procedural shell, not these).
-  const indicators = indicatorMats();
-  indicatorBoxes(body, indicators, [
+  // Placeholder turn signals for the procedural shell; the imported model brings its own lamps.
+  const indicators = new Indicators();
+  const placeholders = indicatorBoxes(body, indicators, [
     [-(W / 2 - 0.13), 0.66, -L / 2 + 0.06, 0.12, 0.045, 0.06],
     [W / 2 - 0.13, 0.66, -L / 2 + 0.06, 0.12, 0.045, 0.06],
     [-(W / 2 - 0.1), 0.84, L / 2 - 0.08, 0.1, 0.05, 0.06],
     [W / 2 - 0.1, 0.84, L / 2 - 0.08, 0.1, 0.05, 0.06],
   ]);
+  // Last: with the model already cached this runs at once and swaps the placeholders out.
+  if (importedModel) loadMercedesModel((model) => {
+    const imported = model.clone(true);
+    imported.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(imported);
+    const size = bounds.getSize(new THREE.Vector3());
+    // Keep the source proportions and fit its wheelbase direction to the car spec.
+    const fit = L / size.z;
+    imported.scale.setScalar(fit);
+    imported.updateMatrixWorld(true);
+    const scaled = new THREE.Box3().setFromObject(imported);
+    imported.position.set(-(scaled.min.x + scaled.max.x) / 2, -scaled.min.y, -(scaled.min.z + scaled.max.z) / 2);
+    body.remove(shell);
+    shell.clear();
+    for (const m of placeholders) body.remove(m);
+    indicators.drop(placeholders.map((m) => m.material as THREE.Material));
+    hookA45Lamps(imported, indicators);
+    body.add(imported);
+  });
   return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit: null, indicators };
 }
 
@@ -314,7 +390,7 @@ function buildCoupeParts(paint: number, L: number, W: number): CarParts {
   );
   const wheelRoot = new THREE.Group();
   wheelRoot.add(wheels.group);
-  const indicators = indicatorMats();
+  const indicators = new Indicators();
   indicatorBoxes(body, indicators, [
     [-0.86, 0.58, -L / 2 + 0.01, 0.12, 0.05, 0.05],
     [0.86, 0.58, -L / 2 + 0.01, 0.12, 0.05, 0.05],
@@ -342,9 +418,20 @@ function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts 
   mats[TAIL] = tail;
   mats[GRILLE] = new THREE.MeshStandardMaterial({ color: 0x9a9da3, map: honeycombTexture(), roughness: 0.8, metalness: 0.2 });
   mats[SHELL] = null;
-  const indicators = indicatorMats();
-  mats[IND_L] = indicators.left;
-  mats[IND_R] = indicators.right;
+  const indicators = new Indicators();
+  const indL = new THREE.MeshBasicMaterial();
+  const indR = new THREE.MeshBasicMaterial();
+  const rearL = new THREE.MeshBasicMaterial();
+  const rearR = new THREE.MeshBasicMaterial();
+  indicators.add(indL, -1);
+  indicators.add(indR, 1);
+  // The centres of the inner round tail lamps: red like the rest of the lamp, amber when blinking.
+  indicators.add(rearL, -1, R34_REAR_OFF);
+  indicators.add(rearR, 1, R34_REAR_OFF);
+  mats[IND_L] = indL;
+  mats[IND_R] = indR;
+  mats[RIND_L] = rearL;
+  mats[RIND_R] = rearR;
   geo.parts.forEach((g, i) => {
     const m = mats[i];
     if (m && g.index && g.index.count > 0) model.add(new THREE.Mesh(g, m));

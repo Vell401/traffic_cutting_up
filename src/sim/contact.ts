@@ -6,6 +6,9 @@ import type { PlayerCar } from './vehicle';
 /** Closing speed between two drivers that counts as a crash (≈ 29 km/h), m/s; slower is a bump. */
 export const DRIVER_CRASH_SPEED = 8;
 
+/** Share of the rigid-body yaw kick a driver-vs-driver hit gives (arcade-soft contacts). */
+const PAIR_SPIN = 0.35;
+
 /** What happened in one car-vs-traffic contact. */
 export interface Hit {
   car: TrafficCar;
@@ -104,7 +107,9 @@ export class Contacts {
     let bL = b.vLat;
     const rel = (aA - bA) * n.nx + (aL - bL) * n.ny;
     if (rel > 0) {
-      const j = (1.3 * rel) / (1 / m1 + 1 / m2);
+      // Little bounce and a fraction of the spin a rigid hit would give: rubbing paint with another
+      // driver should shove, not send both cars into a pirouette.
+      const j = (1.12 * rel) / (1 / m1 + 1 / m2);
       aA -= (j * n.nx) / m1;
       aL -= (j * n.ny) / m1;
       bA += (j * n.nx) / m2;
@@ -112,7 +117,7 @@ export class Contacts {
       // Contact point ≈ midway between the centres; the same torque turns both cars the same way.
       const rx = ds * 0.5;
       const ry = (b.d - a.d) * 0.5;
-      const tq = rx * -j * n.ny - ry * -j * n.nx;
+      const tq = (rx * -j * n.ny - ry * -j * n.nx) * PAIR_SPIN;
       a.r += tq / (m1 * a.tune.cgToFront * a.tune.cgToRear);
       b.r += tq / (m2 * b.tune.cgToFront * b.tune.cgToRear);
       a.setRoadVelocity(aA, aL);

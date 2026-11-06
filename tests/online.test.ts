@@ -361,6 +361,25 @@ describe('driver contacts', () => {
     expect(a.score.combo).toBe(0);
   });
 
+  it('cars on the spawn pad stay ghosts: pulling away along the shoulder never hits the next place', () => {
+    const world = new OnlineWorld(32);
+    world.traffic.enabled = false;
+    const front = world.join('Front', 3)!; // place 1, parked
+    const back = world.join('Back', 3)!; // place 2, 22 m behind it on the same shoulder
+    const go = quantizeInput({ steer: 0, throttle: 1, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
+    const stay = quantizeInput({ steer: 0, throttle: 0, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
+    let hits = 0;
+    for (const dr of [front, back]) for (const e of ['crash', 'bump'] as const) dr.events.on(e, () => hits++);
+    for (let i = 1; i <= 120 * 8; i++) {
+      world.input(front, i, [stay], 1);
+      world.input(back, i, [i > 120 * 4 ? go : stay], 1); // waits out the 3 s, then drives straight on
+      world.step();
+    }
+    expect(back.car.s).toBeGreaterThan(front.car.s + 30); // drove through the parked car's place
+    expect(hits).toBe(0);
+    expect(front.car.ghost).toBe(true);
+  });
+
   it('spawn-protected drivers pass through', () => {
     const { a, b, events, steps } = pair(6, 110, 60, true);
     steps(120);

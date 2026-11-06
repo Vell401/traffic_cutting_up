@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
 import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
-import { INDICATOR_OFF, INDICATOR_ON, buildCar, type CarParts } from './car';
+import { buildCar, type CarParts } from './car';
 
 /** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
 const BLINK_PERIOD = 0.7;
@@ -124,8 +124,7 @@ export class PlayerView {
       this.blinkT = 0;
     } else this.blinkT += dt;
     this.blinkLit = this.blinkSide !== 0 && this.blinkT % BLINK_PERIOD < BLINK_LIT;
-    p.indicators.left.color.copy(this.blinkLit && this.blinkSide === 1 ? INDICATOR_ON : INDICATOR_OFF);
-    p.indicators.right.color.copy(this.blinkLit && this.blinkSide === 2 ? INDICATOR_ON : INDICATOR_OFF);
+    p.indicators.set(this.blinkLit && this.blinkSide === 1, this.blinkLit && this.blinkSide === 2, car.brake > 0.05);
     if (this.cockpitOn) p.cockpit!.update(car, dt);
   }
 

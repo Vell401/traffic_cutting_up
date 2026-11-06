@@ -98,6 +98,12 @@ export type DriftTune = CarTune & {
   substeps: number;
   /** Engine torque share sent to the front axle (AWD); zero retains rear-wheel drive. */
   frontDrive: number;
+  /**
+   * Traction control on a driven front axle: its slip limit as a share of the rear one. Lower keeps
+   * more front grip for steering under throttle (without it the front wheels spun up when pulling
+   * away and the car would not turn).
+   */
+  frontTc: number;
 };
 
 /**
@@ -172,6 +178,7 @@ export const driftTune: DriftTune = {
   slipSpeed: 3,
   substeps: 4,
   frontDrive: 0,
+  frontTc: 0.6,
 };
 
 /*
@@ -461,6 +468,9 @@ export class DriftCar extends PlayerCar {
       let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - R * fxF)) / iff;
       wf = Math.max(0, wf - (h * brakeTq * t.brakeFront) / iff);
       this.omegaF = Math.max(wf, (vwF - t.absSlip * denF) / R);
+      // Driven front axle (AWD): traction control keeps its slip in check too. Without it the front
+      // wheels spun up under throttle at low speed and the car would not steer.
+      if (t.frontDrive > 0) this.omegaF = Math.min(this.omegaF, (vwF + kLim * t.frontTc * denF) / R);
 
       this.axLag += (fx / m - this.axLag) * lagK;
       this.ayLag += (fy / m - this.ayLag) * lagK;
