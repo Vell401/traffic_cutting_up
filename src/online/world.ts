@@ -544,9 +544,13 @@ export class OnlineWorld {
 const f64 = new Float64Array(1);
 const u32 = new Uint32Array(f64.buffer);
 
-/** Rebuild a session from its seed, rules and journal (up to `endTick`). */
-export function replay(seed: number, rules: Partial<OnlineRules>, journal: readonly Stimulus[], endTick: number): OnlineWorld {
+/**
+ * Rebuild a session from its seed, rules and journal (up to `endTick`). `prepare` repeats what was done
+ * to the live world before its first tick (tests switch traffic off, say).
+ */
+export function replay(seed: number, rules: Partial<OnlineRules>, journal: readonly Stimulus[], endTick: number, prepare?: (w: OnlineWorld) => void): OnlineWorld {
   const w = new OnlineWorld(seed, rules);
+  prepare?.(w);
   const q: InputQ[] = [];
   for (const rec of journal) {
     while (w.tick < rec.t) w.step();

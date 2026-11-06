@@ -441,6 +441,7 @@ describe('driver contacts', () => {
 
   it('a session with collisions replays exactly from its journal', () => {
     const net = new NetSession(24, {}, true);
+    net.server.world.traffic.enabled = false; // traffic contacts are covered above; here the two must meet
     net.add(spec('B', 25, 5, { physics: 2, bot: { kmh: 110, weave: false } }));
     net.run(5);
     net.add(spec('A', 40, 10, { bot: { kmh: 230, weave: false, reckless: true } }));
@@ -456,7 +457,8 @@ describe('driver contacts', () => {
     const both = [...ticks.get('A')!].filter((t) => ticks.get('B')!.has(t));
     expect(both.length).toBeGreaterThan(0);
     const live = net.server.world;
-    expect(replay(24, {}, net.journal, live.tick).hash()).toBe(live.hash());
+    const again = replay(24, {}, net.journal, live.tick, (w) => (w.traffic.enabled = false));
+    expect(again.hash()).toBe(live.hash());
   });
 
   it('turn signals and the manual gearbox go through the server; others see the signal', () => {

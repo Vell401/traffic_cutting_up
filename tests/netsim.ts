@@ -139,6 +139,7 @@ export class NetClient {
         if (this.connected) this.up.push(net.now, d);
       },
       onTeleport: () => this.teleports++,
+      rng,
     });
     this.bot = new Bot(this.sim, spec.bot, rng);
     this.sim.events.on('crash', () => this.localCrashes++);

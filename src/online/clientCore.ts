@@ -1,6 +1,7 @@
 import { WALL_D, laneCenter, trafficTune } from '../config';
 import { lerp, smoothstep } from '../core/math';
 import { Emitter } from '../core/events';
+import type { Rng } from '../core/rng';
 import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
 import type { SimEvents } from '../sim/events';
 import { carId, type CarId } from '../sim/cars';
@@ -109,6 +110,8 @@ export interface ClientHooks {
   onFeed?(text: string): void;
   onWelcome?(msg: Extract<ServerMsg, { t: 'welcome' }>): void;
   onReject?(text: string): void;
+  /** Randomness of predicted traffic contacts (a seeded one keeps headless test sessions repeatable). */
+  rng?: Rng;
 }
 
 /**
@@ -172,7 +175,7 @@ export class ClientCore {
     this.L = sim.road.ringLen;
     this.dt = 1 / 120;
     for (let i = 0; i < HIST; i++) this.hist.push({ steer: 0, throttle: 0, brake: 0, flags: 0 });
-    this.contacts = new Contacts(Math.random);
+    this.contacts = new Contacts(hooks.rng ?? Math.random);
     this.contacts.ringLen = Infinity; // our car and the predictions share one unwrapped frame
     this.cosmetic = new Scoring(this.cosmeticEvents);
     this.cosmetic.grace = 0;
