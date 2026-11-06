@@ -182,9 +182,9 @@ export const driftTune: DriftTune = {
 };
 
 /*
- * Single-track model with load transfer, two wheel-speed states and combined slip.
- *  - Axle loads follow the body accelerations through a first-order lag (suspension). Lateral transfer
- *    is split by roll stiffness; per-wheel load sensitivity makes an axle with transfer weaker.
+ * Planar four-contact tire model with load transfer, axle wheel speeds and combined slip.
+ *  - Axle loads follow body accelerations through a first-order lag. Lateral load transfer is split
+ *    by roll stiffness, then each tire's nonlinear load sensitivity determines axle capacity.
  *  - Front and rear "wheels" spin with inertia; the rear gets engine torque through a 7-speed automatic.
  *    Wheel speed is integrated semi-implicitly (stiff at 120 Hz), so slip does not ring.
  *  - Tyre force: normalised combined slip (κ/κpeak, α/αpeak) through one Pacejka-like curve, so
@@ -426,7 +426,6 @@ export class DriftCar extends PlayerCar {
       const denR = Math.max(vx, t.slipSpeed);
       const kapF = (this.omegaF * R - vwF) / denF;
       const kapR = (this.omegaR * R - vx) / denR;
-
       this.tire(kapF, alphaF, gripF * t.longGrip, gripF, 1);
       const fxF = this.tfx;
       const fyF = this.tfy;
@@ -435,7 +434,6 @@ export class DriftCar extends PlayerCar {
       const fxR = this.tfx;
       const fyR = this.tfy;
       const kR = this.tdx;
-
       const fxFront = fxF * cosd - fyF * sind;
       const fyFront = fxF * sind + fyF * cosd;
       let fx = fxFront + fxR - resist + this.boostF;
@@ -473,14 +471,11 @@ export class DriftCar extends PlayerCar {
       let wr = this.omegaR + (h * (driveRear * (1 - t.escCut * u) - this.dragTq - R * fxR)) / ir;
       wr = Math.max(0, wr - (h * brakeTq * (1 - t.brakeFront)) / ir);
       this.omegaR = clamp(wr, (vx - t.ebdSlip * denR) / R, (vx + kLim * denR) / R);
-
       const kf = Math.max(0, kF / t.slipRatioPeak) * (R / denF);
       const iff = t.wheelInertiaFront + h * R * kf;
       let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - R * fxF)) / iff;
       wf = Math.max(0, wf - (h * brakeTq * t.brakeFront) / iff);
       this.omegaF = Math.max(wf, (vwF - t.absSlip * denF) / R);
-      // Driven front axle (AWD): traction control keeps its slip in check too. Without it the front
-      // wheels spun up under throttle at low speed and the car would not steer.
       if (t.frontDrive > 0) this.omegaF = Math.min(this.omegaF, (vwF + kLim * t.frontTc * denF) / R);
 
       this.axLag += (fx / m - this.axLag) * lagK;
@@ -506,8 +501,8 @@ export class DriftCar extends PlayerCar {
   }
 
   /**
-   * Peak force of an axle's two tyres, N, after lateral load transfer dLat. Per-wheel μ falls with load
-   * (μ = μ0·(1 − ls·(Fz/Fnom − 1))), so transfer lowers the axle's total. Leaves the inner wheel's in innerGrip.
+   * Peak force of both axle tires after lateral load transfer. Per-tire load sensitivity reduces total
+   * axle capacity and records the inner tire capacity for the differential.
    */
   private axleGrip(fz: number, dLat: number, mu: number, fNom: number): number {
     const ls = this.tune.loadSensitivity;

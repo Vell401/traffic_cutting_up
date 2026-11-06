@@ -290,6 +290,25 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     expect(finite(a)).toBe(true);
   });
 
+  it('I: four wheel speeds survive exact state continuation', () => {
+    const a = rig(new DriftCar(), 90, 2).car as DriftCar;
+    for (let i = 0; i < 180; i++) a.step(DT, { steer: 1, throttle: 1, brake: 0 }, 1 / 1500);
+    const state = new Float64Array(a.stateSize);
+    expect(a.saveState(state)).toBe(a.stateSize);
+    const b = new DriftCar();
+    expect(b.loadState(state)).toBe(b.stateSize);
+    for (let i = 0; i < 240; i++) {
+      const input = { steer: Math.sin(i * 0.03), throttle: i % 80 < 50 ? 1 : 0, brake: i % 80 >= 50 ? 0.4 : 0 };
+      a.step(DT, input, 1 / 1500);
+      b.step(DT, input, 1 / 1500);
+    }
+    const afterA = new Float64Array(a.stateSize);
+    const afterB = new Float64Array(b.stateSize);
+    a.saveState(afterA);
+    b.saveState(afterB);
+    expect([...afterB]).toEqual([...afterA]);
+  });
+
   it('I: no NaN from a standstill, braking to zero and creeping around 2.5 m/s', () => {
     const car = new DriftCar();
     const r = rig(car, 0);
