@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { lerp } from '../core/math';
+import type { CarId } from '../sim/cars';
 import type { RoadPoint } from '../sim/road';
 import type { Sim } from '../sim/world';
 import type { QualityPreset } from '../settings';
-import { ChaseCamera, type CameraMode } from './camera';
+import { ChaseCamera, type CameraMode, type CockpitAnchor } from './camera';
+import { CAMERA_RIGS } from './car';
 import { LampLights } from './lampLights';
 import { PlayerView } from './playerView';
 import { Post } from './post';
@@ -19,6 +21,8 @@ import { TrafficView } from './trafficView';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
+/** Our car's colour: the coupe's paint, the R34's stripes. */
+const OWN_PAINT = 0x1f4fd8;
 
 export class View {
   readonly renderer: THREE.WebGLRenderer;
@@ -26,7 +30,7 @@ export class View {
   readonly camera: THREE.PerspectiveCamera;
 
   private readonly roadView: RoadView;
-  private readonly playerView: PlayerView;
+  private playerView: PlayerView;
   private readonly trafficView: TrafficView;
   private readonly lampLights = new LampLights();
   private readonly sky: THREE.Group;
@@ -44,18 +48,20 @@ export class View {
   private oz = 0;
   private time = 0;
   private warmedUp = false;
-  /** Online: other drivers' cars (id → view, with the paint it was built with). */
-  private readonly remoteViews = new Map<number, { view: PlayerView; color: number; frame: number }>();
+  /** Online: other drivers' cars (id → view, with the body and paint it was built with). */
+  private readonly remoteViews = new Map<number, { view: PlayerView; color: number; car: CarId; frame: number }>();
   private frame = 0;
   private readonly shadowTex: THREE.Texture;
   private readonly v3 = new THREE.Vector3();
   private readonly ptRemote: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly spawnPad: SpawnPad | null;
+  private readonly anchor: CockpitAnchor;
 
   constructor(
     canvas: HTMLCanvasElement,
     private readonly sim: Sim,
     quality: QualityPreset,
+    car: CarId,
   ) {
     // MSAA, tone mapping and output encoding happen in the post chain, not on the default framebuffer.
     const r = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -82,13 +88,24 @@ export class View {
     const shadowTex = makeRadialTexture(64, 1.2);
     this.shadowTex = shadowTex;
     this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy());
-    this.playerView = new PlayerView(0x1f4fd8, shadowTex, sim.player.tune.length, sim.player.tune.width);
+    this.playerView = new PlayerView(car, OWN_PAINT, shadowTex, sim.player.tune.length, sim.player.tune.width);
+    this.chase.setRig(CAMERA_RIGS[car]);
+    this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
     this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points, this.farGround.mesh, this.blimp.group);
     this.post = new Post(r, this.scene, this.camera, quality);
     this.spawnPad = sim.online ? new SpawnPad(SPAWN_PLACES) : null;
     if (this.spawnPad) this.scene.add(this.spawnPad.group);
+    // Online, other drivers may bring the other bodies: build and compile them now (hidden), not when
+    // their car first comes into view (~150 ms of geometry, livery and shaders).
+    if (sim.online) {
+      for (const id of [1, 2] as const) {
+        const spare = new PlayerView(id, 0x888888, shadowTex, sim.player.tune.length, sim.player.tune.width, false);
+        spare.root.visible = false;
+        this.scene.add(spare.root);
+      }
+    }
 
     sim.events.on('nearMiss', (e) => {
       this.chase.kick(0.25);
@@ -150,7 +167,15 @@ export class View {
     this.trafficView.update(sim, alpha, this.ox, this.oz, this.time);
     this.roadView.update(sim.road, s - 150, s + 1300, this.ox, this.oz);
     this.lampLights.update(this.roadView, sim.road, s, this.ox, this.oz);
-    this.chase.update(dt, this.camera, this.carPos, yaw, p.vAlong * 3.6);
+    let cockpit: CockpitAnchor | null = null;
+    const eye = this.playerView.eye;
+    if (eye) {
+      this.anchor.eye = eye;
+      this.anchor.body = this.playerView.body;
+      this.anchor.car = p;
+      cockpit = this.anchor;
+    }
+    this.chase.update(dt, this.camera, this.carPos, yaw, p.vAlong * 3.6, cockpit);
     this.sky.position.copy(this.camera.position);
     this.farGround.update(sim.road, s, this.camera.position);
     this.blimp.update(sim.road, s, this.ox, this.oz, this.time);
@@ -167,14 +192,14 @@ export class View {
     const frame = ++this.frame;
     for (const r of sim.remotes) {
       let entry = this.remoteViews.get(r.id);
-      if (entry && entry.color !== r.color) {
-        this.scene.remove(entry.view.root);
+      if (entry && (entry.color !== r.color || entry.car !== r.carId)) {
+        entry.view.dispose();
         entry = undefined;
       }
       if (!entry) {
-        const view = new PlayerView(r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, false);
+        const view = new PlayerView(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, false);
         this.scene.add(view.root);
-        entry = { view, color: r.color, frame };
+        entry = { view, color: r.color, car: r.carId, frame };
         this.remoteViews.set(r.id, entry);
       }
       entry.frame = frame;
@@ -192,7 +217,7 @@ export class View {
     }
     for (const [id, entry] of this.remoteViews) {
       if (entry.frame === frame) continue;
-      this.scene.remove(entry.view.root);
+      entry.view.dispose();
       this.remoteViews.delete(id);
     }
   }
@@ -215,10 +240,39 @@ export class View {
     this.chase.snap();
   }
 
+  get cameraMode(): CameraMode {
+    return this.chase.mode;
+  }
+
   cycleCamera(): CameraMode {
     const mode = this.chase.cycle();
-    this.playerView.root.visible = mode !== 'bumper';
+    this.applyCameraMode();
     return mode;
+  }
+
+  /** Our car's body changed (menu choice): new model, its own camera rig (keeping `mode` if it has one). */
+  setCar(car: CarId, mode?: CameraMode): CameraMode {
+    if (car === this.playerView.car) {
+      if (mode) this.chase.setRig(CAMERA_RIGS[car], mode);
+      this.applyCameraMode();
+      return this.chase.mode;
+    }
+    const old = this.playerView;
+    const next = new PlayerView(car, OWN_PAINT, this.shadowTex, this.sim.player.tune.length, this.sim.player.tune.width);
+    old.dispose();
+    this.playerView = next;
+    // Compile before adding: the scene's lights plus the new car's own spot, as they will be drawn.
+    this.renderer.compile(next.root, this.camera, this.scene);
+    this.scene.add(next.root);
+    const m = this.chase.setRig(CAMERA_RIGS[car], mode);
+    this.applyCameraMode();
+    return m;
+  }
+
+  private applyCameraMode(): void {
+    const mode = this.chase.mode;
+    this.playerView.root.visible = mode !== 'bumper';
+    this.playerView.setCockpit(mode === 'cockpit');
   }
 
   /** Sparks where the car's flank rubs the barrier; they trail behind at part of the car's speed. */

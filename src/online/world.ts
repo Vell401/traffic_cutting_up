@@ -4,6 +4,7 @@ import { mulberry32, type Rng } from '../core/rng';
 import { Contacts, type Hit } from '../sim/contact';
 import { Director } from '../sim/director';
 import type { SimEvents } from '../sim/events';
+import type { CarId } from '../sim/cars';
 import { createCar, type PhysicsId } from '../sim/physics';
 import { SPAWN_D, ringScript, spawnS } from '../sim/ring';
 import { Road } from '../sim/road';
@@ -39,7 +40,7 @@ const MAX_NAME = 16;
  * With the seed and the rules version this journal replays a session exactly.
  */
 export type Stimulus =
-  | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId }
+  | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId }
   | { k: 'leave'; t: number; id: number }
   | { k: 'in'; t: number; id: number; seq: number; q: number[] }
   | { k: 'respawn'; t: number; id: number }
@@ -55,6 +56,8 @@ export class Driver {
   readonly events = new Emitter<SimEvents>();
   readonly score: Scoring;
   readonly car: PlayerCar;
+  /** Body model the others see (cosmetic, never simulated). */
+  body: CarId = 1;
   state: 'active' | 'away' = 'away';
   /** Bumped whenever the server moves the car on its own (spawn, respawn, return): the client takes the state as is. */
   epoch = 0;
@@ -196,18 +199,19 @@ export class OnlineWorld {
   }
 
   /** Add a driver; null when the server is full. */
-  join(name: string, physics: PhysicsId): Driver | null {
+  join(name: string, physics: PhysicsId, car: CarId = 1): Driver | null {
     if (this.drivers.length >= this.rules.maxPlayers) return null;
     let id = this.nextId;
     while (this.byId(id)) id = (id % 250) + 1;
     this.nextId = (id % 250) + 1;
     const clean = cleanName(name, id);
-    this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics });
+    this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics, car });
     let slot = 0;
     while (this.drivers.some((d) => d.slot === slot)) slot++;
     const dr = new Driver(id, clean, physics === 2 ? 2 : 1, DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length], slot, this.rules.inputMax, this.ringLen);
     let at = 0;
     while (at < this.drivers.length && this.drivers[at].id < id) at++;
+    dr.body = car;
     this.drivers.splice(at, 0, dr);
     this.place(dr, 'join');
     return dr;
@@ -380,6 +384,7 @@ export class OnlineWorld {
       name: dr.name,
       color: dr.color,
       physics: dr.physics,
+      car: dr.body,
       slot: dr.slot,
       score: Math.floor(dr.score.score),
       best: dr.score.best,
@@ -474,7 +479,7 @@ export function replay(seed: number, rules: Partial<OnlineRules>, journal: reado
   for (const rec of journal) {
     while (w.tick < rec.t) w.step();
     if (rec.k === 'join') {
-      const dr = w.join(rec.name, rec.physics);
+      const dr = w.join(rec.name, rec.physics, rec.car ?? 1);
       if (!dr || dr.id !== rec.id) throw new Error(`replay: join gave ${dr?.id} instead of ${rec.id}`);
     } else if (rec.k === 'leave') {
       w.leave(rec.id);

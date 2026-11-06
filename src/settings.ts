@@ -58,6 +58,25 @@ export const loadPhysics = (): 1 | 2 => loadChoice('tcu.physics', [1, 2] as cons
 export const savePhysics = (v: 1 | 2): void => saveChoice('tcu.physics', v);
 export const loadTraffic = (): 1 | 2 => loadChoice('tcu.traffic', [1, 2] as const, 1);
 export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);
+export const loadCar = (): 1 | 2 => loadChoice('tcu.car', [1, 2] as const, 1);
+export const saveCar = (v: 1 | 2): void => saveChoice('tcu.car', v);
+
+/** Last camera mode used with each car (the cameras belong to the car). */
+export function loadCameraMode(car: number): string {
+  try {
+    return localStorage.getItem(`tcu.cam.${car}`) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveCameraMode(car: number, mode: string): void {
+  try {
+    localStorage.setItem(`tcu.cam.${car}`, mode);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 /** Online driver name. */
 export function loadName(): string {

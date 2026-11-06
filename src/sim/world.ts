@@ -1,4 +1,5 @@
 import { laneCenter } from '../config';
+import type { CarId } from './cars';
 import { Emitter } from '../core/events';
 import type { Rng } from '../core/rng';
 import { Contacts, type Hit } from './contact';
@@ -36,6 +37,8 @@ export interface RemoteDriver {
   name: string;
   /** Body paint. */
   color: number;
+  /** Body model (cosmetic). */
+  carId: CarId;
   /** Display state only (never stepped): s is in this client's road frame. */
   car: PlayerCar;
   visible: boolean;

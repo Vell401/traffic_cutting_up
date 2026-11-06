@@ -3,7 +3,9 @@ import { LANES, SIM_HZ, laneCenter } from './config';
 import { Sound } from './audio/sound';
 import { Input } from './core/input';
 import { clamp } from './core/math';
+import type { CameraMode } from './render/camera';
 import { View } from './render/view';
+import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
 import { PHYSICS, type PhysicsId } from './sim/physics';
@@ -13,7 +15,22 @@ import { Sim } from './sim/world';
 import { conditionsFromUrl, healthUrl, serverUrl } from './online/link';
 import { OnlineSession } from './online/session';
 import type { Debug } from './ui/debug';
-import { QUALITY, loadName, loadPhysics, loadQuality, loadTraffic, saveName, savePhysics, saveQuality, saveTraffic, type Quality } from './settings';
+import {
+  QUALITY,
+  loadCameraMode,
+  loadCar,
+  loadName,
+  loadPhysics,
+  loadQuality,
+  loadTraffic,
+  saveCameraMode,
+  saveCar,
+  saveName,
+  savePhysics,
+  saveQuality,
+  saveTraffic,
+  type Quality,
+} from './settings';
 import { Hud } from './ui/hud';
 import { Metrics } from './ui/metrics';
 import { OnlineHud } from './ui/onlineHud';
@@ -46,7 +63,10 @@ sim.director.preset = loadTraffic();
 sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
 const quality = loadQuality();
-const view = new View(canvas, sim, QUALITY[quality]);
+let car: CarId = loadCar();
+const view = new View(canvas, sim, QUALITY[quality], car);
+// Each car remembers its own camera.
+view.setCar(car, loadCameraMode(car) as CameraMode);
 const hud = new Hud(sim);
 const input = new Input();
 const sound = new Sound(sim);
@@ -151,7 +171,7 @@ function startOnline(): void {
       if (mine >= 0 && Math.abs(sim.road.rel(sim.player.s, spawnS(mine))) < 3) hud.tag(`SPAWN · МЕСТО ${mine + 1}`, 2.5);
     },
   });
-  session.start(name, sim.player.physicsId as PhysicsId);
+  session.start(name, sim.player.physicsId as PhysicsId, car);
   if (import.meta.env.DEV) Object.assign((window as unknown as { __game: object }).__game, { session });
 }
 
@@ -204,7 +224,11 @@ if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud
 input.onPress = (code) => {
   if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
-  else if (code === 'KeyC') hud.tag(`CAMERA · ${view.cycleCamera().toUpperCase()}`);
+  else if (code === 'KeyC') {
+    const mode = view.cycleCamera();
+    saveCameraMode(car, mode);
+    hud.tag(`CAMERA · ${mode.toUpperCase()}`);
+  }
   else if (code === 'KeyM') hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(ONLINE ? !onlineMenu : state === 'play');
@@ -253,6 +277,11 @@ function choice<T extends number>(
   }
   show(current);
 }
+choice('carSeg', 'carDesc', CARS, car, (id) => {
+  car = id;
+  saveCar(id);
+  view.setCar(id, loadCameraMode(id) as CameraMode);
+});
 choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as 1 | 2, (id) => {
   savePhysics(id);
   sim.setPhysics(id);

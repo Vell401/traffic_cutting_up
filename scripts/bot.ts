@@ -26,7 +26,7 @@ function start(i: number): void {
     onReject: (t) => console.log(`${NAMES[i % NAMES.length]}: rejected (${t})`),
   });
   const bot = new Bot(sim, { kmh: 170 + i * 25, weave: true }, rng);
-  ws.onopen = () => core.hello(NAMES[i % NAMES.length], sim.player.physicsId as 1 | 2);
+  ws.onopen = () => core.hello(NAMES[i % NAMES.length], sim.player.physicsId as 1 | 2, i % 2 === 0 ? 2 : 1);
   ws.onmessage = (e) => core.receive(e.data as ArrayBuffer | string, performance.now());
   ws.onclose = () => {
     console.log(`${NAMES[i % NAMES.length]}: disconnected`);

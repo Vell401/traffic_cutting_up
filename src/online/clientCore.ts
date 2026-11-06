@@ -3,6 +3,7 @@ import { lerp, smoothstep } from '../core/math';
 import { Emitter } from '../core/events';
 import { Contacts, type Hit } from '../sim/contact';
 import type { SimEvents } from '../sim/events';
+import { carId, type CarId } from '../sim/cars';
 import { createCar, type PhysicsId } from '../sim/physics';
 import { Scoring } from '../sim/scoring';
 import { TrafficCar } from '../sim/traffic';
@@ -173,10 +174,10 @@ export class ClientCore {
     sim.traffic.activeCount = 0;
   }
 
-  hello(name: string, physics: PhysicsId, token?: string): void {
+  hello(name: string, physics: PhysicsId, car: CarId, token?: string): void {
     // Inputs made while offline never reach the server: the next ones follow `seq`.
     this.sentSeq = this.seq;
-    this.send({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(), name, physics, seq: this.seq, token });
+    this.send({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(), name, physics, car, seq: this.seq, token });
   }
 
   requestRespawn(): void {
@@ -232,6 +233,7 @@ export class ClientCore {
           if (info) {
             nd.remote.name = info.name;
             nd.remote.color = info.color;
+            nd.remote.carId = carId(info.car);
           }
         }
         this.hooks.onPlayers?.(msg.list);
@@ -513,6 +515,7 @@ export class ClientCore {
           id: b.id,
           name: info?.name ?? `#${b.id}`,
           color: info?.color ?? 0x888888,
+          carId: carId(info?.car),
           car: createCar(info?.physics ?? 1),
           visible: true,
         };

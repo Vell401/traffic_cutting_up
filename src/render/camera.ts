@@ -1,21 +1,65 @@
 import * as THREE from 'three';
-import { cameraTune } from '../config';
 import { clamp, damp, dampAngle, lerp } from '../core/math';
+import type { PlayerCar } from '../sim/vehicle';
+import { CAMERA_RIGS, type CameraMode, type CameraRig } from './car';
 
-export type CameraMode = 'chase' | 'far' | 'hood' | 'bumper';
-const MODES: CameraMode[] = ['chase', 'far', 'hood', 'bumper'];
+export type { CameraMode } from './car';
+
+/** What the first-person camera rides on. */
+export interface CockpitAnchor {
+  eye: THREE.Object3D;
+  body: THREE.Object3D;
+  car: PlayerCar;
+}
+
+/** Second-order follower (a spring with damping): the driver's head lagging and overshooting a little. */
+class Spring {
+  x = 0;
+  private v = 0;
+  constructor(
+    private readonly k: number,
+    private readonly zeta: number,
+  ) {}
+  step(target: number, dt: number): number {
+    const c = 2 * this.zeta * Math.sqrt(this.k);
+    // Substeps keep it stable on slow frames.
+    const n = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const h = dt / n;
+    for (let i = 0; i < n; i++) {
+      this.v += (this.k * (target - this.x) - c * this.v) * h;
+      this.x += this.v * h;
+    }
+    return this.x;
+  }
+  reset(): void {
+    this.x = 0;
+    this.v = 0;
+  }
+}
 
 /**
  * Chase cameras lag the car's heading and widen the FOV with speed; the hood and bumper cameras are
- * rigid. All of them shake on impacts and near misses.
+ * rigid; the cockpit camera sits at the driver's eye on the suspended body, with the head swaying
+ * under g-forces and glancing into turns. All of them shake on impacts and near misses. Positions
+ * come from the current car's rig.
  */
 export class ChaseCamera {
   mode: CameraMode = 'chase';
+  rig: CameraRig = CAMERA_RIGS[1];
   private yaw = 0;
   private shake = 0;
   private t = 0;
   private first = true;
   private readonly look = new THREE.Vector3();
+  // First person: head offsets (m, rad) and the glance into turns.
+  private readonly headX = new Spring(70, 0.7);
+  private readonly headZ = new Spring(60, 0.7);
+  private readonly headRoll = new Spring(60, 0.8);
+  private readonly headPitch = new Spring(60, 0.8);
+  private glance = 0;
+  private readonly q = new THREE.Quaternion();
+  private readonly qHead = new THREE.Quaternion();
+  private readonly e = new THREE.Euler(0, 0, 0, 'YXZ');
 
   kick(amount: number): void {
     this.shake = Math.max(this.shake, amount);
@@ -25,34 +69,43 @@ export class ChaseCamera {
     this.first = true;
   }
 
-  cycle(): CameraMode {
-    this.mode = MODES[(MODES.indexOf(this.mode) + 1) % MODES.length];
+  /** Switch to a car's rig; keep `mode` if that car has it (else the chase view). */
+  setRig(rig: CameraRig, mode: CameraMode = this.mode): CameraMode {
+    this.rig = rig;
+    this.mode = rig.modes.includes(mode) ? mode : 'chase';
     this.first = true;
     return this.mode;
   }
 
-  get cockpit(): boolean {
-    return this.mode === 'hood' || this.mode === 'bumper';
+  cycle(): CameraMode {
+    const modes = this.rig.modes;
+    this.mode = modes[(modes.indexOf(this.mode) + 1) % modes.length];
+    this.first = true;
+    return this.mode;
   }
 
-  update(dt: number, camera: THREE.PerspectiveCamera, target: THREE.Vector3, carYaw: number, kmh: number): void {
-    const ct = cameraTune;
+  /** Rigid views (no chase lag). */
+  get rigid(): boolean {
+    return this.mode !== 'chase' && this.mode !== 'far';
+  }
+
+  update(dt: number, camera: THREE.PerspectiveCamera, target: THREE.Vector3, carYaw: number, kmh: number, cockpit: CockpitAnchor | null): void {
+    if (this.mode === 'cockpit' && cockpit && this.rig.cockpit) {
+      this.firstPerson(dt, camera, cockpit, kmh);
+      return;
+    }
+    const ct = this.rig.chase;
     if (this.first) {
       this.yaw = carYaw;
       this.first = false;
     }
-    const cockpit = this.cockpit;
-    this.yaw = cockpit ? dampAngle(this.yaw, carYaw, 30, dt) : dampAngle(this.yaw, carYaw, ct.yawLag, dt);
+    const rigid = this.rigid;
+    this.yaw = rigid ? dampAngle(this.yaw, carYaw, 30, dt) : dampAngle(this.yaw, carYaw, ct.yawLag, dt);
     const sp = clamp((kmh - 40) / 260, 0, 1);
     const fx = Math.sin(this.yaw);
     const fz = -Math.cos(this.yaw);
 
-    this.t += dt;
-    this.shake = Math.max(0, this.shake - dt * 1.8);
-    const amp = (this.shake * this.shake * 0.35 + sp * sp * 0.01) * (cockpit ? 0.35 : 1);
-    const t = this.t;
-    const n1 = Math.sin(t * 37.1) * Math.sin(t * 13.7) * amp;
-    const n2 = Math.sin(t * 29.3 + 1.3) * Math.cos(t * 17.9) * amp;
+    const [n1, n2] = this.noise(dt, sp, rigid ? 0.35 : 1);
 
     let back: number;
     let h: number;
@@ -60,22 +113,22 @@ export class ChaseCamera {
     let lookH: number;
     switch (this.mode) {
       case 'far':
-        back = ct.dist + 2.6 + sp;
-        h = ct.height + 0.9;
-        lookAhead = ct.lookAhead + 2;
-        lookH = ct.lookHeight + 0.3;
+        back = ct.dist + this.rig.far.dist + sp;
+        h = ct.height + this.rig.far.height;
+        lookAhead = ct.lookAhead + this.rig.far.lookAhead;
+        lookH = ct.lookHeight + this.rig.far.lookHeight;
         break;
       case 'hood':
-        back = -0.55;
-        h = 1.2;
+        back = -this.rig.hood.f;
+        h = this.rig.hood.y;
         lookAhead = 30;
-        lookH = 0.95;
+        lookH = this.rig.hood.lookHeight;
         break;
       case 'bumper':
-        back = -2.45;
-        h = 0.55;
+        back = -this.rig.bumper.f;
+        h = this.rig.bumper.y;
         lookAhead = 30;
-        lookH = 0.5;
+        lookH = this.rig.bumper.lookHeight;
         break;
       default:
         back = ct.dist + sp * 0.8;
@@ -86,20 +139,64 @@ export class ChaseCamera {
 
     // The hood sits ~0.3 m under the hood camera: only that mode needs a near plane closer than 0.5 m
     // (the rest keep 0.5 m for depth precision on far road decals).
-    const near = this.mode === 'hood' ? 0.15 : 0.5;
-    if (camera.near !== near) {
-      camera.near = near;
-      camera.updateProjectionMatrix();
-    }
+    this.setNear(camera, this.mode === 'hood' ? 0.15 : 0.5);
     camera.position.set(target.x - fx * back + n1, target.y + h + n2, target.z - fz * back + n2 * 0.5);
     this.look.set(target.x + fx * lookAhead, target.y + lookH, target.z + fz * lookAhead);
     camera.lookAt(this.look);
 
-    const base = cockpit ? 8 : 0;
-    const fov = damp(camera.fov, lerp(ct.fovMin + base, ct.fovMax + base, sp), 3, dt);
-    if (Math.abs(fov - camera.fov) > 0.01) {
-      camera.fov = fov;
-      camera.updateProjectionMatrix();
+    const base = rigid ? 8 : 0;
+    this.setFov(camera, damp(camera.fov, lerp(ct.fovMin + base, ct.fovMax + base, sp), 3, dt));
+  }
+
+  /** Driver's eye on the suspended body; the head sways with the g-forces and glances into turns. */
+  private firstPerson(dt: number, camera: THREE.PerspectiveCamera, a: CockpitAnchor, kmh: number): void {
+    const rig = this.rig.cockpit!;
+    const car = a.car;
+    if (this.first) {
+      this.first = false;
+      for (const s of [this.headX, this.headZ, this.headRoll, this.headPitch]) s.reset();
+      this.glance = 0;
     }
+    const latG = clamp(car.accLat / 9.81, -1.5, 1.5);
+    const longG = clamp(car.accLong / 9.81, -1.5, 1.5);
+    // Cornering throws the head to the outside, accelerating presses it back, braking pitches it forward.
+    const hx = this.headX.step(-latG * 0.032, dt);
+    const hz = this.headZ.step(longG * 0.03, dt);
+    const roll = this.headRoll.step(latG * 0.018, dt);
+    const pitch = this.headPitch.step(longG * 0.018, dt);
+    this.glance = damp(this.glance, clamp(car.r * 0.11 + car.steerIn * 0.025, -0.12, 0.12), 3, dt);
+    const sp = clamp((kmh - 40) / 260, 0, 1);
+    const [n1, n2] = this.noise(dt, sp, 0.12);
+
+    a.eye.updateWorldMatrix(true, false);
+    camera.position.set(hx + n1, n2, hz).applyMatrix4(a.eye.matrixWorld);
+    a.body.getWorldQuaternion(this.q);
+    this.e.set(rig.pitch + pitch + n2 * 0.6, -this.glance, roll);
+    this.qHead.setFromEuler(this.e);
+    camera.quaternion.copy(this.q).multiply(this.qHead);
+
+    this.setNear(camera, 0.08);
+    this.setFov(camera, damp(camera.fov, lerp(rig.fov, rig.fovFast, sp), 3, dt));
+  }
+
+  /** Camera shake: impacts and near misses, plus a little speed buzz. */
+  private noise(dt: number, sp: number, scale: number): [number, number] {
+    this.t += dt;
+    this.shake = Math.max(0, this.shake - dt * 1.8);
+    const amp = (this.shake * this.shake * 0.35 + sp * sp * 0.01) * scale;
+    const t = this.t;
+    return [Math.sin(t * 37.1) * Math.sin(t * 13.7) * amp, Math.sin(t * 29.3 + 1.3) * Math.cos(t * 17.9) * amp];
+  }
+
+  private setNear(camera: THREE.PerspectiveCamera, near: number): void {
+    if (camera.near === near) return;
+    camera.near = near;
+    camera.updateProjectionMatrix();
+  }
+
+  private setFov(camera: THREE.PerspectiveCamera, fov: number): void {
+    if (Math.abs(fov - camera.fov) <= 0.01) return;
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
   }
 }

@@ -10,6 +10,7 @@ import { ClientCore } from '../src/online/clientCore';
 import { GameServer, type Conn, type Peer } from '../src/online/gameServer';
 import type { OnlineRules } from '../src/online/rules';
 import type { Stimulus } from '../src/online/world';
+import type { CarId } from '../src/sim/cars';
 import type { PhysicsId } from '../src/sim/physics';
 import type { DriveInput } from '../src/sim/vehicle';
 import { Sim } from '../src/sim/world';
@@ -98,6 +99,8 @@ export class Bot {
 export interface ClientSpec {
   name: string;
   physics: PhysicsId;
+  /** Body model (cosmetic), 1 by default. */
+  car?: CarId;
   up: LinkSpec;
   down: LinkSpec;
   /** Render frames per second (inputs are sent once per frame). */
@@ -157,7 +160,7 @@ export class NetClient {
     };
     this.connected = true;
     this.conn = this.net.server.connect(peer);
-    this.core.hello(this.spec.name, this.spec.physics, token);
+    this.core.hello(this.spec.name, this.spec.physics, this.spec.car ?? 1, token);
   }
 
   /** Simulate a dropped socket. */

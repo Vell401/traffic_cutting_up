@@ -1,3 +1,4 @@
+import { carId } from '../sim/cars';
 import type { SimEvents } from '../sim/events';
 import {
   MSG_INPUT,
@@ -187,6 +188,7 @@ export class GameServer {
     if (msg.v !== PROTOCOL_VERSION) return this.reject(conn, 'version', 'Версия игры не совпадает с сервером — обновите страницу');
     if (msg.rules !== rulesHash()) return this.reject(conn, 'rules', 'Правила игры на сервере другие — обновите страницу');
     const physics = msg.physics === 2 ? 2 : 1;
+    const car = carId(msg.car);
 
     // Reconnect: the slot (car, score, best) is kept for a while after a drop.
     let slot: Slot | undefined;
@@ -197,9 +199,11 @@ export class GameServer {
       if (slot.conn && slot.conn !== conn) this.kick(slot.conn, 4000, 'replaced');
       slot.conn = conn;
       conn.slot = slot;
+      // The body is cosmetic: a reload may come back in another car.
+      slot.driver.body = car;
       this.log('info', `reconnect #${slot.driver.id} ${slot.driver.name}`);
     } else {
-      const dr = this.world.join(typeof msg.name === 'string' ? msg.name : '', physics);
+      const dr = this.world.join(typeof msg.name === 'string' ? msg.name : '', physics, car);
       if (!dr) return this.reject(conn, 'full', `Сервер заполнен (${this.world.rules.maxPlayers} игроков)`);
       slot = { driver: dr, token: this.token(), conn, offlineAt: 0 };
       this.slots.set(dr.id, slot);
@@ -208,7 +212,7 @@ export class GameServer {
       for (const name of FORWARD) {
         dr.events.on(name, (data) => this.driverEvent(dr, name, data as unknown as Record<string, unknown>));
       }
-      this.log('info', `join #${dr.id} ${dr.name} physics ${dr.physics}`);
+      this.log('info', `join #${dr.id} ${dr.name} physics ${dr.physics} car ${dr.body}`);
       this.feed(`${dr.name} на трассе`);
     }
     const dr = slot.driver;

@@ -1,3 +1,4 @@
+import type { CarId } from '../sim/cars';
 import type { PhysicsId } from '../sim/physics';
 import type { DriveInput } from '../sim/vehicle';
 import type { Sim } from '../sim/world';
@@ -44,6 +45,7 @@ export class OnlineSession {
   private attempts = 0;
   private name = '';
   private physics: PhysicsId = 1;
+  private car: CarId = 1;
   private retryTimer = 0;
   private rejected = false;
 
@@ -70,9 +72,10 @@ export class OnlineSession {
     });
   }
 
-  start(name: string, physics: PhysicsId): void {
+  start(name: string, physics: PhysicsId, car: CarId): void {
     this.name = name;
     this.physics = physics;
+    this.car = car;
     this.rejected = false;
     this.connect();
   }
@@ -92,7 +95,7 @@ export class OnlineSession {
       return;
     }
     this.link = link;
-    link.onOpen = () => this.core.hello(this.name, this.physics, this.core.token || loadToken());
+    link.onOpen = () => this.core.hello(this.name, this.physics, this.car, this.core.token || loadToken());
     link.onMessage = (d) => this.core.receive(d, performance.now());
     link.onClose = () => this.lost();
   }

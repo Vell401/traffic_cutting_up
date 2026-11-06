@@ -93,13 +93,3 @@ export const scoreTune = {
   /** After a crash the new run ignores further contacts for this long. */
   runGrace: 2,
 };
-
-export const cameraTune = {
-  dist: 6.6,
-  height: 2.2,
-  lookAhead: 6,
-  lookHeight: 0.9,
-  fovMin: 58,
-  fovMax: 76,
-  yawLag: 7,
-};

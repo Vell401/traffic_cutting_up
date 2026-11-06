@@ -1,5 +1,6 @@
 import type { DriveInput } from '../sim/vehicle';
 import type { TrafficCar } from '../sim/traffic';
+import type { CarId } from '../sim/cars';
 import type { PhysicsId } from '../sim/physics';
 import type { OnlineRules } from './rules';
 
@@ -29,6 +30,8 @@ export interface PlayerInfo {
   name: string;
   color: number;
   physics: PhysicsId;
+  /** Body model (cosmetic). */
+  car: CarId;
   /** Spawn place (0-based) the driver owns. */
   slot: number;
   score: number;
@@ -39,7 +42,7 @@ export interface PlayerInfo {
 
 export type ClientMsg =
   /** seq: the client's last input number (0 for a fresh page): its next inputs follow it. */
-  | { t: 'hello'; v: number; rules: string; name: string; physics: PhysicsId; seq: number; token?: string }
+  | { t: 'hello'; v: number; rules: string; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string }
   | { t: 'respawn' }
   | { t: 'ping'; c: number };
 

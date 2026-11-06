@@ -1,5 +1,7 @@
 import type { WebGLRenderer } from 'three';
-import { cameraTune, scoreTune, trafficTune } from '../config';
+import { scoreTune, trafficTune } from '../config';
+import { CAMERA_RIGS } from '../render/car';
+import { CARS } from '../sim/cars';
 import type { DriftTune } from '../sim/vehicleDrift';
 import type { Sim } from '../sim/world';
 
@@ -73,12 +75,23 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   sc.addBinding(scoreTune, 'comboTime', { min: 1, max: 10, step: 0.1 });
   sc.addBinding(scoreTune, 'multPerCombo', { min: 0.05, max: 1, step: 0.05 });
 
-  const cam = pane.addFolder({ title: 'Camera', expanded: false });
-  cam.addBinding(cameraTune, 'dist', { min: 3, max: 12, step: 0.1 });
-  cam.addBinding(cameraTune, 'height', { min: 0.8, max: 4, step: 0.05 });
-  cam.addBinding(cameraTune, 'yawLag', { min: 1, max: 20, step: 0.5 });
-  cam.addBinding(cameraTune, 'fovMin', { min: 40, max: 90, step: 1 });
-  cam.addBinding(cameraTune, 'fovMax', { min: 40, max: 110, step: 1 });
+  // Cameras belong to the car: one folder per body.
+  for (const info of CARS) {
+    const rig = CAMERA_RIGS[info.id];
+    const cam = pane.addFolder({ title: `Camera · ${info.name}`, expanded: false });
+    cam.addBinding(rig.chase, 'dist', { min: 3, max: 12, step: 0.1 });
+    cam.addBinding(rig.chase, 'height', { min: 0.8, max: 4, step: 0.05 });
+    cam.addBinding(rig.chase, 'yawLag', { min: 1, max: 20, step: 0.5 });
+    cam.addBinding(rig.chase, 'fovMin', { min: 40, max: 90, step: 1 });
+    cam.addBinding(rig.chase, 'fovMax', { min: 40, max: 110, step: 1 });
+    cam.addBinding(rig.hood, 'f', { min: -1, max: 2.5, step: 0.01, label: 'hood fwd' });
+    cam.addBinding(rig.hood, 'y', { min: 0.6, max: 2, step: 0.01, label: 'hood height' });
+    if (rig.cockpit) {
+      cam.addBinding(rig.cockpit, 'fov', { min: 45, max: 95, step: 1, label: 'cockpit fov' });
+      cam.addBinding(rig.cockpit, 'fovFast', { min: 45, max: 105, step: 1, label: 'cockpit fov fast' });
+      cam.addBinding(rig.cockpit, 'pitch', { min: -0.3, max: 0.15, step: 0.005, label: 'cockpit pitch' });
+    }
+  }
 
   let frame = 0;
   return {
