@@ -2,7 +2,7 @@ import { LANES, LANE_W, laneCenter } from '../config';
 import { Emitter } from '../core/events';
 import { mulberry32, type Rng } from '../core/rng';
 import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
-import { Director } from '../sim/director';
+import { Director, type TrafficMode, type TrafficPreset } from '../sim/director';
 import type { SimEvents } from '../sim/events';
 import type { CarId } from '../sim/cars';
 import { createCar, type PhysicsId } from '../sim/physics';
@@ -41,8 +41,35 @@ const MAX_NAME = 16;
  * Everything from outside that changes the world, stamped with the tick before which it was applied.
  * With the seed and the rules version this journal replays a session exactly.
  */
+/** Settings the admin page changes while the session runs. */
+export interface WorldConfig {
+  /** Traffic on the ring at all (off clears it). */
+  trafficOn?: boolean;
+  /** Density variant: 1 normal, 2 dense. */
+  traffic?: TrafficPreset;
+  /** Difficulty 0..1 (density, rude drivers, harder modes). */
+  intensity?: number;
+  /** Hold one traffic mode, or 'auto' to let them change every kilometre or so. */
+  mode?: TrafficMode | 'auto';
+  maxPlayers?: number;
+}
+
+/** Traffic as the admin page shows it. */
+export interface TrafficState {
+  on: boolean;
+  preset: TrafficPreset;
+  intensity: number;
+  mode: TrafficMode;
+  /** The mode is held by the admin (else it changes by itself). */
+  held: boolean;
+  cars: number;
+}
+
+export const TRAFFIC_MODES: readonly TrafficMode[] = ['normal', 'sparse', 'dense', 'trucks', 'walls', 'platoons'];
+
 export type Stimulus =
   | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId }
+  | { k: 'config'; t: number; cfg: WorldConfig }
   | { k: 'leave'; t: number; id: number }
   | { k: 'in'; t: number; id: number; seq: number; q: number[] }
   | { k: 'respawn'; t: number; id: number }
@@ -182,6 +209,7 @@ export class OnlineWorld {
   private readonly picks: TrafficCar[] = [];
   private readonly pickRel = new Map<TrafficCar, number>();
   private nextId = 1;
+  private modeHeld = false;
 
   constructor(
     readonly seed: number,
@@ -263,6 +291,39 @@ export class OnlineWorld {
   }
 
   /** R: back to the driver's spawn place; the run is over. */
+  /**
+   * Change traffic or the player limit while the session runs. Journalled like any other stimulus,
+   * so a replay makes the same change on the same tick. Invalid values are ignored.
+   */
+  configure(cfg: WorldConfig): void {
+    this.journal?.({ k: 'config', t: this.tick, cfg });
+    const r = this.rules;
+    if (cfg.maxPlayers !== undefined && Number.isInteger(cfg.maxPlayers) && cfg.maxPlayers >= 1 && cfg.maxPlayers <= 64) r.maxPlayers = cfg.maxPlayers;
+    if (cfg.traffic === 1 || cfg.traffic === 2) this.director.preset = r.traffic = cfg.traffic;
+    if (typeof cfg.intensity === 'number' && cfg.intensity >= 0 && cfg.intensity <= 1) {
+      r.intensity = cfg.intensity;
+      this.director.fixedIntensity = this.director.intensity = cfg.intensity;
+    }
+    if (cfg.mode === 'auto') {
+      this.modeHeld = false;
+      this.director.setMode(this.director.mode);
+    } else if (cfg.mode && TRAFFIC_MODES.includes(cfg.mode)) {
+      this.modeHeld = true;
+      this.director.setMode(cfg.mode, Infinity);
+    }
+    if (cfg.trafficOn === false && this.traffic.enabled) {
+      this.traffic.enabled = false;
+      this.traffic.clearAround(0, Infinity);
+    } else if (cfg.trafficOn === true) {
+      this.traffic.enabled = true;
+    }
+  }
+
+  trafficState(): TrafficState {
+    const d = this.director;
+    return { on: this.traffic.enabled, preset: d.preset, intensity: d.fixedIntensity ?? d.intensity, mode: d.mode, held: this.modeHeld, cars: this.traffic.activeCount };
+  }
+
   respawn(dr: Driver): void {
     this.journal?.({ k: 'respawn', t: this.tick, id: dr.id });
     if (dr.state !== 'active') return;
@@ -559,6 +620,8 @@ export function replay(seed: number, rules: Partial<OnlineRules>, journal: reado
       if (!dr || dr.id !== rec.id) throw new Error(`replay: join gave ${dr?.id} instead of ${rec.id}`);
     } else if (rec.k === 'leave') {
       w.leave(rec.id);
+    } else if (rec.k === 'config') {
+      w.configure(rec.cfg);
     } else {
       const dr = w.byId(rec.id);
       if (!dr) continue;

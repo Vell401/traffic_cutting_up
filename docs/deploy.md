@@ -70,6 +70,18 @@ node dist-server/smoke.js --url wss://185.225.200.161/ws --origin https://185.22
    - После регистрации раннер работает как служба systemd от пользователя `gha` с меткой `vps_ru`.
 3. Сделайте пуш в `main` или запустите workflow **Deploy** вручную (Actions → Deploy → Run workflow).
 
+## Пароль админки
+
+Админка открывается по адресу `https://185.225.200.161/admin.html`. Пароль задаётся секретом репозитория:
+
+1. GitHub → репозиторий → **Settings → Secrets and variables → Actions → Secrets → New repository secret**.
+2. Name: `ADMIN_PASSWORD`, Secret: пароль (лучше 16+ символов; короче 12 сервер пишет предупреждение в журнал).
+3. Сделайте пуш в `main` или перезапустите **Deploy**: workflow передаёт секрет в `deploy.sh`, Compose — в контейнер `game`.
+
+Без секрета админка выключена. Чтобы сменить пароль, обновите секрет и перезапустите Deploy; все открытые сессии админки при этом закончатся.
+
+Локально: `ADMIN_PASSWORD=… npm run server`, затем `http://localhost:5173/admin.html`.
+
 ## Безопасность раннера
 
 Репозиторий публичный. На раннер попадают только пуши в `main`: проверка pull request (`ci.yml`) идёт на серверах GitHub.

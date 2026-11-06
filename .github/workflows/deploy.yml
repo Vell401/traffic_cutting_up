@@ -29,9 +29,12 @@ jobs:
     runs-on: [self-hosted, vps_ru]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build, restart, check from outside (rollback on failure)
         run: bash deploy/deploy.sh
         env:
           # Repository variable (Settings → Secrets and variables → Actions → Variables); empty = the server's IP.
           SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+          # Repository secret (Settings → Secrets and variables → Actions → Secrets): the admin page's
+          # password. Unset = no admin page.
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}

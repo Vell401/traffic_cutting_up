@@ -5,18 +5,54 @@ import type { Sim } from '../sim/world';
 /*
  * All sound is synthesised with Web Audio: no samples to download.
  *
- *   engine ─┐                                  ┌─ dry ──────────────┐
- *   turbo  ─┤                                  │                    ├─ master ─ compressor ─ out
- *   wind, road roar, squeal, rumble strips,  ──┤                    │
- *   scrape, traffic hum, one-shots           ──┴─ send ─ convolver ─ wet (tunnels only)
+ *   engine, turbo, pops        ── engine bus ─┐    ┌─ dry ──────────────┐
+ *   wind, roar, squeal, strips,               ├────┤                    ├─ master ─ compressor ─ out
+ *   scrape, traffic, pass-bys  ── world bus  ─┤    │                    │
+ *   chimes, impacts, relay     ── fx bus     ─┘    └─ send ─ convolver ─ wet (tunnels only)
  *
- * Continuous voices are tuned every frame from the sim with short setTargetAtTime ramps
- * (no zipper noise); one-shots (pops, whooshes, chimes, crashes) are built per event.
+ * Each bus has a dry and a reverb-send gain set from the mixer. Continuous voices are tuned every
+ * frame from the sim with short setTargetAtTime ramps (no zipper noise); one-shots (pops, whooshes,
+ * chimes, crashes) are built per event.
  */
 
 const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28, 31];
 const semi = (base: number, n: number) => base * 2 ** (n / 12);
 const MUTE_KEY = 'tcu.muted';
+const MIX_KEY = 'tcu.mix';
+
+/** Mixer channels: the master level and the three buses. */
+export type Channel = 'master' | 'engine' | 'world' | 'fx';
+export const CHANNELS: readonly { id: Channel; name: string }[] = [
+  { id: 'master', name: 'Общая' },
+  { id: 'engine', name: 'Мотор' },
+  { id: 'world', name: 'Дорога' },
+  { id: 'fx', name: 'Эффекты' },
+];
+type Bus = Exclude<Channel, 'master'>;
+/** Master at 100 % is this gain (headroom for the compressor). */
+const MASTER_GAIN = 0.8;
+
+function loadMix(): Record<Channel, number> {
+  const mix: Record<Channel, number> = { master: 1, engine: 1, world: 1, fx: 1 };
+  try {
+    const saved = JSON.parse(localStorage.getItem(MIX_KEY) ?? '{}') as Partial<Record<Channel, unknown>>;
+    for (const { id } of CHANNELS) {
+      const v = Number(saved[id]);
+      if (saved[id] !== undefined && Number.isFinite(v)) mix[id] = clamp(v, 0, 1);
+    }
+  } catch {
+    /* defaults */
+  }
+  return mix;
+}
+
+/*
+ * Inline four (physics №3, the AMG): one engine cycle (two revolutions) holds four firing pulses. The
+ * wave runs at the cycle frequency; the 4th harmonic is the firing order, the others are the small
+ * cylinder-to-cylinder differences that give a four its gravel. Fixed pseudo-random phases make the
+ * pulse lopsided like a real exhaust pressure trace instead of a smooth tone.
+ */
+const I4_HARMONICS = [0, 0.16, 0.3, 0.12, 1, 0.15, 0.26, 0.1, 0.62, 0.08, 0.13, 0.06, 0.36, 0.05, 0.08, 0.04, 0.22, 0.03, 0.05, 0.03, 0.14, 0.02, 0.03, 0.02, 0.09];
 
 interface Voice {
   gain: GainNode;
@@ -30,11 +66,20 @@ export class Sound {
   private send!: GainNode;
   private wet!: GainNode;
   private noise!: AudioBuffer;
-  private mercedesEngine: AudioBuffer | null = null;
-  private mercedesSource: AudioBufferSourceNode | null = null;
-  private mercedesEngineGain!: GainNode;
-  private mercedesEngineFilter!: BiquadFilterNode;
-  private mercedesEngineLoading = false;
+  private bus!: Record<Bus, { dry: GainNode; send: GainNode }>;
+  private readonly mix = loadMix();
+
+  // Inline-four voice (physics №3).
+  private i4Osc!: OscillatorNode;
+  private i4Fire!: OscillatorNode;
+  private i4Drive!: GainNode;
+  private i4Low!: BiquadFilterNode;
+  private i4Gain!: GainNode;
+  private i4Rasp!: GainNode;
+  private i4RaspDepth!: GainNode;
+  /** Overrun crackle left after a lift, s. */
+  private burble = 0;
+  private burbleT = 0;
 
   private o1!: OscillatorNode;
   private o2!: OscillatorNode;
@@ -53,7 +98,6 @@ export class Sound {
 
   private muted: boolean;
   private paused = false;
-  private readonly volume = 0.8;
   private t = 0;
   private load = 0;
   private boost = 0;
@@ -126,9 +170,29 @@ export class Sound {
     this.applyMaster();
   }
 
+  /** Mixer level of a channel, 0..1. */
+  level(ch: Channel): number {
+    return this.mix[ch];
+  }
+
+  setLevel(ch: Channel, v: number): void {
+    this.mix[ch] = clamp(v, 0, 1);
+    try {
+      localStorage.setItem(MIX_KEY, JSON.stringify(this.mix));
+    } catch {
+      /* not persisted */
+    }
+    if (ch === 'master') this.applyMaster();
+    else if (this.ctx) {
+      const now = this.ctx.currentTime;
+      this.bus[ch].dry.gain.setTargetAtTime(this.mix[ch], now, 0.03);
+      this.bus[ch].send.gain.setTargetAtTime(this.mix[ch], now, 0.03);
+    }
+  }
+
   private applyMaster(): void {
     if (!this.ctx) return;
-    const v = this.muted || this.paused ? 0 : this.volume;
+    const v = this.muted || this.paused ? 0 : this.mix.master * MASTER_GAIN;
     this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
   }
 
@@ -152,6 +216,10 @@ export class Sound {
     verb.buffer = this.makeTunnelIR();
     verb.connect(this.wet);
     this.send = this.gainNode(1, verb);
+    const bus = (b: Bus) => ({ dry: this.gainNode(this.mix[b], this.dry), send: this.gainNode(this.mix[b], this.send) });
+    this.bus = { engine: bus('engine'), world: bus('world'), fx: bus('fx') };
+    const E = this.bus.engine;
+    const W = this.bus.world;
 
     const len = ctx.sampleRate * 2;
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -161,8 +229,8 @@ export class Sound {
     // Engine: one warm voice at the firing frequency (harmonics falling off fast, no saw/square buzz,
     // no detuned layer — that beat against the harmonics as a "wah-wah"), a sine half-order sub for
     // the lope, a little intake noise, gentle saturation and a dark low-pass.
-    this.engGain = this.gainNode(0, this.dry);
-    this.gainNode(0.5, this.send, this.engGain);
+    this.engGain = this.gainNode(0, E.dry);
+    this.gainNode(0.5, E.send, this.engGain);
     this.engFilter = ctx.createBiquadFilter();
     this.engFilter.type = 'lowpass';
     this.engFilter.Q.value = 0.7;
@@ -179,29 +247,85 @@ export class Sound {
     this.o2 = this.osc('sine', this.gainNode(0.32, mix));
     this.intake = this.noiseVoice('bandpass', 400, 0.7, mix);
 
-    this.turboGain = this.gainNode(0, this.dry);
+    this.turboGain = this.gainNode(0, E.dry);
     this.turboOsc = this.osc('sine', this.turboGain);
 
-    this.mercedesEngineGain = this.gainNode(0, this.dry);
-    this.mercedesEngineFilter = ctx.createBiquadFilter();
-    this.mercedesEngineFilter.type = 'lowpass';
-    this.mercedesEngineFilter.frequency.value = 1500;
-    this.mercedesEngineFilter.connect(this.mercedesEngineGain);
+    this.buildInlineFour(E);
 
-    this.wind = this.noiseVoice('lowpass', 400, 0.5, this.dry);
-    this.roar = this.noiseVoice('lowpass', 480, 0.7, this.dry);
-    this.squeal = this.noiseVoice('bandpass', 900, 3, this.dry);
+    this.wind = this.noiseVoice('lowpass', 400, 0.5, W.dry);
+    this.roar = this.noiseVoice('lowpass', 480, 0.7, W.dry);
+    this.squeal = this.noiseVoice('bandpass', 900, 3, W.dry);
     // Barrier contact: a low, soft grind rather than a hiss.
-    this.scrape = this.noiseVoice('bandpass', 420, 0.8, this.dry);
-    this.hum = this.noiseVoice('lowpass', 170, 0.7, this.dry);
-    this.gainNode(0.6, this.send, this.roar.gain);
+    this.scrape = this.noiseVoice('bandpass', 420, 0.8, W.dry);
+    this.hum = this.noiseVoice('lowpass', 170, 0.7, W.dry);
+    this.gainNode(0.6, W.send, this.roar.gain);
 
     const rumbleFilter = ctx.createBiquadFilter();
     rumbleFilter.type = 'lowpass';
     rumbleFilter.frequency.value = 170;
-    this.rumbleGain = this.gainNode(0, this.dry);
+    this.rumbleGain = this.gainNode(0, W.dry);
     rumbleFilter.connect(this.rumbleGain);
     this.rumbleOsc = this.osc('triangle', rumbleFilter);
+  }
+
+  /**
+   * Inline-four voice: the lopsided cycle wave driven into a soft clipper (harder on load), an exhaust
+   * body resonance and a mid bark, plus exhaust rasp (band-passed noise chopped by the firing pulses),
+   * all under one low-pass that opens with revs and load.
+   */
+  private buildInlineFour(E: { dry: GainNode; send: GainNode }): void {
+    const ctx = this.ctx!;
+    this.i4Gain = this.gainNode(0, E.dry);
+    this.gainNode(0.35, E.send, this.i4Gain);
+    this.i4Low = ctx.createBiquadFilter();
+    this.i4Low.type = 'lowpass';
+    this.i4Low.Q.value = 0.9;
+    this.i4Low.connect(this.i4Gain);
+    const bark = ctx.createBiquadFilter();
+    bark.type = 'peaking';
+    bark.frequency.value = 560;
+    bark.Q.value = 1.1;
+    bark.gain.value = 5;
+    bark.connect(this.i4Low);
+    const body = ctx.createBiquadFilter();
+    body.type = 'peaking';
+    body.frequency.value = 135;
+    body.Q.value = 0.8;
+    body.gain.value = 6;
+    body.connect(bark);
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = this.softClip(2.4);
+    shaper.oversample = '4x';
+    shaper.connect(body);
+    this.i4Drive = this.gainNode(0.6, shaper);
+
+    const n = I4_HARMONICS.length;
+    const re = new Float32Array(n);
+    const im = new Float32Array(n);
+    for (let k = 1; k < n; k++) {
+      const phase = (((k * 2654435761) % 1000) / 1000) * Math.PI * 2;
+      re[k] = I4_HARMONICS[k] * Math.cos(phase);
+      im[k] = I4_HARMONICS[k] * Math.sin(phase);
+    }
+    this.i4Osc = this.osc('sine', this.gainNode(0.55, this.i4Drive));
+    this.i4Osc.setPeriodicWave(ctx.createPeriodicWave(re, im));
+
+    // Rasp: noise whose level is pulsed at the firing frequency (gain = base + depth * pulse).
+    const raspBand = ctx.createBiquadFilter();
+    raspBand.type = 'bandpass';
+    raspBand.frequency.value = 1700;
+    raspBand.Q.value = 0.7;
+    this.i4Rasp = this.gainNode(0, this.i4Low);
+    raspBand.connect(this.i4Rasp);
+    const src = this.noiseSource(true);
+    src.connect(raspBand);
+    src.start(0, Math.random() * 2);
+    const pulse = new Float32Array([0, 1, 0.8, 0.55, 0.35, 0.2, 0.1]);
+    this.i4RaspDepth = ctx.createGain();
+    this.i4RaspDepth.gain.value = 0;
+    this.i4RaspDepth.connect(this.i4Rasp.gain);
+    this.i4Fire = this.osc('sine', this.i4RaspDepth);
+    this.i4Fire.setPeriodicWave(ctx.createPeriodicWave(new Float32Array(pulse.length), pulse));
   }
 
   private gainNode(value: number, to: AudioNode, from?: AudioNode): GainNode {
@@ -284,17 +408,8 @@ export class Sound {
     const v = Math.max(0, p.vAlong);
     const rpmN = clamp(p.rpm / t.redline, 0, 1.05);
 
-    if (p.physicsId === 3) {
-      this.loadMercedesEngine();
-      this.startMercedesEngine();
-      if (this.mercedesSource) set(this.mercedesSource.playbackRate, clamp(p.rpm / 4000, 0.3, 2.2), 0.06);
-      set(this.mercedesEngineFilter.frequency, 450 + rpmN * 2200 + p.throttle * 900, 0.06);
-      set(this.mercedesEngineGain.gain, 0.1 + this.load * 0.32, 0.08);
-      set(this.engGain.gain, 0, 0.05);
-    } else {
-      set(this.mercedesEngineGain.gain, 0, 0.06);
-      set(this.engGain.gain, 0.11 + this.load * 0.16 + 0.06 * rpmN, 0.015);
-    }
+    // Physics №3 is the AMG's turbo inline four; №1 and №2 keep the six and the V8 voice.
+    const four = p.physicsId === 3;
 
     // Engine.
     this.load += (p.throttle - this.load) * Math.min(1, dt * 10);
@@ -306,6 +421,8 @@ export class Sound {
     set(this.intake.gain.gain, 0.02 + this.load * 0.1 * rpmN);
     set(this.engFilter.frequency, 180 + rpmN * 900 + this.load * 1100);
     if (p.gear !== this.prevGear) {
+      // The AMG's upshift under load: the ignition cut fires a short blat into the exhaust.
+      if (four && p.gear > this.prevGear && this.prevGear > 0 && this.load > 0.6 && rpmN > 0.5) this.blat();
       this.shiftDip = p.gear > this.prevGear ? 0.09 : 0.05;
       this.prevGear = p.gear;
     }
@@ -315,12 +432,24 @@ export class Sound {
       eg *= 0.25;
     }
     if (p.rpm >= t.redline * 0.995 && p.throttle > 0.5) eg *= Math.sin(this.t * Math.PI * 2 * 17) > 0 ? 1 : 0.35;
-    if (p.physicsId !== 3) set(this.engGain.gain, eg, 0.015);
+    if (four) {
+      set(this.engGain.gain, 0, 0.05);
+      this.inlineFour(set, dt, p.rpm, p.throttle, rpmN, eg);
+    } else {
+      set(this.i4Gain.gain, 0, 0.05);
+      set(this.engGain.gain, eg, 0.015);
+    }
 
     // Lift-off: crackle and pop on the overrun, blow-off valve if the turbo was spooled.
     if (this.prevThrottle > 0.6 && p.throttle < 0.15 && rpmN > 0.55) {
-      this.popsLeft = 3 + Math.floor(Math.random() * 5);
-      this.popT = 0.06;
+      if (four) {
+        // AMG Sport+: a longer crackle while the revs fall.
+        this.burble = 0.8 + 1.2 * rpmN;
+        this.burbleT = 0.05;
+      } else {
+        this.popsLeft = 3 + Math.floor(Math.random() * 5);
+        this.popT = 0.06;
+      }
       if (this.boost > 0.4) this.blowOff(this.boost);
     }
     this.prevThrottle = p.throttle;
@@ -337,7 +466,7 @@ export class Sound {
     const boostTarget = p.throttle * smoothstep((rpmN - 0.35) / 0.5);
     this.boost += (boostTarget - this.boost) * Math.min(1, dt * (boostTarget > this.boost ? 2.5 : 6));
     set(this.turboOsc.frequency, 1400 + this.boost * 2200 + rpmN * 500);
-    set(this.turboGain.gain, 0.008 * this.boost);
+    set(this.turboGain.gain, (four ? 0.014 : 0.008) * this.boost);
 
     // Speed: wind and tyre roar; louder roar in tunnels where it reverberates.
     const tunnel = sim.road.chunkAt(p.s).kind === 'tunnel';
@@ -377,31 +506,26 @@ export class Sound {
     set(this.hum.gain.gain, 0.2 * Math.min(1, w), 0.08);
   }
 
-  private loadMercedesEngine(): void {
-    if (this.mercedesEngine || this.mercedesEngineLoading || !this.ctx) return;
-    this.mercedesEngineLoading = true;
-    void fetch('/audio/mercedes-engine.ogg')
-      .then((response) => {
-        if (!response.ok) throw new Error(`Mercedes engine audio: ${response.status}`);
-        return response.arrayBuffer();
-      })
-      .then((data) => this.ctx?.decodeAudioData(data))
-      .then((buffer) => {
-        if (buffer) this.mercedesEngine = buffer;
-      })
-      .catch(() => {
-        this.mercedesEngineLoading = false;
-      });
-  }
-
-  private startMercedesEngine(): void {
-    if (!this.ctx || !this.mercedesEngine || this.mercedesSource) return;
-    const source = this.ctx.createBufferSource();
-    source.buffer = this.mercedesEngine;
-    source.loop = true;
-    source.connect(this.mercedesEngineFilter);
-    source.start();
-    this.mercedesSource = source;
+  /** Inline-four voice per frame: pitch from the revs, drive, brightness and rasp from the load. */
+  private inlineFour(set: (p: AudioParam, v: number, tc?: number) => void, dt: number, rpm: number, throttle: number, rpmN: number, level: number): void {
+    const cycle = rpm / 120;
+    const load = this.load;
+    set(this.i4Osc.frequency, cycle, 0.015);
+    set(this.i4Fire.frequency, cycle * 4, 0.015);
+    set(this.i4Drive.gain, 0.5 + 1.9 * load * (0.4 + 0.6 * rpmN), 0.03);
+    set(this.i4Low.frequency, 260 + rpmN * 2600 + load * 2400, 0.03);
+    const depth = (0.03 + 0.2 * load) * (0.3 + 0.7 * rpmN);
+    set(this.i4Rasp.gain, depth * 0.6, 0.03);
+    set(this.i4RaspDepth.gain, depth, 0.03);
+    set(this.i4Gain.gain, level * 1.15, 0.015);
+    if (this.burble <= 0) return;
+    this.burble -= dt;
+    this.burbleT -= dt;
+    if (throttle > 0.2 || rpm < 2600) this.burble = 0;
+    else if (this.burbleT <= 0) {
+      this.crackle(0.45 + Math.random() * 0.55);
+      this.burbleT = 0.03 + Math.random() * 0.14;
+    }
   }
 
   // ---------------------------------------------------------------- one-shots
@@ -425,11 +549,64 @@ export class Sound {
     f.type = 'bandpass';
     f.frequency.value = 250 + Math.random() * 500;
     f.Q.value = 1.4;
-    const g = this.gainNode(0, this.dry);
-    this.gainNode(0.6, this.send, g);
+    const g = this.gainNode(0, this.bus.engine.dry);
+    this.gainNode(0.6, this.bus.engine.send, g);
     src.connect(f).connect(g);
     this.env(g, at, 0.3 + Math.random() * 0.25, 0.003, 0.07);
     src.start(at, Math.random() * 1.5, 0.12);
+  }
+
+  /** Exhaust crackle of the four on the overrun: a sharp burst over a low thud. */
+  private crackle(strength: number): void {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const at = ctx.currentTime;
+    const E = this.bus.engine;
+    const src = this.noiseSource(false);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 900 + Math.random() * 1600;
+    f.Q.value = 1.1;
+    const g = this.gainNode(0, E.dry);
+    this.gainNode(0.7, E.send, g);
+    src.connect(f).connect(g);
+    this.env(g, at, 0.32 * strength, 0.002, 0.05 + Math.random() * 0.04);
+    src.start(at, Math.random() * 1.5, 0.12);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(70 + Math.random() * 50, at);
+    o.frequency.exponentialRampToValueAtTime(45, at + 0.08);
+    const og = this.gainNode(0, E.dry);
+    o.connect(og);
+    this.env(og, at, 0.28 * strength, 0.002, 0.08);
+    o.start(at);
+    o.stop(at + 0.12);
+  }
+
+  /** Upshift on the throttle: the ignition cut's short, dark blat. */
+  private blat(): void {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const at = ctx.currentTime;
+    const E = this.bus.engine;
+    const src = this.noiseSource(false);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 520;
+    f.Q.value = 0.9;
+    const g = this.gainNode(0, E.dry);
+    this.gainNode(0.6, E.send, g);
+    src.connect(f).connect(g);
+    this.env(g, at, 0.42, 0.004, 0.09);
+    src.start(at, Math.random() * 1.5, 0.14);
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = 88;
+    const og = this.gainNode(0, E.dry);
+    o.connect(og);
+    this.env(og, at, 0.3, 0.004, 0.1);
+    o.start(at);
+    o.stop(at + 0.14);
   }
 
   private blowOff(boost: number): void {
@@ -444,7 +621,7 @@ export class Sound {
     bp.type = 'bandpass';
     bp.frequency.setValueAtTime(3200, at);
     bp.frequency.exponentialRampToValueAtTime(1600, at + 0.4);
-    const g = this.gainNode(0, this.dry);
+    const g = this.gainNode(0, this.bus.engine.dry);
     src.connect(hp).connect(bp).connect(g);
     this.env(g, at, 0.16 * boost, 0.01, 0.4);
     src.start(at, Math.random() * 1.5, 0.5);
@@ -464,8 +641,8 @@ export class Sound {
     bp.frequency.exponentialRampToValueAtTime(top * 0.25, at + 0.45);
     const pan = ctx.createStereoPanner();
     pan.pan.value = clamp(side * 0.85, -1, 1);
-    const g = this.gainNode(0, this.dry);
-    this.gainNode(0.7, this.send, g);
+    const g = this.gainNode(0, this.bus.world.dry);
+    this.gainNode(0.7, this.bus.world.send, g);
     src.connect(bp).connect(pan).connect(g);
     this.env(g, at, 0.28 * strength * (truck ? 1.4 : 1), 0.05, 0.5);
     src.start(at, Math.random() * 1.4, 0.6);
@@ -483,7 +660,7 @@ export class Sound {
       const o = ctx.createOscillator();
       o.type = type;
       o.frequency.value = f * mult;
-      const g = this.gainNode(0, this.dry);
+      const g = this.gainNode(0, this.bus.fx.dry);
       o.connect(g);
       this.env(g, at, gain * k, 0.005, 0.28);
       o.start(at);
@@ -499,7 +676,7 @@ export class Sound {
       const o = ctx.createOscillator();
       o.type = 'triangle';
       o.frequency.value = semi(base, n);
-      const g = this.gainNode(0, this.dry);
+      const g = this.gainNode(0, this.bus.fx.dry);
       o.connect(g);
       this.env(g, at, gain, 0.006, 0.22);
       o.start(at);
@@ -517,7 +694,7 @@ export class Sound {
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 700;
-    const g = this.gainNode(0, this.dry);
+    const g = this.gainNode(0, this.bus.fx.dry);
     o.connect(f).connect(g);
     this.env(g, at, 0.12, 0.01, 0.22);
     o.start(at);
@@ -540,7 +717,7 @@ export class Sound {
     o.type = 'sine';
     o.frequency.setValueAtTime(95, at);
     o.frequency.exponentialRampToValueAtTime(42, at + 0.2);
-    const g = this.gainNode(0, this.dry);
+    const g = this.gainNode(0, this.bus.fx.dry);
     o.connect(g);
     this.env(g, at, 0.5 * strength, 0.004, 0.22);
     o.start(at);
@@ -556,7 +733,7 @@ export class Sound {
     o.type = 'sine';
     o.frequency.setValueAtTime(120, at);
     o.frequency.exponentialRampToValueAtTime(36, at + 0.32);
-    const g = this.gainNode(0, this.dry);
+    const g = this.gainNode(0, this.bus.fx.dry);
     o.connect(g);
     this.env(g, at, 0.75 * strength, 0.004, 0.35);
     o.start(at);
@@ -571,8 +748,8 @@ export class Sound {
     const f = ctx.createBiquadFilter();
     f.type = type;
     f.frequency.value = freq;
-    const g = this.gainNode(0, this.dry);
-    this.gainNode(0.5, this.send, g);
+    const g = this.gainNode(0, this.bus.fx.dry);
+    this.gainNode(0.5, this.bus.fx.send, g);
     src.connect(f).connect(g);
     this.env(g, at, peak, 0.004, decay);
     src.start(at, Math.random() * 1.2, decay + 0.1);

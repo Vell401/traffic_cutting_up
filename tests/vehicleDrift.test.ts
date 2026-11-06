@@ -416,3 +416,35 @@ describe('MercedesCar (physics №3, AMG 4MATIC+)', () => {
     expect(finite(car)).toBe(true);
   });
 });
+
+describe('lifting off mid-corner (physics №2 and №3)', () => {
+  for (const [name, make] of [
+    ['V8 RWD', () => new DriftCar()],
+    ['AMG 4MATIC+', () => new MercedesCar()],
+  ] as const) {
+    it(`${name}: the rear stays planted and the line tightens only a little`, () => {
+      const r = rig(make(), 140);
+      r.run({ steer: 0, throttle: 0.3, brake: 0 }, 1);
+      r.run({ steer: 0.45, throttle: 0.45, brake: 0 }, 2);
+      const onLine = r.car.r / r.car.vx;
+      let tighter = 0;
+      let rearSlip = 0;
+      r.run({ steer: 0.45, throttle: 0, brake: 0 }, 1, () => {
+        tighter = Math.max(tighter, r.car.r / r.car.vx / onLine);
+        rearSlip = Math.max(rearSlip, Math.abs((r.car as DriftCar).slipAngleRear));
+      });
+      // Before the rear tyre retune the A45 tightened by half again and the rear slip angle doubled.
+      expect(tighter).toBeLessThan(1.35);
+      expect(rearSlip).toBeLessThan(1.5 * DEG);
+    });
+
+    it(`${name}: a lane change off the throttle ends pointing straight`, () => {
+      const r = rig(make(), 180);
+      r.run({ steer: 0, throttle: 0.3, brake: 0 }, 1);
+      r.run({ steer: 0.55, throttle: 0, brake: 0 }, 0.3);
+      r.run({ steer: -0.55, throttle: 0, brake: 0 }, 0.3);
+      r.run({ steer: 0, throttle: 0, brake: 0 }, 1.6);
+      expect(Math.abs(r.car.psi)).toBeLessThan(0.4 * DEG);
+    });
+  }
+});

@@ -17,7 +17,7 @@ const BODY_MAX = 16 * 1024;
 const WINDOW = 10 * 60_000;
 
 /** Sliding-window counters: at most `max` events per key in WINDOW. */
-class Limiter {
+export class Limiter {
   private readonly hits = new Map<string, number[]>();
   constructor(private readonly max: number) {}
   take(key: string, now = Date.now()): boolean {
@@ -36,12 +36,12 @@ class Limiter {
 const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, max) : '');
 
-function send(res: ServerResponse, status: number, body: unknown): void {
+export function send(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 }
 
-function readJson(req: IncomingMessage): Promise<unknown> {
+export function readJson(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];
@@ -64,6 +64,17 @@ function readJson(req: IncomingMessage): Promise<unknown> {
     });
     req.on('error', reject);
   });
+}
+
+/** Client address: the proxy's X-Forwarded-For (Caddy sets it), else the socket's. */
+export function clientIp(req: IncomingMessage): string {
+  return String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '?').split(',')[0].trim();
+}
+
+/** A write must be JSON (a cross-site form cannot send that without a preflight) from one of our pages. */
+export function ownJson(req: IncomingMessage, origins: readonly string[]): boolean {
+  const origin = req.headers.origin;
+  return String(req.headers['content-type'] ?? '').startsWith('application/json') && !(origin && origins.length && !origins.includes(origin));
 }
 
 export interface ApiOptions {
@@ -123,7 +134,7 @@ export class Api {
   handle(req: IncomingMessage, res: ServerResponse): boolean {
     const url = new URL(req.url ?? '/', 'http://x');
     if (!url.pathname.startsWith('/api/')) return false;
-    const ip = String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '?').split(',')[0].trim();
+    const ip = clientIp(req);
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
       const mode: RunMode = url.searchParams.get('mode') === 'online' ? 'online' : 'solo';
       const limit = Number(url.searchParams.get('limit') ?? 10) || 10;
@@ -131,9 +142,7 @@ export class Api {
       return true;
     }
     if (req.method === 'POST' && (url.pathname === '/api/runs' || url.pathname === '/api/log')) {
-      // JSON only (a cross-site form cannot send it without a preflight) and from our own pages.
-      const origin = req.headers.origin;
-      if (!String(req.headers['content-type'] ?? '').startsWith('application/json') || (origin && this.opts.origins.length && !this.opts.origins.includes(origin))) {
+      if (!ownJson(req, this.opts.origins)) {
         send(res, 403, { ok: false });
         return true;
       }

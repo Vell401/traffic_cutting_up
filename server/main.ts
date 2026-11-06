@@ -6,6 +6,7 @@
  *
  * HTTP  GET /health  JSON status (tick, players, step times, traffic, memory)
  *       /api/...     leaderboard, solo runs, page diagnostics (server/api.ts)
+ *       /api/admin/  the admin page's API (server/admin.ts), only with ADMIN_PASSWORD
  * WS    /ws          the game protocol (src/online/protocol.ts)
  *
  * Environment:
@@ -18,6 +19,7 @@
  *   JOURNAL_MAX_MB stop journalling past this size (200)
  *   LOG_EVERY      seconds between status log lines (60)
  *   DB_PATH        SQLite file for the leaderboard and the diagnostics log (./data/traffic.db)
+ *   ADMIN_PASSWORD password of the admin page (/admin.html); unset = no admin page
  */
 import { createWriteStream, mkdirSync, type WriteStream } from 'node:fs';
 import { createServer } from 'node:http';
@@ -26,7 +28,8 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { GameServer, type LogLevel } from '../src/online/gameServer';
 import { rulesHash, type OnlineRules } from '../src/online/rules';
 import type { Stimulus } from '../src/online/world';
-import { Api } from './api';
+import { Admin } from './admin';
+import { Api, clientIp } from './api';
 import { Store } from './store';
 
 const env = process.env;
@@ -125,6 +128,16 @@ const game = new GameServer({
   },
 });
 
+const admin = new Admin({
+  password: env.ADMIN_PASSWORD ?? '',
+  origins: ORIGINS,
+  game,
+  store,
+  health: () => health(false),
+  diag: (level, message) => api?.diag(level, message),
+});
+if (admin.enabled && (env.ADMIN_PASSWORD ?? '').length < 12) log('warn', 'ADMIN_PASSWORD is short: use 12+ characters');
+
 function health(reset: boolean) {
   const mem = process.memoryUsage();
   return {
@@ -141,6 +154,7 @@ function health(reset: boolean) {
 }
 
 const http = createServer((req, res) => {
+  if (admin.handle(req, res)) return;
   if (api?.handle(req, res)) return;
   const url = (req.url ?? '/').split('?')[0];
   if (url === '/health') {
@@ -168,12 +182,14 @@ const wss = new WebSocketServer({
 const alive = new WeakMap<WebSocket, boolean>();
 wss.on('connection', (ws, req) => {
   ws.binaryType = 'nodebuffer';
+  const addr = clientIp(req);
   const conn = game.connect({
     send: (d) => ws.send(d),
     close: (code, reason) => ws.close(code, reason),
     get buffered() {
       return ws.bufferedAmount;
     },
+    addr,
   });
   alive.set(ws, true);
   ws.on('pong', () => alive.set(ws, true));
@@ -187,7 +203,7 @@ wss.on('connection', (ws, req) => {
   });
   ws.on('close', () => conn.close());
   ws.on('error', () => conn.close());
-  log('info', `connect ${req.socket.remoteAddress ?? '?'} (${game.connectionCount} open)`);
+  log('info', `connect ${addr} (${game.connectionCount} open)`);
 });
 
 // Dead sockets (no TCP close, e.g. a laptop lid shut) are found by WS-level pings.
@@ -256,8 +272,3 @@ function shutdown(signal: string): void {
 }
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('uncaughtException', (err) => {
-  log('error', `uncaught: ${err.stack ?? err}`);
-  // A process manager (systemd / pm2 / docker) restarts us.
-  process.exit(1);
-});

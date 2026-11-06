@@ -48,7 +48,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'welcome'; id: number; token: string; rules: OnlineRules; tick: number; ringLen: number; players: PlayerInfo[] }
-  | { t: 'reject'; reason: 'full' | 'version' | 'rules' | 'bad'; text: string }
+  | { t: 'reject'; reason: 'full' | 'version' | 'rules' | 'bad' | 'kicked' | 'banned'; text: string }
   | { t: 'players'; list: PlayerInfo[] }
   | { t: 'ev'; name: string; data: Record<string, unknown> }
   | { t: 'feed'; text: string }

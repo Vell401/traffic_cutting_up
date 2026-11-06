@@ -66,6 +66,13 @@ verify() {
   done
   echo "ok: $(wc -l <<<"$assets") assets"
 
+  step "admin page loads; its API wants a login (401) or is off without ADMIN_PASSWORD (404)"
+  curl -fsSk -o /dev/null "$BASE/admin.html" || { fail "/admin.html does not load"; return 1; }
+  local code
+  code=$(curl -sk -o /dev/null -w '%{http_code}' "$BASE/api/admin/state")
+  [[ $code == 401 || $code == 404 ]] || { fail "/api/admin/state answered $code without a login"; return 1; }
+  echo "ok ($code: admin $([[ $code == 401 ]] && echo on || echo off))"
+
   step "plain http redirects to https, the certificate covers $SITE_ADDRESS"
   local code cert
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://$SITE_ADDRESS/")

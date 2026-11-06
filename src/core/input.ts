@@ -1,4 +1,5 @@
 import type { DriveInput } from '../sim/vehicle';
+import type { MouseControl } from './mouse';
 
 /** Keys whose browser default (scrolling, F1 help) must not fire. */
 const BLOCK = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F1']);
@@ -10,6 +11,8 @@ export class Input {
   /** Fired once per key press (no auto-repeat). Gamepad buttons are mapped to key codes. */
   onPress: ((code: string) => void) | null = null;
 
+  /** Mouse steering and pedals, when the player drives with the mouse. */
+  mouse: MouseControl | null = null;
   private readonly keys = new Set<string>();
   private padPrev: boolean[] = [];
 
@@ -30,6 +33,17 @@ export class Input {
     let brake = k.has('KeyS') || k.has('ArrowDown') ? 1 : 0;
     let boost = k.has('ShiftLeft') || k.has('ShiftRight');
     let analog = false;
+
+    // Mouse steering: the wheel stays where the mouse left it; held keys still steer over it.
+    const m = this.mouse;
+    if (m?.active) {
+      if (steer === 0) {
+        steer = m.steer;
+        analog = true;
+      }
+      throttle = Math.max(throttle, m.throttle);
+      brake = Math.max(brake, m.brake);
+    }
 
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const pad of pads) {

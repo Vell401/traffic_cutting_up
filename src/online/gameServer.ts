@@ -11,7 +11,7 @@ import {
   type ServerMsg,
 } from './protocol';
 import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from './rules';
-import { OnlineWorld, type Driver, type Stimulus } from './world';
+import { OnlineWorld, type Driver, type Stimulus, type TrafficState, type WorldConfig } from './world';
 
 /** A connected socket, as the game server sees it (the Node entry point wraps `ws`). */
 export interface Peer {
@@ -19,6 +19,24 @@ export interface Peer {
   close(code: number, reason: string): void;
   /** Bytes queued in the socket and not yet sent. */
   readonly buffered: number;
+  /** Client address (for the admin page and bans). */
+  readonly addr?: string;
+}
+
+/** A driver as the admin page lists it. */
+export interface AdminDriver {
+  id: number;
+  name: string;
+  state: 'active' | 'away' | 'offline';
+  physics: number;
+  car: number;
+  score: number;
+  best: number;
+  kmh: number;
+  ghost: boolean;
+  violations: number;
+  queue: number;
+  addr: string;
 }
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -127,6 +145,8 @@ export class GameServer {
   readonly totals = { snapshots: 0, snapshotBytes: 0, skipped: 0, kicked: 0, joins: 0 };
   readonly steps: StepStats = { count: 0, total: 0, max: 0 };
   private readonly onRun: ServerOptions['onRun'] | null;
+  /** Addresses the admin turned away, until (ms since epoch). */
+  readonly bans = new Map<string, number>();
 
   constructor(opts: ServerOptions) {
     this.world = new OnlineWorld(opts.seed, opts.rules);
@@ -191,6 +211,12 @@ export class GameServer {
     if (conn.slot) return this.violation(conn, 'second hello');
     if (msg.v !== PROTOCOL_VERSION) return this.reject(conn, 'version', 'Версия игры не совпадает с сервером — обновите страницу');
     if (msg.rules !== rulesHash()) return this.reject(conn, 'rules', 'Правила игры на сервере другие — обновите страницу');
+    const addr = conn.peer.addr;
+    const until = addr ? this.bans.get(addr) : undefined;
+    if (until !== undefined) {
+      if (until > Date.now()) return this.reject(conn, 'banned', `Администратор закрыл вам вход до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' })} МСК`);
+      this.bans.delete(addr!);
+    }
     const physics = msg.physics === 2 || msg.physics === 3 ? msg.physics : 1;
     const car = carId(msg.car);
 
@@ -351,6 +377,62 @@ export class GameServer {
       this.feed(`${slot.driver.name} уехал`);
     }
     this.pushPlayers(false);
+  }
+
+  // ----------------------------------------------------------------------- admin
+
+  /** Drivers with what the admin page needs. */
+  adminDrivers(): AdminDriver[] {
+    return this.world.drivers.map((dr) => {
+      const slot = this.slots.get(dr.id);
+      return {
+        id: dr.id,
+        name: dr.name,
+        state: slot?.conn ? dr.state : 'offline',
+        physics: dr.physics,
+        car: dr.body,
+        score: Math.floor(dr.score.score),
+        best: dr.score.best,
+        kmh: Math.round(dr.car.vAlong * 3.6),
+        ghost: dr.car.ghost,
+        violations: dr.violations,
+        queue: dr.queued,
+        addr: slot?.conn?.peer.addr ?? '',
+      };
+    });
+  }
+
+  trafficState(): TrafficState {
+    return this.world.trafficState();
+  }
+
+  /** Traffic or the player limit, from the admin page. */
+  configure(cfg: WorldConfig): void {
+    this.world.configure(cfg);
+  }
+
+  /**
+   * Take a driver off the server now (no reconnect window); with `banMinutes` their address may not
+   * join again for that long. Returns the name, or null for an unknown id.
+   */
+  kickDriver(id: number, banMinutes = 0): string | null {
+    const slot = this.slots.get(id);
+    if (!slot) return null;
+    const name = slot.driver.name;
+    const addr = slot.conn?.peer.addr;
+    if (banMinutes > 0 && addr) this.bans.set(addr, Date.now() + banMinutes * 60_000);
+    if (slot.conn) this.reject(slot.conn, 'kicked', banMinutes > 0 ? `Администратор отключил вас на ${banMinutes} мин` : 'Администратор отключил вас от сервера');
+    this.world.leave(id);
+    this.slots.delete(id);
+    this.log('info', `admin kick #${id} ${name}${banMinutes > 0 ? ` (ban ${banMinutes} min${addr ? ` ${addr}` : ''})` : ''}`);
+    this.feed(`${name} отключён администратором`);
+    this.pushPlayers(true);
+    return name;
+  }
+
+  /** A line from the admin in everyone's feed. */
+  announce(text: string): void {
+    this.feed(`Админ: ${text}`);
   }
 
   /** Close every socket (shutdown). */

@@ -10,7 +10,8 @@ export const mercedesTune: DriftTune = {
   width: 1.85,
   powerKW: 495,
   gripFront: 1.28,
-  gripRear: 1.3,
+  // Planted off the throttle too (before: 1.3 / 1.04, lifting tucked the nose in by half again).
+  gripRear: 1.35,
   tireB: 16,
   tireC: 1.42,
   aeroDrag: 0.46,
@@ -42,7 +43,7 @@ export const mercedesTune: DriftTune = {
   loadSensitivity: 0.16,
   slipRatioPeak: 0.095,
   longGrip: 1.08,
-  rearStiffness: 1.04,
+  rearStiffness: 1.26,
   lsdLock: 0.92,
   brakeFront: 0.62,
   absSlip: 0.075,

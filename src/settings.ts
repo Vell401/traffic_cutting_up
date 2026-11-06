@@ -111,3 +111,37 @@ export function saveName(name: string): void {
     /* storage unavailable */
   }
 }
+
+/** Steering: keyboard (and gamepad) or the mouse, Assetto Corsa style; mouse sensitivity 0.3..3. */
+export function loadSteerMode(): 'keys' | 'mouse' {
+  try {
+    return localStorage.getItem('tcu.steer') === 'mouse' ? 'mouse' : 'keys';
+  } catch {
+    return 'keys';
+  }
+}
+
+export function saveSteerMode(mode: 'keys' | 'mouse'): void {
+  try {
+    localStorage.setItem('tcu.steer', mode);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function loadMouseSens(): number {
+  try {
+    const v = Number(localStorage.getItem('tcu.mouseSens'));
+    return v >= 0.3 && v <= 3 ? v : 1;
+  } catch {
+    return 1;
+  }
+}
+
+export function saveMouseSens(v: number): void {
+  try {
+    localStorage.setItem('tcu.mouseSens', String(v));
+  } catch {
+    /* storage unavailable */
+  }
+}

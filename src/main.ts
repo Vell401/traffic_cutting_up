@@ -2,6 +2,7 @@ import './style.css';
 import { LANES, SIM_HZ, laneCenter } from './config';
 import { Sound } from './audio/sound';
 import { Input } from './core/input';
+import { MouseControl } from './core/mouse';
 import { clamp } from './core/math';
 import type { CameraMode } from './render/camera';
 import { View } from './render/view';
@@ -15,6 +16,8 @@ import { Sim } from './sim/world';
 import { apiBase, conditionsFromUrl, healthUrl, serverUrl } from './online/link';
 import { diagFrame, initDiag, report } from './diag';
 import { Leaderboard } from './ui/leaderboard';
+import { Mixer } from './ui/mixer';
+import { initModelLoad } from './ui/modelLoad';
 import { OnlineSession } from './online/session';
 import type { Debug } from './ui/debug';
 import {
@@ -22,16 +25,20 @@ import {
   loadCameraMode,
   loadCar,
   loadManual,
+  loadMouseSens,
   loadName,
   loadPhysics,
   loadQuality,
+  loadSteerMode,
   loadTraffic,
   saveCameraMode,
   saveCar,
   saveManual,
+  saveMouseSens,
   saveName,
   savePhysics,
   saveQuality,
+  saveSteerMode,
   saveTraffic,
   type Quality,
 } from './settings';
@@ -68,6 +75,8 @@ sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
 const quality = loadQuality();
 let car: CarId = loadCar();
+// Before the view: building the chosen car may start a model download right away.
+initModelLoad();
 const view = new View(canvas, sim, QUALITY[quality], car);
 // Each car remembers its own camera.
 view.setCar(car, loadCameraMode(car) as CameraMode);
@@ -76,6 +85,7 @@ const API = apiBase(serverUrl(params));
 initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.renderer.getContext());
 const input = new Input();
 const sound = new Sound(sim);
+const mixer = new Mixer(sound);
 const metrics = new Metrics(view.renderer, sim, () => `quality ${quality}  audio ${sound.state}`);
 // Audio may only start after a user gesture.
 window.addEventListener('keydown', () => sound.unlock());
@@ -114,12 +124,17 @@ function enterPlay(): void {
   state = 'play';
   document.body.classList.remove('menu');
   startEl.classList.add('hidden');
+  mouse.centre();
+  // Starting is a click or a key press: mouse steering can take the pointer at once.
+  if (mouse.mode === 'mouse') void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
 }
 
 /** Online the world never stops: P / Esc only show the menu card while the car rolls on without input. */
 let onlineMenu = false;
 function setPaused(paused: boolean): void {
   if (state === 'menu') return;
+  document.body.classList.toggle('paused', paused);
+  if (paused && mouse.locked) document.exitPointerLock();
   if (ONLINE) {
     onlineMenu = paused;
     pauseEl.classList.toggle('hidden', !paused);
@@ -174,7 +189,9 @@ function startOnline(): void {
           state = 'menu';
           onlineMenu = false;
           pauseEl.classList.add('hidden');
+          document.body.classList.remove('paused');
           document.body.classList.add('menu');
+          if (mouse.locked) document.exitPointerLock();
           startEl.classList.remove('hidden');
         }
       }
@@ -240,33 +257,33 @@ async function toggleDebug(): Promise<void> {
 if (new URLSearchParams(location.search).has('debug')) void toggleDebug();
 if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics, sound } });
 
-// ---------------------------------------------------------------- mouse look
+// ---------------------------------------------------------------- mouse
 
-// Left button held on the game view: drag to look around; 2 s without moving and the view eases back.
-let dragging = false;
-canvas.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0) return;
-  dragging = true;
-  try {
-    canvas.setPointerCapture(e.pointerId);
-  } catch {
-    /* capture is a nicety: dragging works without it */
-  }
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (dragging) view.look(e.movementX, e.movementY);
-});
-const endDrag = (e: PointerEvent) => {
-  dragging = false;
-  try {
-    if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-  } catch {
-    /* see above */
-  }
-};
-canvas.addEventListener('pointerup', endDrag);
-canvas.addEventListener('pointercancel', endDrag);
-canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+// Keyboard steering: the left button held on the game view looks around. Mouse steering (as in
+// Assetto Corsa): a click captures the pointer, side-to-side turns the wheel, left button throttle,
+// right brake, middle looks around, Esc lets go (and pauses).
+const mouse = new MouseControl(
+  canvas,
+  {
+    look: (dx, dy) => view.look(dx, dy),
+    driving: () => state === 'play' && !(ONLINE && onlineMenu),
+    released: () => setPaused(true),
+  },
+  loadSteerMode(),
+  loadMouseSens(),
+);
+input.mouse = mouse;
+const mouseWheel = document.getElementById('mouseWheel')!;
+const mouseWheelMark = mouseWheel.querySelector('i')!;
+const mouseHint = document.getElementById('mouseHint')!;
+
+/** Per frame: the wheel position strip while steering with the mouse, the capture hint before. */
+function updateMouseHud(): void {
+  const on = mouse.mode === 'mouse' && state === 'play' && !(ONLINE && onlineMenu);
+  mouseWheel.hidden = !(on && mouse.locked);
+  mouseHint.hidden = !(on && !mouse.locked);
+  if (!mouseWheel.hidden) mouseWheelMark.style.left = `${50 + mouse.steer * 50}%`;
+}
 
 // ---------------------------------------------------------------- gearbox and turn signals
 
@@ -313,7 +330,10 @@ input.onPress = (code) => {
     saveCameraMode(car, mode);
     hud.tag(`CAMERA · ${mode.toUpperCase()}`);
   }
-  else if (code === 'KeyM') hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
+  else if (code === 'KeyM') {
+    hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
+    mixer.sync();
+  }
   else if (code === 'KeyG') {
     manualGears = !manualGears;
     saveManual(manualGears);
@@ -326,6 +346,7 @@ input.onPress = (code) => {
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(ONLINE ? !onlineMenu : state === 'play');
   else if (code === 'KeyR' && state === 'play') {
+    mouse.centre();
     if (ONLINE) session?.requestRespawn();
     else if (TEST) loadShowcase(showcase);
     else sim.respawn();
@@ -378,6 +399,29 @@ choice('carSeg', 'carDesc', CARS, car, (id) => {
 choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, (id) => {
   savePhysics(id);
   sim.setPhysics(id);
+});
+// Steering: keyboard (or gamepad) or the mouse, with its sensitivity.
+const sensRow = document.getElementById('sensRow')!;
+const sensInput = document.getElementById('sensInput') as HTMLInputElement;
+const sensOut = document.getElementById('sensOut')!;
+const showSens = () => (sensOut.textContent = `${mouse.sens.toFixed(2)}×`);
+sensInput.value = String(mouse.sens);
+showSens();
+sensRow.hidden = mouse.mode !== 'mouse';
+sensInput.addEventListener('input', () => {
+  mouse.sens = Number(sensInput.value);
+  saveMouseSens(mouse.sens);
+  showSens();
+});
+for (const type of ['keydown', 'keyup'] as const) sensRow.addEventListener(type, (e) => e.stopPropagation());
+choice('steerSeg', 'steerDesc', [
+  { id: 1, name: 'Клавиатура', desc: 'A / D (или геймпад); ЛКМ с движением мыши — осмотреться' },
+  { id: 2, name: 'Мышь', desc: 'Как в Assetto Corsa: мышь влево-вправо — руль, ЛКМ — газ, ПКМ — тормоз, СКМ — обзор. Клик по игре захватывает мышь, Esc отпускает' },
+] as const, mouse.mode === 'mouse' ? 2 : 1, (id) => {
+  const mode = id === 2 ? 'mouse' : 'keys';
+  mouse.setMode(mode);
+  saveSteerMode(mode);
+  sensRow.hidden = mode !== 'mouse';
 });
 choice('trafficSeg', 'trafficDesc', TRAFFIC_PRESETS, sim.director.preset, (id) => {
   saveTraffic(id);
@@ -546,6 +590,7 @@ view.renderer.setAnimationLoop((now: number) => {
   const t2 = performance.now();
   hud.update(dt);
   updateBlinker();
+  updateMouseHud();
   if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);

@@ -62,8 +62,14 @@ export type DriftTune = CarTune & {
   brakeFront: number;
   /** ABS keeps the front braking slip ratio under this. */
   absSlip: number;
-  /** EBD / engine-drag control keep the rear braking slip ratio under this (rear stays planted). */
+  /** EBD keeps the rear braking slip ratio under this with the brake pedal down (rear stays planted). */
   ebdSlip: number;
+  /**
+   * Engine drag control (MSR): off the throttle and off the brakes, engine braking may pull a wheel
+   * only this far into braking slip. Without it lifting mid-corner took enough rear grip to make the
+   * car swing out and wander.
+   */
+  dragSlip: number;
   /** Rear slip ratio traction control allows at tractionControl = 1 (lower settings allow tcSlip / tractionControl). */
   tcSlip: number;
   /** ESP Sport strength, 0 = off, 1 = full. */
@@ -118,7 +124,10 @@ export const driftTune: DriftTune = {
   cgToRear: 1.477,
   powerKW: 375,
   gripFront: 1.12,
-  gripRear: 1.2,
+  // Rear tyres stiff and grippy enough that lifting mid-corner or mid lane change does not make the
+  // car wander (before: gripRear 1.2, rearStiffness 1.15: the rear slip angle doubled off the throttle);
+  // a little more keyboard lock keeps a quick lane change as quick.
+  gripRear: 1.25,
   // Peak at tan(π/2·1.45)/15.2 ≈ 7° slip angle, sliding force ≈ 76 % of peak.
   tireB: 15.2,
   tireC: 1.45,
@@ -126,7 +135,7 @@ export const driftTune: DriftTune = {
   rollingRes: 5,
   brakeDecel: 9.6,
   maxSteerLow: 0.55,
-  steerGripScale: 1.45,
+  steerGripScale: 1.52,
   yawAssist: 0,
   tractionControl: 1,
   redline: 7000,
@@ -156,11 +165,12 @@ export const driftTune: DriftTune = {
   loadSensitivity: 0.18,
   slipRatioPeak: 0.1,
   longGrip: 1.06,
-  rearStiffness: 1.15,
+  rearStiffness: 1.3,
   lsdLock: 0.8,
   brakeFront: 0.64,
   absSlip: 0.08,
   ebdSlip: 0.035,
+  dragSlip: 0.01,
   tcSlip: 0.13,
   escAssist: 1,
   escSlip: 0.17,
@@ -465,17 +475,21 @@ export class DriftCar extends PlayerCar {
       const brakeTq = this.brake * m * t.brakeDecel * R;
       const driveFront = this.driveTq * t.frontDrive;
       const driveRear = this.driveTq - driveFront;
+      // Engine braking reaches the wheels the way the drive does (all-wheel drive: both axles).
+      const dragFront = this.dragTq * t.frontDrive;
+      const dragRear = this.dragTq - dragFront;
+      const coasting = this.brake < 0.02;
 
       const kr = Math.max(0, kR / t.slipRatioPeak) * (R / denR);
       const ir = this.inertiaR + h * R * kr;
-      let wr = this.omegaR + (h * (driveRear * (1 - t.escCut * u) - this.dragTq - R * fxR)) / ir;
+      let wr = this.omegaR + (h * (driveRear * (1 - t.escCut * u) - dragRear - R * fxR)) / ir;
       wr = Math.max(0, wr - (h * brakeTq * (1 - t.brakeFront)) / ir);
-      this.omegaR = clamp(wr, (vx - t.ebdSlip * denR) / R, (vx + kLim * denR) / R);
+      this.omegaR = clamp(wr, (vx - (coasting ? t.dragSlip : t.ebdSlip) * denR) / R, (vx + kLim * denR) / R);
       const kf = Math.max(0, kF / t.slipRatioPeak) * (R / denF);
       const iff = t.wheelInertiaFront + h * R * kf;
-      let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - R * fxF)) / iff;
+      let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - dragFront - R * fxF)) / iff;
       wf = Math.max(0, wf - (h * brakeTq * t.brakeFront) / iff);
-      this.omegaF = Math.max(wf, (vwF - t.absSlip * denF) / R);
+      this.omegaF = Math.max(wf, (vwF - (coasting ? t.dragSlip : t.absSlip) * denF) / R);
       if (t.frontDrive > 0) this.omegaF = Math.min(this.omegaF, (vwF + kLim * t.frontTc * denF) / R);
 
       this.axLag += (fx / m - this.axLag) * lagK;

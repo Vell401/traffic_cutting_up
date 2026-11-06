@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { clamp, damp, dampAngle, lerp } from '../core/math';
+import { clamp, damp, dampAngle, lerp, smoothstep, wrapAngle } from '../core/math';
 import type { PlayerCar } from '../sim/vehicle';
 import { CAMERA_RIGS, type CameraMode, type CameraRig } from './car';
 
@@ -57,6 +57,7 @@ export class ChaseCamera {
   private t = 0;
   private first = true;
   private readonly look = new THREE.Vector3();
+  private readonly tmp = new THREE.Vector3();
   // First person: head offsets (m, rad) and the glance into turns.
   private readonly headX = new Spring(70, 0.7);
   private readonly headZ = new Spring(60, 0.7);
@@ -71,11 +72,15 @@ export class ChaseCamera {
   private lookPitch = 0;
   private lookT = 1e9;
 
-  /** Drag by (dx, dy) px: around the car in the chase views, the head in the cockpit, the view on the hood and bumper. */
+  /**
+   * Drag by (dx, dy) px: around the car in the chase views, the head in the cockpit, the view on the
+   * hood and bumper. Yaw goes all the way round (no stop); pitch from a little under the horizon to
+   * nearly overhead outside, the full range of a turned head inside.
+   */
   mouseLook(dx: number, dy: number): void {
     const cockpit = this.mode === 'cockpit';
-    this.lookYaw = clamp(this.lookYaw - dx * 0.006, cockpit ? -2.4 : -Math.PI, cockpit ? 2.4 : Math.PI);
-    this.lookPitch = clamp(this.lookPitch - dy * 0.004, cockpit ? -0.6 : -0.25, cockpit ? 0.5 : 0.7);
+    this.lookYaw = wrapAngle(this.lookYaw - dx * 0.006);
+    this.lookPitch = clamp(this.lookPitch - dy * 0.004, cockpit ? -0.9 : -0.3, cockpit ? 0.8 : 1.25);
     this.lookT = 0;
   }
 
@@ -211,7 +216,15 @@ export class ChaseCamera {
     const [n1, n2] = this.noise(dt, sp, 0.12);
 
     a.eye.updateWorldMatrix(true, false);
-    camera.position.set(hx + n1, n2, hz).applyMatrix4(a.eye.matrixWorld);
+    // Looking back the driver turns in the seat: the head leans toward the middle of the car and a
+    // little forward, so the view goes past the own headrest to the rear window.
+    const back = smoothstep((Math.abs(this.lookYaw) - 0.9) / 1.5);
+    let leanX = 0;
+    if (back > 0) {
+      const side = a.body.worldToLocal(a.eye.getWorldPosition(this.tmp)).x;
+      leanX = (side > 0 ? -1 : 1) * 0.24 * back;
+    }
+    camera.position.set(hx + n1 + leanX, n2 + 0.03 * back, hz - 0.14 * back).applyMatrix4(a.eye.matrixWorld);
     a.body.getWorldQuaternion(this.q);
     this.e.set(rig.pitch + pitch + n2 * 0.6 + this.lookPitch, -this.glance + this.lookYaw, roll);
     this.qHead.setFromEuler(this.e);

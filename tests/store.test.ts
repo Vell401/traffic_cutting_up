@@ -1,7 +1,10 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Admin } from '../server/admin';
 import { Api } from '../server/api';
+import { GameServer } from '../src/online/gameServer';
+import { PROTOCOL_VERSION, rulesHash } from '../src/online/rules';
 import { MIN_SCORE, Store, type RunRecord } from '../server/store';
 
 const run = (over: Partial<RunRecord>): RunRecord => ({ mode: 'solo', name: 'A', score: 5000, car: 1, physics: 1, near: 10, topKmh: 250, seconds: 60, ...over });
@@ -90,5 +93,115 @@ describe('HTTP API', () => {
   it('folds repeats of a server problem within a minute into one row', () => {
     for (let i = 0; i < 5; i++) api.diag('warn', 'slow tick', { ms: 9 });
     expect(store.recentLogs(50, 'server').filter((r) => r.message.startsWith('slow tick')).length).toBe(1);
+  });
+});
+
+describe('admin API', () => {
+  let server: Server;
+  let base = '';
+  const store = new Store(':memory:');
+  const game = new GameServer({ seed: 7 });
+  const diag: string[] = [];
+  const admin = new Admin({ password: 'correct horse battery', origins: [], game, store, health: () => ({ ok: true }), diag: (_l, m) => diag.push(m) });
+  let token = '';
+  const req = (path: string, body?: unknown, t = token) =>
+    fetch(`${base}/api/admin/${path}`, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }), authorization: `Bearer ${t}`, 'x-forwarded-for': '10.0.0.9' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  /** A socket that joins as a driver; `got` collects what the server sent it. */
+  const peer = (addr: string) => {
+    const got: string[] = [];
+    let closed = false;
+    const conn = game.connect({ send: (d) => typeof d === 'string' && got.push(d), close: () => (closed = true), buffered: 0, addr });
+    conn.receive(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(), name: 'Rude', physics: 1, car: 1, seq: 0 }));
+    return { got, closed: () => closed };
+  };
+
+  beforeAll(async () => {
+    server = createServer((rq, rs) => {
+      if (!admin.handle(rq, rs)) rs.writeHead(404).end();
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+  afterAll(() => {
+    server.close();
+    store.close();
+  });
+
+  it('is off without a password', async () => {
+    const off = new Admin({ password: '', origins: [], game, store, health: () => ({}), diag: () => {} });
+    const s = createServer((rq, rs) => void off.handle(rq, rs));
+    await new Promise<void>((r) => s.listen(0, '127.0.0.1', r));
+    const res = await fetch(`http://127.0.0.1:${(s.address() as AddressInfo).port}/api/admin/state`);
+    expect(res.status).toBe(404);
+    s.close();
+  });
+
+  it('wants the right password and a session for everything else', async () => {
+    expect((await req('state')).status).toBe(401);
+    expect((await req('login', { password: 'nope' })).status).toBe(401);
+    const ok = await req('login', { password: 'correct horse battery' });
+    expect(ok.status).toBe(200);
+    token = ((await ok.json()) as { token: string }).token;
+    expect(token.length).toBeGreaterThan(30);
+    const st = (await (await req('state')).json()) as { traffic: { on: boolean }; rules: { maxPlayers: number } };
+    expect(st.traffic.on).toBe(true);
+    expect(st.rules.maxPlayers).toBe(50);
+    // Writes must be JSON.
+    const form = await fetch(`${base}/api/admin/say`, { method: 'POST', headers: { 'content-type': 'text/plain', authorization: `Bearer ${token}` }, body: 'x' });
+    expect(form.status).toBe(403);
+  });
+
+  it('changes traffic and the player limit while the server runs', async () => {
+    for (let i = 0; i < 240; i++) game.tick();
+    expect((await req('traffic', { trafficOn: false })).status).toBe(200);
+    expect(game.trafficState()).toMatchObject({ on: false, cars: 0 });
+    const r = (await (await req('traffic', { trafficOn: true, traffic: 2, intensity: 0.8, mode: 'trucks' })).json()) as { traffic: object };
+    expect(r.traffic).toMatchObject({ on: true, preset: 2, intensity: 0.8, mode: 'trucks', held: true });
+    expect((await req('traffic', { mode: 'flying' })).status).toBe(400);
+    expect((await req('players', { maxPlayers: 12 })).status).toBe(200);
+    expect(game.world.rules.maxPlayers).toBe(12);
+    expect((await req('players', { maxPlayers: 500 })).status).toBe(400);
+    expect(diag.some((m) => m.includes('traffic') && m.includes('10.0.0.9'))).toBe(true);
+  });
+
+  it('kicks a driver, keeps the address out while banned, lets it back after unban', async () => {
+    const a = peer('203.0.113.5');
+    const id = (JSON.parse(a.got.find((m) => m.includes('"welcome"'))!) as { id: number }).id;
+    expect((await req('kick', { id, banMinutes: 30 })).status).toBe(200);
+    expect(a.closed()).toBe(true);
+    expect(a.got.some((m) => m.includes('"kicked"'))).toBe(true);
+    expect(game.world.byId(id)).toBeUndefined();
+    const again = peer('203.0.113.5');
+    expect(again.got.some((m) => m.includes('"banned"'))).toBe(true);
+    expect((await req('unban', { addr: '203.0.113.5' })).status).toBe(200);
+    expect(peer('203.0.113.5').got.some((m) => m.includes('"welcome"'))).toBe(true);
+    expect((await req('kick', { id: 999 })).status).toBe(404);
+  });
+
+  it('removes a player from a leaderboard and serves the log', async () => {
+    store.addRun(run({ name: 'Cheater', score: 9_999_999 }));
+    store.addRun(run({ name: 'cheater', score: 50_000 }));
+    store.addRun(run({ name: 'Honest', score: 40_000 }));
+    const r = (await (await req('board/remove', { mode: 'solo', name: 'CHEATER' })).json()) as { removed: number };
+    expect(r.removed).toBe(2);
+    const board = (await (await req('board?mode=solo')).json()) as { entries: { name: string }[] };
+    expect(board.entries.map((e) => e.name)).toEqual(['Honest']);
+    store.log('client', 'error', '[solo] boom');
+    const logs = (await (await req('logs?source=client')).json()) as { rows: { message: string }[] };
+    expect(logs.rows[0].message).toBe('[solo] boom');
+  });
+
+  it('turns away a password guesser after 8 tries from one address', async () => {
+    let last = 0;
+    for (let i = 0; i < 9; i++) {
+      last = (
+        await fetch(`${base}/api/admin/login`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '198.51.100.7' }, body: JSON.stringify({ password: `guess${i}` }) })
+      ).status;
+    }
+    expect(last).toBe(429);
   });
 });

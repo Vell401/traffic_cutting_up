@@ -18,8 +18,12 @@ export default defineConfig(({ isSsrBuild }) => ({
     target: 'es2022',
     sourcemap: true,
     chunkSizeWarningLimit: 900,
-    // npm run build:server: the game server, the smoke-test client and the log reader, side by side in dist-server/.
-    ...(isSsrBuild ? { copyPublicDir: false, rollupOptions: { input: { main: 'server/main.ts', smoke: 'scripts/smoke.ts', logs: 'server/logs.ts' } } } : {}),
+    // npm run build: the game and the admin page. npm run build:server: the game server, the smoke-test
+    // client and the log reader, side by side in dist-server/.
+    rollupOptions: isSsrBuild
+      ? { input: { main: 'server/main.ts', smoke: 'scripts/smoke.ts', logs: 'server/logs.ts' } }
+      : { input: { main: 'index.html', admin: 'admin.html' } },
+    ...(isSsrBuild ? { copyPublicDir: false } : {}),
   },
   test: { include: ['tests/**/*.test.ts'] },
 }));

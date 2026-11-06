@@ -333,8 +333,11 @@ body.menu #hud {
 /* ---------- Leaderboard (start menu) ---------- */
 .leaders {
   position: fixed;
-  right: clamp(16px, 4vw, 64px);
-  bottom: clamp(32px, 12vh, 140px);
+  /* Centred in the upper half; on narrower screens it stays clear of the menu card
+     (its left padding + 520 px card + a gap + half this panel). */
+  top: clamp(72px, 11vh, 130px);
+  left: max(50%, calc(clamp(16px, 7vw, 120px) + 709px));
+  transform: translateX(-50%);
   width: 330px;
   padding: 16px 18px 12px;
   background: rgba(8, 10, 16, 0.72);
@@ -410,6 +413,190 @@ body.test .leaders {
   }
 }
 
+/* ---------- Mixer (start menu and pause) ---------- */
+.mixer {
+  position: fixed;
+  right: 28px;
+  bottom: 150px;
+  width: 236px;
+  padding: 12px 14px 8px;
+  background: rgba(8, 10, 16, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  transition: opacity 0.35s;
+}
+body:not(.menu):not(.paused) .mixer {
+  opacity: 0;
+  pointer-events: none;
+}
+.mixer .mh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.mixer .mute {
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.mixer .mute:hover {
+  color: var(--ink);
+}
+.mixer .mute.on {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+.mixer .mrow {
+  display: grid;
+  grid-template-columns: 62px 1fr 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.mixer .mrow b {
+  font-weight: 600;
+  text-align: right;
+  color: var(--ink-dim);
+}
+.mixer input[type='range'],
+.sens input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.mixer.muted .mrow {
+  opacity: 0.45;
+}
+@media (max-width: 760px) {
+  .mixer {
+    display: none;
+  }
+}
+
+/* ---------- Model download (menu line and in-game toast) ---------- */
+.load {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+.load[hidden] {
+  display: none;
+}
+.load .lbar {
+  flex: 0 0 140px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.load .lbar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+.load.bad span {
+  color: var(--bad);
+}
+.load.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 14px;
+  background: rgba(8, 10, 16, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+}
+body.menu .load.toast {
+  display: none;
+}
+
+/* ---------- Mouse steering ---------- */
+.sens {
+  display: grid;
+  grid-template-columns: auto 1fr 38px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+.sens b {
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+}
+.sens[hidden] {
+  display: none;
+}
+#mouseWheel {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 260px;
+  height: 4px;
+  margin-left: -130px;
+  background: var(--line);
+  border-radius: 2px;
+}
+#mouseWheel::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 1px;
+  height: 10px;
+  background: var(--ink-dim);
+}
+#mouseWheel i {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 6px;
+  height: 12px;
+  margin-left: -3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+#mouseWheel[hidden],
+#mouseHint[hidden] {
+  display: none;
+}
+#mouseHint {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: rgba(8, 10, 16, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 /* ---------- Overlays ---------- */
 .overlay {
   position: fixed;
@@ -433,6 +620,44 @@ body.test .leaders {
 }
 .card {
   max-width: 520px;
+}
+#start {
+  padding-top: 16px;
+}
+#start .card {
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+/* Laptop-height windows: a tighter card so the start button stays on screen without scrolling. */
+@media (max-height: 960px) {
+  #start {
+    padding-bottom: 24px;
+  }
+  #start h1 {
+    font-size: clamp(40px, 5.6vw, 60px);
+  }
+  #start .tag {
+    display: none;
+  }
+  #start .kicker {
+    margin-bottom: 8px;
+  }
+  #start .keys {
+    gap: 6px 14px;
+    margin: 14px 0 16px;
+    font-size: 12px;
+  }
+  #start .keys kbd {
+    min-width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+  #start .opts {
+    gap: 8px 16px;
+    margin-bottom: 16px;
+  }
 }
 .card.small {
   text-align: center;

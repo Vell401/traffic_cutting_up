@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Traffic Cutting Up: a lime line weaving through the lanes of a night highway. -->
+  <rect width="64" height="64" rx="14" fill="#05060a"/>
+  <g fill="#f2f3f5" opacity="0.55">
+    <rect x="19" y="6" width="4" height="10" rx="1.5"/>
+    <rect x="19" y="27" width="4" height="10" rx="1.5"/>
+    <rect x="19" y="48" width="4" height="10" rx="1.5"/>
+    <rect x="41" y="6" width="4" height="10" rx="1.5"/>
+    <rect x="41" y="27" width="4" height="10" rx="1.5"/>
+    <rect x="41" y="48" width="4" height="10" rx="1.5"/>
+  </g>
+  <path d="M11 58 C11 42 32 44 32 31 C32 20 53 22 53 15" fill="none" stroke="#c8ff3e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M53 4 L61 17 L45 17 Z" fill="#c8ff3e"/>
+</svg>

@@ -117,6 +117,11 @@ export class Store {
     return rows as unknown as LogRow[];
   }
 
+  /** Delete every run of one player (any letter case) in one mode (admin: a cheated or offensive entry). */
+  removeRuns(mode: RunMode, name: string): number {
+    return Number(this.db.prepare('DELETE FROM runs WHERE mode = ? AND lower(name) = lower(?)').run(mode, name).changes);
+  }
+
   close(): void {
     this.db.close();
   }

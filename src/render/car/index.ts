@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three-stdlib';
 import { MeshoptDecoder } from 'meshoptimizer';
+import { damp } from '../../core/math';
 import { report } from '../../diag';
 import type { CarId } from '../../sim/cars';
+import type { PlayerCar } from '../../sim/vehicle';
 import { buildCoupe, sideExtrude } from '../carModels';
 import { liveryPaint } from './livery';
 import { CHROME, EMIT, GRILLE, IND_L, IND_R, PAINT, RIND_L, RIND_R, SHELL, TAIL, TRIM, r34Geometry } from './r34';
@@ -61,8 +63,8 @@ export const CAMERA_RIGS: Record<CarId, CameraRig> = {
     far: { dist: 2.8, height: 0.95, lookAhead: 2, lookHeight: 0.3 },
     hood: { f: 0.65, y: 1.12, lookHeight: 0.9 },
     bumper: { f: 2.3, y: 0.52, lookHeight: 0.45 },
-    cockpit: null,
-    modes: ['chase', 'far', 'hood', 'bumper'],
+    cockpit: { fov: 62, fovFast: 69, pitch: -0.06 },
+    modes: ['chase', 'far', 'cockpit', 'hood', 'bumper'],
   },
 };
 
@@ -207,6 +209,37 @@ let mercedesModel: THREE.Group | null = null;
 let mercedesLoading = false;
 const mercedesWaiters = new Set<(model: THREE.Group) => void>();
 
+/** Download state of a heavy car model (the loading indicator shows it). */
+export interface ModelLoad {
+  name: string;
+  /** Bytes so far and in all (the size is known even when the server does not send it). */
+  loaded: number;
+  total: number;
+  /** Downloaded and being unpacked. */
+  unpacking: boolean;
+  done: boolean;
+  failed: boolean;
+}
+
+/** Size of mercedes-a45s.glb, for progress when the response has no length. */
+const A45_BYTES = 36_172_120;
+const modelLoadListeners = new Set<(s: ModelLoad) => void>();
+
+/** Follow heavy model downloads; returns an unsubscribe function. */
+export function onModelLoad(fn: (s: ModelLoad) => void): () => void {
+  modelLoadListeners.add(fn);
+  return () => modelLoadListeners.delete(fn);
+}
+
+function emitLoad(s: ModelLoad): void {
+  for (const fn of modelLoadListeners) fn(s);
+}
+
+/** Start downloading a car's heavy model (on choosing it in the menu, before the run starts). */
+export function preloadCar(id: CarId): void {
+  if (id === 3) loadMercedesModel(() => {});
+}
+
 function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
   if (mercedesModel) {
     onLoad(mercedesModel);
@@ -215,6 +248,9 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
   mercedesWaiters.add(onLoad);
   if (mercedesLoading) return;
   mercedesLoading = true;
+  const name = 'Mercedes-AMG A45 S';
+  const state: ModelLoad = { name, loaded: 0, total: A45_BYTES, unpacking: false, done: false, failed: false };
+  emitLoad(state);
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   loader.load('/models/mercedes-a45s.glb', ({ scene }) => {
@@ -227,11 +263,81 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
     mercedesModel = scene;
     for (const waiter of mercedesWaiters) waiter(scene);
     mercedesWaiters.clear();
-  }, undefined, (e) => {
+    emitLoad({ ...state, loaded: state.total, unpacking: false, done: true });
+  }, (e) => {
+    // A compressed response may report its compressed length (or none): never show past 100 %.
+    state.total = Math.max(e.lengthComputable && e.total > 0 ? e.total : A45_BYTES, e.loaded);
+    state.loaded = e.loaded;
+    state.unpacking = e.loaded >= state.total;
+    emitLoad({ ...state });
+  }, (e) => {
     report('error', 'model load failed: mercedes-a45s.glb', String((e as { message?: string })?.message ?? e));
     mercedesLoading = false;
     mercedesWaiters.clear();
+    emitLoad({ ...state, failed: true });
   });
+}
+
+/*
+ * A45 first-person view. The imported model is laid out like a racing-sim car: the cockpit (COCKPIT_HR)
+ * holds the steering wheel STEER_HR, which turns about its own z axis (the tilted column), with the
+ * shift paddles SHIFT_L / SHIFT_R on it. The eye sits behind and above the wheel hub; until the model
+ * has loaded it waits at a default spot.
+ */
+const A45_EYE_DEFAULT = new THREE.Vector3(-0.36, 1.16, 0.18);
+/** Eye relative to the wheel hub, car space (m): behind it and up. */
+const A45_EYE_FROM_WHEEL = new THREE.Vector3(0, 0.27, 0.62);
+/** Steering wheel turn per road-wheel angle (a quick AMG rack). */
+const A45_STEER_RATIO = 13.5;
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+
+class A45Cockpit implements Cockpit {
+  readonly group = new THREE.Group();
+  readonly eye = new THREE.Object3D();
+  private wheel: THREE.Object3D | null = null;
+  private readonly wheelRest = new THREE.Quaternion();
+  private paddles: { node: THREE.Object3D; rest: THREE.Quaternion; t: number }[] = [];
+  private angle = 0;
+  private gear = 1;
+  private readonly q = new THREE.Quaternion();
+
+  constructor(body: THREE.Object3D) {
+    this.eye.position.copy(A45_EYE_DEFAULT);
+    body.add(this.eye, this.group);
+  }
+
+  /** The imported model is in place under `body`: find the wheel and put the eye behind it. */
+  attach(model: THREE.Object3D, body: THREE.Object3D): void {
+    const wheel = model.getObjectByName('STEER_HR');
+    if (!wheel) return;
+    this.wheel = wheel;
+    this.wheelRest.copy(wheel.quaternion);
+    this.paddles = ['SHIFT_L', 'SHIFT_R'].flatMap((n) => {
+      const node = wheel.getObjectByName(n);
+      return node ? [{ node, rest: node.quaternion.clone(), t: 0 }] : [];
+    });
+    body.updateMatrixWorld(true);
+    const hub = wheel.getWorldPosition(new THREE.Vector3());
+    body.worldToLocal(hub);
+    this.eye.position.copy(hub).add(A45_EYE_FROM_WHEEL);
+  }
+
+  update(car: PlayerCar, dt: number): void {
+    if (!this.wheel) return;
+    this.angle = damp(this.angle, car.steerAngle * A45_STEER_RATIO, 20, dt);
+    this.wheel.quaternion.copy(this.wheelRest).multiply(this.q.setFromAxisAngle(Z_AXIS, this.angle));
+    // Paddles: the left one pulled on a downshift, the right one on an upshift.
+    if (car.gear !== this.gear) {
+      const p = this.paddles[car.gear > this.gear ? 1 : 0];
+      if (p) p.t = 0.16;
+      this.gear = car.gear;
+    }
+    for (const p of this.paddles) {
+      p.t = Math.max(0, p.t - dt);
+      p.node.quaternion.copy(p.rest).multiply(this.q.setFromAxisAngle(X_AXIS, p.t > 0 ? -0.12 : 0));
+    }
+  }
 }
 
 const TAIL_IDLE = new THREE.Color(1.2, 0.05, 0.03);
@@ -246,12 +352,13 @@ const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
  */
 export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean, full = true): CarParts {
   if (id === 2) return buildR34(paint, length, width, own);
-  if (id === 3) return buildMercedesParts(paint, length, width, full);
+  if (id === 3) return buildMercedesParts(paint, length, width, full, own);
   return buildCoupeParts(paint, length, width);
 }
 
-function buildMercedesParts(paint: number, L: number, W: number, importedModel: boolean): CarParts {
+function buildMercedesParts(paint: number, L: number, W: number, importedModel: boolean, own: boolean): CarParts {
   const body = new THREE.Group();
+  const cockpit = own ? new A45Cockpit(body) : null;
   const shell = new THREE.Group();
   const scale = new THREE.Vector3(W / 1.85, 1, L / 4.42);
   shell.scale.copy(scale);
@@ -347,8 +454,9 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
     indicators.drop(placeholders.map((m) => m.material as THREE.Material));
     hookA45Lamps(imported, indicators);
     body.add(imported);
+    cockpit?.attach(imported, body);
   });
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit: null, indicators };
+  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit, indicators };
 }
 
 function buildCoupeParts(paint: number, L: number, W: number): CarParts {

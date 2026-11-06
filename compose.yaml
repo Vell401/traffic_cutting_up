@@ -19,6 +19,8 @@ services:
       MAX_PLAYERS: ${MAX_PLAYERS:-50}
       LOG_EVERY: "60"
       DB_PATH: /data/traffic.db
+      # Admin page (/admin.html): from the repository secret ADMIN_PASSWORD via the deploy workflow.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     expose:
       - "8787"
     volumes:

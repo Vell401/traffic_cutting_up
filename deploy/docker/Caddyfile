@@ -16,7 +16,7 @@
 
 	@hashed path /assets/*
 	header @hashed Cache-Control "public, max-age=31536000, immutable"
-	@page path / /index.html /version.json
+	@page path / /index.html /admin.html /version.json
 	header @page Cache-Control "no-cache"
 
 	root * /srv

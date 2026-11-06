@@ -120,6 +120,26 @@ describe('online world', () => {
     expect(again.hash()).toBe(live.hash());
   });
 
+  it('admin traffic changes take effect at once and replay exactly', () => {
+    const net = new NetSession(22, {}, true);
+    net.add(spec('A', 30, 10));
+    net.run(4);
+    const live = net.server.world;
+    expect(live.traffic.activeCount).toBeGreaterThan(0);
+    net.server.configure({ traffic: 2, intensity: 0.9, mode: 'walls' });
+    net.run(3);
+    expect(live.trafficState()).toMatchObject({ preset: 2, intensity: 0.9, mode: 'walls', held: true });
+    net.server.configure({ trafficOn: false });
+    expect(live.traffic.activeCount).toBe(0);
+    net.run(2);
+    expect(live.traffic.activeCount).toBe(0);
+    net.server.configure({ trafficOn: true, mode: 'auto', maxPlayers: 3 });
+    net.run(3);
+    expect(live.traffic.activeCount).toBeGreaterThan(0);
+    expect(live.trafficState().held).toBe(false);
+    expect(replay(22, {}, net.journal, live.tick).hash()).toBe(live.hash());
+  });
+
   it('keeps traffic around every driver and spawns it out of everyone else’s sight', () => {
     const world = new OnlineWorld(8);
     const a = world.join('A', 1)!;
