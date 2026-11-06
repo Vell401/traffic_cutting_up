@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LANES, laneCenter } from '../src/config';
+import { LANES, LANE_W, laneCenter } from '../src/config';
 import { Emitter } from '../src/core/events';
 import { mulberry32 } from '../src/core/rng';
 import { Director, RAMP_DIST } from '../src/sim/director';
@@ -92,5 +92,25 @@ describe('Director', () => {
     dense.director.step(1e6);
     dense.director.setMode('dense', 1e9);
     expect(dense.traffic.targetCount()).toBeLessThanOrEqual(dense.traffic.cars.length - 6);
+  });
+});
+
+describe('traffic in its lane', () => {
+  it('keeps to the left, the middle or the right of a lane, inside its lines', () => {
+    const sim = new Sim(mulberry32(12));
+    sim.score.grace = Infinity;
+    const offs: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      for (let i = 0; i < 240; i++) sim.step(1 / 120, { steer: 0, throttle: 0.6, brake: 0 });
+      for (const c of sim.traffic.cars) {
+        if (!c.active || c.laneT >= 0 || c.crashed) continue;
+        const off = c.d - laneCenter(c.lane);
+        offs.push(off);
+        expect(Math.abs(off)).toBeLessThanOrEqual((LANE_W - c.spec.wid) / 2 - 0.3 + 1e-6);
+      }
+    }
+    expect(offs.filter((o) => o < -0.3).length).toBeGreaterThan(offs.length * 0.15);
+    expect(offs.filter((o) => o > 0.3).length).toBeGreaterThan(offs.length * 0.15);
+    expect(offs.filter((o) => Math.abs(o) < 0.25).length).toBeGreaterThan(offs.length * 0.15);
   });
 });

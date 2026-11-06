@@ -32,14 +32,19 @@ export class Input {
     let throttle = k.has('KeyW') || k.has('ArrowUp') ? 1 : 0;
     let brake = k.has('KeyS') || k.has('ArrowDown') ? 1 : 0;
     let boost = k.has('ShiftLeft') || k.has('ShiftRight');
+    let handbrake = k.has('Space');
+    let horn = k.has('KeyH');
     let analog = false;
+    let direct = false;
 
-    // Mouse steering: the wheel stays where the mouse left it; held keys still steer over it.
+    // Mouse steering: the wheel stays where the mouse left it and its travel is the wheel angle;
+    // held keys still steer over it.
     const m = this.mouse;
     if (m?.active) {
       if (steer === 0) {
         steer = m.steer;
         analog = true;
+        direct = true;
       }
       throttle = Math.max(throttle, m.throttle);
       brake = Math.max(brake, m.brake);
@@ -52,10 +57,13 @@ export class Input {
       if (Math.abs(ax) > DEADZONE) {
         steer = Math.sign(ax) * Math.pow((Math.abs(ax) - DEADZONE) / (1 - DEADZONE), 1.6);
         analog = true;
+        direct = false;
       }
       throttle = Math.max(throttle, pad.buttons[7]?.value ?? 0);
       brake = Math.max(brake, pad.buttons[6]?.value ?? 0);
       boost ||= pad.buttons[5]?.pressed ?? false;
+      handbrake ||= pad.buttons[1]?.pressed ?? false;
+      horn ||= pad.buttons[10]?.pressed ?? false;
       this.padButton(pad, 9, 'KeyP');
       this.padButton(pad, 0, 'Enter');
       this.padButton(pad, 3, 'KeyR');
@@ -67,6 +75,14 @@ export class Input {
     this.drive.brake = brake;
     this.drive.analog = analog;
     this.drive.boost = boost;
+    this.drive.direct = direct;
+    this.drive.handbrake = handbrake;
+    this.drive.horn = horn;
+  }
+
+  /** A key (by KeyboardEvent.code) is held right now. */
+  isDown(code: string): boolean {
+    return this.keys.has(code);
   }
 
   private padButton(pad: Gamepad, index: number, code: string): void {

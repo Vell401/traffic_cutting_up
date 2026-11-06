@@ -16,6 +16,15 @@ export interface DriveInput {
   blinker?: number;
   /** Shift held: spend the boost reserve on extra push. */
   boost?: boolean;
+  /**
+   * Mouse steering: the input is the wheel angle itself, a share of full lock at any speed (the
+   * keyboard lock shrinks with speed to match the grip instead).
+   */
+  direct?: boolean;
+  /** Space held: the handbrake locks the rear wheels (and opens the drive to them). */
+  handbrake?: boolean;
+  /** H held: the horn (cosmetic; others hear it online). */
+  horn?: boolean;
 }
 
 /** Reverse (gear 0): top speed and pull of the slow kinematic reverse, m/s and m/s². */
@@ -26,6 +35,12 @@ export const BOOST_ACC = 2.2;
 const BOOST_SECONDS = 4;
 const BOOST_REFILL = 14;
 const BOOST_RESTART = 0.15;
+/** Handbrake: share of the rear axle's grip its locked wheels pull back with (arcade physics №1). */
+const HANDBRAKE_GRIP = 0.95;
+/** Yaw assist left while the handbrake is up: the rear may swing out. */
+const HANDBRAKE_ASSIST = 0.15;
+/** Handbrake below the tyre model's speed range, m/s². */
+const HANDBRAKE_DECEL = 6;
 
 /** Engine power available in a manual gear at rpm share x of the redline (the automatic keeps the revs high). */
 export const manualPowerShare = (x: number): number => clamp(0.2 + 0.95 * x, 0.3, 1);
@@ -96,6 +111,9 @@ export class PlayerCar {
   manual = false;
   blinker = 0;
   shiftRefused = false;
+  /** Handbrake and horn of the last step (the horn is heard by others online). */
+  handbrake = false;
+  horn = false;
 
   /**
    * Every value step() carries from one call to the next, in a fixed order: the server sends it so a
@@ -236,11 +254,13 @@ export class PlayerCar {
     const Iz = m * t.cgToFront * t.cgToRear;
     const v = Math.max(this.vx, 0);
 
-    // Steering: ramped input, lock limited so full input ≈ grip limit at any speed.
+    // Steering: ramped input, lock limited so full input ≈ grip limit at any speed (the mouse turns
+    // the wheel itself: full lock at any speed).
     this.rampSteer(dt, inp);
     const gripSteer = (t.steerGripScale * t.gripFront * G * L) / Math.max(v * v, 1);
-    this.steerAngle = this.steerIn * Math.min(t.maxSteerLow, gripSteer);
+    this.steerAngle = this.steerIn * (inp.direct ? t.maxSteerLow : Math.min(t.maxSteerLow, gripSteer));
     const delta = this.steerAngle;
+    const hb = this.controls(inp);
 
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
@@ -252,7 +272,6 @@ export class PlayerCar {
     // Engine rpm in gear g is k / (top speed of g, km/h).
     const k = t.redline * v * 3.6;
     this.manual = inp.manual === true;
-    this.blinker = inp.blinker ?? 0;
     this.rpm = Math.max(t.idleRpm, k / gears[this.gear - 1]);
     if (this.manual) {
       if (this.shiftT > 0) this.shiftT -= dt;
@@ -270,7 +289,7 @@ export class PlayerCar {
     const Fzf = (m * G * t.cgToRear) / L;
     const Fzr = (m * G * t.cgToFront) / L;
     let drive = 0;
-    if (this.shiftT <= 0 && !limiter) {
+    if (this.shiftT <= 0 && !limiter && !hb) {
       // Manual: clutch slip holds the revs up in first, otherwise a too-high gear pulls weakly.
       const share = this.manual ? manualPowerShare(Math.max(this.rpm / t.redline, this.gear === 1 ? 0.55 : 0)) : 1;
       drive = this.throttle * Math.min((t.powerKW * 1000 * share) / Math.max(v, 6), this.tractionLimit(v, delta, Fzr, L));
@@ -279,7 +298,8 @@ export class PlayerCar {
     const resist = t.aeroDrag * v * v + t.rollingRes * v;
 
     if (v > 2.5) {
-      const fxRear = drive - brakeF * 0.4;
+      // Handbrake: the locked rear wheels drag at about their grip, which leaves them little to hold sideways.
+      const fxRear = drive - brakeF * 0.4 - (hb ? HANDBRAKE_GRIP * t.gripRear * Fzr : 0);
       const fxFront = -brakeF * 0.6;
       // Friction circle: longitudinal force eats into lateral capacity.
       const Df0 = t.gripFront * Fzf;
@@ -303,7 +323,7 @@ export class PlayerCar {
       // no snap oversteer). It never steers by itself: with the wheel straight it only stops the rotation.
       const latLimit = (t.gripFront * G) / Math.max(v, 1);
       const rKin = clamp((v * Math.tan(delta)) / L, -latLimit, latLimit);
-      rdot += t.yawAssist * YAW_GAIN * (rKin - this.r);
+      rdot += t.yawAssist * (hb ? HANDBRAKE_ASSIST : 1) * YAW_GAIN * (rKin - this.r);
 
       this.vx += ax * dt;
       this.vy += ay * dt;
@@ -314,7 +334,7 @@ export class PlayerCar {
       // Low speed: kinematic bicycle, the tire model is singular near standstill.
       const fx = drive - resist + boostF;
       this.vx += (fx / m) * dt;
-      this.vx = Math.max(0, this.vx - this.brake * t.brakeDecel * dt);
+      this.vx = Math.max(0, this.vx - (this.brake * t.brakeDecel + (hb ? HANDBRAKE_DECEL : 0)) * dt);
       this.vy = 0;
       this.r = (Math.max(this.vx, 0) * Math.tan(delta)) / L;
       this.accLong = fx / m;
@@ -360,7 +380,7 @@ export class PlayerCar {
     }
     if (this.gear !== 0) return false;
     this.manual = inp.manual === true;
-    this.blinker = inp.blinker ?? 0;
+    this.controls(inp);
     this.shiftRefused = false;
     this.boostOn = false;
     this.boost = Math.min(1, this.boost + dt / BOOST_REFILL);
@@ -379,7 +399,7 @@ export class PlayerCar {
     const v0 = this.vx;
     let vx = this.vx;
     if (vx > -REVERSE_MAX) vx = Math.max(-REVERSE_MAX, vx - this.throttle * REVERSE_ACC * dt);
-    vx = Math.min(0, vx + this.brake * t.brakeDecel * dt);
+    vx = Math.min(0, vx + (this.brake * t.brakeDecel + (this.handbrake ? HANDBRAKE_DECEL : 0)) * dt);
     if (this.throttle < 0.05) vx = moveTo(vx, 0, 0.8 * dt);
     this.vx = vx;
     this.vy = 0;
@@ -396,6 +416,14 @@ export class PlayerCar {
     this.wheelSpin += (vx / 0.34) * dt;
     this.resolveWalls(dt);
     this.onShoulder = Math.abs(this.d) > ROAD_HALF;
+  }
+
+  /** Turn signal, horn and handbrake of this step; returns the handbrake. */
+  protected controls(inp: DriveInput): boolean {
+    this.blinker = inp.blinker ?? 0;
+    this.horn = inp.horn === true;
+    this.handbrake = inp.handbrake === true;
+    return this.handbrake;
   }
 
   /**

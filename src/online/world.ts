@@ -18,6 +18,7 @@ import {
   REMOTE_BRAKE,
   REMOTE_BLINK_LEFT,
   REMOTE_BLINK_RIGHT,
+  REMOTE_HORN,
   REMOTE_GHOST,
   inputFromQ,
   writeCar,
@@ -108,7 +109,7 @@ export class Driver {
   private readonly qSteer: Int16Array;
   private readonly qThr: Uint8Array;
   private readonly qBrk: Uint8Array;
-  private readonly qFlags: Uint8Array;
+  private readonly qFlags: Uint16Array;
   private readonly qSeq: Uint32Array;
   private head = 0;
   private size = 0;
@@ -129,7 +130,7 @@ export class Driver {
     this.qSteer = new Int16Array(capacity);
     this.qThr = new Uint8Array(capacity);
     this.qBrk = new Uint8Array(capacity);
-    this.qFlags = new Uint8Array(capacity);
+    this.qFlags = new Uint16Array(capacity);
     this.qSeq = new Uint32Array(capacity);
   }
 
@@ -547,7 +548,8 @@ export class OnlineWorld {
       const flags =
         (c.ghost ? REMOTE_GHOST : 0) |
         (c.brake > 0.05 ? REMOTE_BRAKE : 0) |
-        (c.blinker === 1 ? REMOTE_BLINK_LEFT : c.blinker === 2 ? REMOTE_BLINK_RIGHT : 0);
+        (c.blinker === 1 ? REMOTE_BLINK_LEFT : c.blinker === 2 ? REMOTE_BLINK_RIGHT : 0) |
+        (c.horn ? REMOTE_HORN : 0);
       writeDriver(w, o.id, flags, this.traffic.wrap(c.s), c.d, c.psi, c.vx, c.vy, c.r, c.steerIn, c.gear);
     }
 

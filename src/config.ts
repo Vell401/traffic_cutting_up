@@ -4,7 +4,8 @@
  */
 
 export const LANES = 4;
-export const LANE_W = 3.75;
+/** Lane width, m (a little wider than the usual 3.75: room to cut between cars that drift in their lanes). */
+export const LANE_W = 4;
 /** Half width of the paved lanes (edge line). */
 export const ROAD_HALF = (LANES * LANE_W) / 2;
 export const SHOULDER = 2.5;
@@ -37,7 +38,7 @@ export const carTune = {
   /** Wheel angle at a standstill, rad. Above ~20 km/h grip-limited steering takes over. */
   maxSteerLow: 0.55,
   /** Full steering lock asks for this fraction of the grip limit, so the input feels the same at any speed. */
-  steerGripScale: 1.3,
+  steerGripScale: 1.5,
   /** Keyboard steering ramp, full lock per second (reached after ~0.15 s of holding; taps are gentler). */
   steerRate: 12,
   /** Self-centring speed when the key is released or reversed. */

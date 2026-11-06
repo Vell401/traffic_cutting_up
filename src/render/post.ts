@@ -78,11 +78,12 @@ export class Post {
 
     const bloom = new BloomEffect({
       mipmapBlur: true,
-      // Above white only: lit paint and the white cargo boxes in our headlights must not bloom.
-      luminanceThreshold: 1.25,
-      luminanceSmoothing: 0.2,
-      intensity: 0.85,
-      radius: 0.62,
+      // Above white only: lit paint and the white cargo boxes in our headlights must not bloom. Kept
+      // gentle (was threshold 1.25, intensity 0.85): close lamps and tail lights used to dazzle.
+      luminanceThreshold: 1.45,
+      luminanceSmoothing: 0.25,
+      intensity: 0.6,
+      radius: 0.55,
       levels: q.bloomLevels,
     });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });

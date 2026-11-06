@@ -53,7 +53,8 @@ export class PlayerView {
     this.root.add(shadow);
 
     // Physical falloff (decay 2): with 1.4 cars 30-60 m ahead were lit almost as hard as up close and bloomed.
-    this.headlight = new THREE.SpotLight(0xfff0d8, 900, 120, 0.42, 0.55, 2);
+    // A wide, soft-edged beam (penumbra 0.85): the light spreads over the road instead of a hard oval.
+    this.headlight = new THREE.SpotLight(0xfff0d8, 780, 120, 0.5, 0.85, 2);
     this.headlight.position.copy(p.lamp);
     this.headlight.target.position.set(0, 0, p.lamp.z - 40);
     if (own) this.root.add(this.headlight, this.headlight.target);

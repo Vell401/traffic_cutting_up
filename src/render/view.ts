@@ -75,7 +75,8 @@ export class View {
     this.scene.background = HORIZON;
     this.scene.fog = new THREE.Fog(HORIZON, 70, 950);
 
-    this.scene.add(new THREE.HemisphereLight(0x5d6c9c, 0x16120f, 0.9));
+    // A little more sky fill: softer, more even night light (shadow sides less black).
+    this.scene.add(new THREE.HemisphereLight(0x5d6c9c, 0x1d1813, 1.1));
     const moon = new THREE.DirectionalLight(0xa9bcff, 0.55);
     moon.position.copy(MOON_DIR).multiplyScalar(100);
     this.scene.add(moon);
@@ -253,6 +254,11 @@ export class View {
   }
 
   /** Mouse drag with the left button: look around (see ChaseCamera.mouseLook). */
+  /** C held: rear view. */
+  setLookBack(on: boolean): void {
+    this.chase.lookBack = on;
+  }
+
   look(dx: number, dy: number): void {
     this.chase.mouseLook(dx, dy);
   }

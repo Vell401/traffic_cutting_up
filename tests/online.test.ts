@@ -58,7 +58,14 @@ describe('car state', () => {
 describe('protocol', () => {
   it('quantized inputs survive the wire bit for bit', () => {
     const qs: InputQ[] = [];
-    for (let i = 0; i < 5; i++) qs.push(quantizeInput({ steer: Math.sin(i), throttle: i / 4, brake: 1 - i / 4, analog: i % 2 === 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 }));
+    for (let i = 0; i < 5; i++) {
+      const inp = { steer: Math.sin(i), throttle: i / 4, brake: 1 - i / 4, analog: i % 2 === 0, direct: i === 2, handbrake: i === 3, horn: i >= 3 };
+      qs.push(quantizeInput(inp, { steer: 0, throttle: 0, brake: 0, flags: 0 }));
+    }
+    // The 16-bit flags carry the newer controls too.
+    const back = inputFromQ(qs[3], { steer: 0, throttle: 0, brake: 0 });
+    expect([back.handbrake, back.horn, back.direct]).toEqual([true, true, false]);
+    expect(inputFromQ(qs[2], { steer: 0, throttle: 0, brake: 0 }).direct).toBe(true);
     const w = new Writer(16);
     writeInputs(w, 77, qs, 0, qs.length);
     const r = new Reader(w.bytes());

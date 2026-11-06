@@ -4,6 +4,10 @@ import { PlayerCar, type DriveInput } from './vehicle';
 
 /** rpm → rad/s */
 const RPM = Math.PI / 30;
+/** Handbrake torque on the rear axle, N·m (locks the wheels at any speed). */
+const HANDBRAKE_TQ = 4000;
+/** Handbrake below the tyre model's speed range, m/s². */
+const HANDBRAKE_DECEL = 6;
 
 /**
  * Tunables of physics №2 on top of the shared CarTune fields. CarTune fields keep their meaning:
@@ -135,7 +139,7 @@ export const driftTune: DriftTune = {
   rollingRes: 5,
   brakeDecel: 9.6,
   maxSteerLow: 0.55,
-  steerGripScale: 1.52,
+  steerGripScale: 1.75,
   yawAssist: 0,
   tractionControl: 1,
   redline: 7000,
@@ -312,7 +316,7 @@ export class DriftCar extends PlayerCar {
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
     this.manual = inp.manual === true;
-    this.blinker = inp.blinker ?? 0;
+    this.controls(inp);
     this.shiftReq = inp.shift ?? 0;
 
     // Steering lock: grip-matched like №1 (plus the understeer gradient) so full input reaches about
@@ -320,8 +324,9 @@ export class DriftCar extends PlayerCar {
     // slides — countersteer can follow the slide. Never moves by itself: zero input is zero angle.
     const lock = Math.min(t.maxSteerLow, t.gripFront * G * ((t.steerGripScale * L) / Math.max(v * v, 1) + t.lockUnder));
     const slide = v > t.lowSpeed ? Math.atan2(this.vy - t.cgToRear * this.r, v) * t.counterSteer : 0;
-    const lockRight = Math.min(t.maxSteerLow, lock + Math.max(0, slide));
-    const lockLeft = Math.min(t.maxSteerLow, lock - Math.min(0, slide));
+    // The mouse turns the wheel itself: full lock at any speed.
+    const lockRight = inp.direct ? t.maxSteerLow : Math.min(t.maxSteerLow, lock + Math.max(0, slide));
+    const lockLeft = inp.direct ? t.maxSteerLow : Math.min(t.maxSteerLow, lock - Math.min(0, slide));
     this.steerAngle = this.steerIn * (this.steerIn > 0 ? lockRight : lockLeft);
     this.cosD = Math.cos(this.steerAngle);
     this.sinD = Math.sin(this.steerAngle);
@@ -413,10 +418,11 @@ export class DriftCar extends PlayerCar {
 
     if (vx < t.lowSpeed) {
       // Kinematic bicycle near a standstill.
-      const driveGrip = gripRx + (t.frontDrive > 0 ? gripF : 0);
-      const fx = Math.min(this.driveTq / R, 0.95 * driveGrip) - resist + this.boostF;
+      const hb = this.handbrake;
+      const driveGrip = (hb ? 0 : gripRx) + (t.frontDrive > 0 ? gripF : 0);
+      const fx = Math.min((this.driveTq * (hb ? t.frontDrive : 1)) / R, 0.95 * driveGrip) - resist + this.boostF;
       this.vx += (fx / m) * h;
-      this.vx = Math.max(0, this.vx - this.brake * t.brakeDecel * h);
+      this.vx = Math.max(0, this.vx - (this.brake * t.brakeDecel + (hb ? HANDBRAKE_DECEL : 0)) * h);
       this.vy = 0;
       this.r = (this.vx * this.sinD) / (this.cosD * L);
       this.omegaR = this.omegaF = this.vx / R;
@@ -457,7 +463,8 @@ export class DriftCar extends PlayerCar {
       const slipRate = (fy / m - vx * this.r - (b * mz) / Iz) / vx;
       const pred = alphaR + t.escLead * slipRate;
       const thr = t.escSlip * clamp(t.escSpeed / vx, 0.5, 1) * (this.escCmd !== 0 ? t.escRelease : 1);
-      const want = Math.sign(pred) * t.escAssist * clamp((Math.abs(pred) - thr) / t.escRange, 0, 1);
+      // The handbrake is a request to slide: ESP stands back while it is up.
+      const want = this.handbrake ? 0 : Math.sign(pred) * t.escAssist * clamp((Math.abs(pred) - thr) / t.escRange, 0, 1);
       this.escCmd = moveTo(this.escCmd, want, t.escRate * h);
       const u = Math.abs(this.escCmd);
       const mEsp = this.escCmd * t.escMoment;
@@ -473,18 +480,21 @@ export class DriftCar extends PlayerCar {
       let kLim = tc > 0 ? t.tcSlip / tc : 1e3;
       kLim += (0.03 - kLim) * u;
       const brakeTq = this.brake * m * t.brakeDecel * R;
+      // Handbrake: the drive to the rear opens (clutch / AWD coupling) and the rear brakes lock.
+      const hb = this.handbrake;
       const driveFront = this.driveTq * t.frontDrive;
-      const driveRear = this.driveTq - driveFront;
+      const driveRear = hb ? 0 : this.driveTq - driveFront;
       // Engine braking reaches the wheels the way the drive does (all-wheel drive: both axles).
       const dragFront = this.dragTq * t.frontDrive;
-      const dragRear = this.dragTq - dragFront;
+      const dragRear = hb ? 0 : this.dragTq - dragFront;
       const coasting = this.brake < 0.02;
 
       const kr = Math.max(0, kR / t.slipRatioPeak) * (R / denR);
       const ir = this.inertiaR + h * R * kr;
       let wr = this.omegaR + (h * (driveRear * (1 - t.escCut * u) - dragRear - R * fxR)) / ir;
-      wr = Math.max(0, wr - (h * brakeTq * (1 - t.brakeFront)) / ir);
-      this.omegaR = clamp(wr, (vx - (coasting ? t.dragSlip : t.ebdSlip) * denR) / R, (vx + kLim * denR) / R);
+      wr = Math.max(0, wr - (h * (brakeTq * (1 - t.brakeFront) + (hb ? HANDBRAKE_TQ : 0))) / ir);
+      const rearSlipMin = hb ? 1 : coasting ? t.dragSlip : t.ebdSlip;
+      this.omegaR = clamp(wr, (vx - rearSlipMin * denR) / R, (vx + kLim * denR) / R);
       const kf = Math.max(0, kF / t.slipRatioPeak) * (R / denF);
       const iff = t.wheelInertiaFront + h * R * kf;
       let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - dragFront - R * fxF)) / iff;

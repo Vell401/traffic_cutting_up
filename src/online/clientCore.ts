@@ -18,6 +18,7 @@ import {
   OWN_GHOST,
   REMOTE_BLINK_LEFT,
   REMOTE_BLINK_RIGHT,
+  REMOTE_HORN,
   REMOTE_BRAKE,
   REMOTE_GHOST,
   Reader,
@@ -433,6 +434,7 @@ export class ClientCore {
       p.laneT = b.laneT;
       p.targetLane = b.targetLane;
       p.laneFromD = b.laneFromD;
+      p.laneOff = b.laneOff;
       p.blink = b.blink;
       p.braking = b.braking;
       p.crashed = b.crashed;
@@ -464,7 +466,7 @@ export class ClientCore {
       }
       if (c.laneT >= 0) {
         c.laneT += dt / trafficTune.laneChangeTime;
-        const toD = laneCenter(c.targetLane);
+        const toD = laneCenter(c.targetLane) + c.laneOff;
         if (c.laneT >= 1) {
           c.laneT = -1;
           c.d = toD;
@@ -654,6 +656,7 @@ export class ClientCore {
       c.gear = nd.gear || 1;
       c.ghost = (nd.flags & REMOTE_GHOST) !== 0;
       c.blinker = nd.flags & REMOTE_BLINK_LEFT ? 1 : nd.flags & REMOTE_BLINK_RIGHT ? 2 : 0;
+      c.horn = (nd.flags & REMOTE_HORN) !== 0;
       c.wheelSpin += (nd.vx / 0.34) * this.dt;
       nd.remote.visible = true;
       nd.fresh = false;
@@ -731,7 +734,7 @@ export class ClientCore {
         w.i16(q.steer);
         w.u8(q.throttle);
         w.u8(q.brake);
-        w.u8(q.flags);
+        w.u16(q.flags);
       }
       const bytes = w.bytes();
       this.stats.bytesOut += bytes.byteLength;

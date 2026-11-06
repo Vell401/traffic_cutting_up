@@ -4,7 +4,9 @@ import type { Road, RoadPoint } from '../sim/road';
 import type { LampAnchor, RoadView } from './roadView';
 
 /** Candela of one lamp light at full weight. Kept low: it should glint on the paint, not flood the screen. */
-const INTENSITY = 160;
+const INTENSITY = 120;
+/** Reach of one lamp light, m: wide and soft rather than a bright, tight pool. */
+const RANGE = 34;
 /** Lights are centred a little ahead of the car, where the camera looks. */
 const AHEAD = 6;
 
@@ -24,7 +26,7 @@ export class LampLights {
 
   constructor(count = 4) {
     for (let i = 0; i < count; i++) {
-      const l = new THREE.PointLight(0xffffff, 0, 24, 2);
+      const l = new THREE.PointLight(0xffffff, 0, RANGE, 1.6);
       this.lights.push(l);
       this.group.add(l);
     }

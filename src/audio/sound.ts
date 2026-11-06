@@ -80,6 +80,9 @@ export class Sound {
   /** Overrun crackle left after a lift, s. */
   private burble = 0;
   private burbleT = 0;
+  /** Horns: [0] ours, the rest for the nearest other drivers honking (online). */
+  private horns: { gain: GainNode; pan: StereoPannerNode }[] = [];
+  private readonly hornPicks: { dist: number; pan: number }[] = [];
 
   private o1!: OscillatorNode;
   private o2!: OscillatorNode;
@@ -251,6 +254,7 @@ export class Sound {
     this.turboOsc = this.osc('sine', this.turboGain);
 
     this.buildInlineFour(E);
+    this.buildHorns();
 
     this.wind = this.noiseVoice('lowpass', 400, 0.5, W.dry);
     this.roar = this.noiseVoice('lowpass', 480, 0.7, W.dry);
@@ -326,6 +330,59 @@ export class Sound {
     this.i4RaspDepth.connect(this.i4Rasp.gain);
     this.i4Fire = this.osc('sine', this.i4RaspDepth);
     this.i4Fire.setPeriodicWave(ctx.createPeriodicWave(new Float32Array(pulse.length), pulse));
+  }
+
+  /**
+   * Horns: the usual dual-tone pair (about 420 and 500 Hz, a slightly sour interval) as square waves
+   * through a horn-throat band-pass and a soft clipper. One voice is ours, three serve other drivers
+   * (each a little higher or lower, so two cars do not sound alike).
+   */
+  private buildHorns(): void {
+    const ctx = this.ctx!;
+    const FX = this.bus.fx;
+    for (const k of [1, 0.93, 1.07, 0.88]) {
+      const pan = ctx.createStereoPanner();
+      pan.connect(FX.dry);
+      this.gainNode(0.4, FX.send, pan);
+      const gain = this.gainNode(0, pan);
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = this.softClip(1.6);
+      shaper.connect(gain);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 950 * k;
+      bp.Q.value = 0.9;
+      bp.connect(shaper);
+      for (const f of [418, 502]) {
+        const o = this.osc('square', this.gainNode(0.5, bp));
+        o.frequency.value = f * k;
+      }
+      this.horns.push({ gain, pan });
+    }
+  }
+
+  /** Per frame: our horn, and the nearest honking drivers placed by distance and side. */
+  private updateHorns(now: number): void {
+    const p = this.sim.player;
+    const set = (v: { gain: GainNode; pan: StereoPannerNode }, level: number, pan: number) => {
+      // Quick attack, a short tail: a tap is a toot.
+      v.gain.gain.setTargetAtTime(level, now, level > 0 ? 0.008 : 0.04);
+      v.pan.pan.setTargetAtTime(pan, now, 0.05);
+    };
+    set(this.horns[0], p.horn ? 0.2 : 0, 0);
+    const picks = this.hornPicks;
+    picks.length = 0;
+    for (const r of this.sim.remotes) {
+      if (!r.visible || !r.car.horn) continue;
+      const ds = r.car.s - p.s;
+      const dd = r.car.d - p.d;
+      picks.push({ dist: Math.hypot(ds, dd), pan: clamp(dd / 8, -0.9, 0.9) });
+    }
+    picks.sort((a, b) => a.dist - b.dist);
+    for (let i = 1; i < this.horns.length; i++) {
+      const h = picks[i - 1];
+      set(this.horns[i], h ? 0.2 / (1 + (h.dist / 14) ** 2) : 0, h?.pan ?? 0);
+    }
   }
 
   private gainNode(value: number, to: AudioNode, from?: AudioNode): GainNode {
@@ -504,6 +561,7 @@ export class Sound {
       w += (c.spec.truck ? 1.7 : 1) / (1 + (ds * ds + dd * dd) / 80);
     }
     set(this.hum.gain.gain, 0.2 * Math.min(1, w), 0.08);
+    this.updateHorns(now);
   }
 
   /** Inline-four voice per frame: pitch from the revs, drive, brightness and rasp from the load. */

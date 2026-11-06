@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WALL_D } from '../src/config';
 import { REVERSE_MAX, PlayerCar, type DriveInput } from '../src/sim/vehicle';
+import { createCar } from '../src/sim/physics';
 
 const DT = 1 / 120;
 const run = (car: PlayerCar, input: DriveInput, seconds: number, k = 0, each?: () => void) => {
@@ -116,5 +117,56 @@ describe('PlayerCar', () => {
     });
     expect(hits).toBe(1);
     expect(car.scrapeSide).toBe(1); // rubbing the right barrier (per-step contact flickers)
+  });
+});
+
+describe('handbrake, mouse steering, horn (all three physics)', () => {
+  for (const id of [1, 2, 3] as const) {
+    it(`physics ${id}: the handbrake slows the car and lets the rear swing out`, () => {
+      const make = () => {
+        const car = createCar(id);
+        car.reset(0, 0, 100 / 3.6);
+        run(car, { steer: 0, throttle: 0.3, brake: 0 }, 0.5);
+        return car;
+      };
+      const plain = make();
+      const hb = make();
+      let yawPlain = 0;
+      let yawHb = 0;
+      run(plain, { steer: 0.35, throttle: 0, brake: 0 }, 0.7, 0, () => (yawPlain = Math.max(yawPlain, Math.abs(plain.r))));
+      run(hb, { steer: 0.35, throttle: 0, brake: 0, handbrake: true }, 0.7, 0, () => (yawHb = Math.max(yawHb, Math.abs(hb.r))));
+      expect(hb.handbrake).toBe(true);
+      expect(kmh(hb)).toBeLessThan(kmh(plain) - 8);
+      expect(yawHb).toBeGreaterThan(yawPlain * 1.15);
+      // Held at a standstill it stops the car.
+      const stop = createCar(id);
+      stop.reset(0, 0, 8);
+      run(stop, { steer: 0, throttle: 0, brake: 0, handbrake: true }, 3);
+      expect(kmh(stop)).toBeLessThan(1);
+    });
+
+    it(`physics ${id}: the mouse turns the wheels themselves, full lock at any speed`, () => {
+      const keys = createCar(id);
+      const mouse = createCar(id);
+      keys.reset(0, 0, 200 / 3.6);
+      mouse.reset(0, 0, 200 / 3.6);
+      keys.step(DT, { steer: 0.5, throttle: 0, brake: 0, analog: true }, 0);
+      mouse.step(DT, { steer: 0.5, throttle: 0, brake: 0, analog: true, direct: true }, 0);
+      for (let i = 0; i < 30; i++) {
+        keys.step(DT, { steer: 0.5, throttle: 0, brake: 0, analog: true }, 0);
+        mouse.step(DT, { steer: 0.5, throttle: 0, brake: 0, analog: true, direct: true }, 0);
+      }
+      expect(mouse.steerAngle).toBeCloseTo(0.5 * mouse.tune.maxSteerLow, 3);
+      expect(keys.steerAngle).toBeLessThan(mouse.steerAngle / 3);
+    });
+  }
+
+  it('the horn is just a flag on the car', () => {
+    const car = createCar(1);
+    car.reset(0, 0, 20);
+    car.step(DT, { steer: 0, throttle: 0, brake: 0, horn: true }, 0);
+    expect(car.horn).toBe(true);
+    car.step(DT, { steer: 0, throttle: 0, brake: 0 }, 0);
+    expect(car.horn).toBe(false);
   });
 });

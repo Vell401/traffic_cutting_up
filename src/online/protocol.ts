@@ -181,10 +181,16 @@ export const IN_SHIFT_DOWN = 8;
 export const IN_BLINK_LEFT = 16;
 export const IN_BLINK_RIGHT = 32;
 export const IN_BOOST = 64;
+export const IN_DIRECT = 128;
+export const IN_HANDBRAKE = 256;
+export const IN_HORN = 512;
 /** Every input flag bit a client may set (the server masks the rest off). */
-export const IN_ALL = 127;
+export const IN_ALL = 1023;
 
-/** Integer form of one input step: steer -32767..32767, pedals 0..255, flags (IN_*). */
+/** Bytes of one input step in an INPUT message. */
+export const INPUT_BYTES = 6;
+
+/** Integer form of one input step: steer -32767..32767, pedals 0..255, flags (IN_*, 16 bits). */
 export interface InputQ {
   steer: number;
   throttle: number;
@@ -202,7 +208,10 @@ export function quantizeInput(inp: DriveInput, out: InputQ): InputQ {
     (inp.manual ? IN_MANUAL : 0) |
     (shift > 0 ? IN_SHIFT_UP : shift < 0 ? IN_SHIFT_DOWN : 0) |
     (inp.blinker === 1 ? IN_BLINK_LEFT : inp.blinker === 2 ? IN_BLINK_RIGHT : 0) |
-    (inp.boost ? IN_BOOST : 0);
+    (inp.boost ? IN_BOOST : 0) |
+    (inp.direct ? IN_DIRECT : 0) |
+    (inp.handbrake ? IN_HANDBRAKE : 0) |
+    (inp.horn ? IN_HORN : 0);
   return out;
 }
 
@@ -216,10 +225,13 @@ export function inputFromQ(q: InputQ, out: DriveInput): DriveInput {
   out.shift = q.flags & IN_SHIFT_UP ? 1 : q.flags & IN_SHIFT_DOWN ? -1 : 0;
   out.blinker = q.flags & IN_BLINK_LEFT ? 1 : q.flags & IN_BLINK_RIGHT ? 2 : 0;
   out.boost = (q.flags & IN_BOOST) !== 0;
+  out.direct = (q.flags & IN_DIRECT) !== 0;
+  out.handbrake = (q.flags & IN_HANDBRAKE) !== 0;
+  out.horn = (q.flags & IN_HORN) !== 0;
   return out;
 }
 
-/** INPUT: u8 kind, u32 first seq, u8 count, count × (i16 steer, u8 throttle, u8 brake, u8 flags). */
+/** INPUT: u8 kind, u32 first seq, u8 count, count × (i16 steer, u8 throttle, u8 brake, u16 flags). */
 export function writeInputs(w: Writer, firstSeq: number, inputs: readonly InputQ[], from: number, count: number): void {
   w.u8(MSG_INPUT);
   w.u32(firstSeq);
@@ -229,7 +241,7 @@ export function writeInputs(w: Writer, firstSeq: number, inputs: readonly InputQ
     w.i16(q.steer);
     w.u8(q.throttle);
     w.u8(q.brake);
-    w.u8(q.flags);
+    w.u16(q.flags);
   }
 }
 
@@ -238,13 +250,13 @@ export function readInputs(r: Reader, out: InputQ[]): { firstSeq: number; count:
   if (r.left < 5) return null;
   const firstSeq = r.u32();
   const count = r.u8();
-  if (count === 0 || count > MAX_INPUT_BATCH || r.left !== count * 5) return null;
+  if (count === 0 || count > MAX_INPUT_BATCH || r.left !== count * INPUT_BYTES) return null;
   for (let i = 0; i < count; i++) {
     const q = (out[i] ??= { steer: 0, throttle: 0, brake: 0, flags: 0 });
     q.steer = Math.max(-32767, r.i16());
     q.throttle = r.u8();
     q.brake = r.u8();
-    q.flags = r.u8() & IN_ALL;
+    q.flags = r.u16() & IN_ALL;
   }
   return { firstSeq, count };
 }
@@ -257,6 +269,7 @@ export const REMOTE_GHOST = 1;
 export const REMOTE_BRAKE = 2;
 export const REMOTE_BLINK_LEFT = 4;
 export const REMOTE_BLINK_RIGHT = 8;
+export const REMOTE_HORN = 16;
 
 export interface SnapScore {
   score: number;
@@ -298,6 +311,7 @@ export interface SnapCar {
   /** Lane change progress 0..1, -1 when not changing. */
   laneT: number;
   targetLane: number;
+  laneOff: number;
   laneFromD: number;
   blink: number;
   braking: boolean;
@@ -375,7 +389,7 @@ export function writeDriver(w: Writer, id: number, flags: number, s: number, d: 
   w.u8(gear);
 }
 
-/** 25 bytes per traffic car. */
+/** 26 bytes per traffic car. */
 export function writeCar(w: Writer, c: TrafficCar, specIndex: number): void {
   w.u16(c.id);
   w.u8(c.gen & 0xff);
@@ -393,6 +407,7 @@ export function writeCar(w: Writer, c: TrafficCar, specIndex: number): void {
   const blink = c.blink === -1 ? 1 : c.blink === 1 ? 2 : c.blink === 2 ? 3 : 0;
   w.u8((c.targetLane & 15) | (blink << 4) | (c.braking ? 64 : 0) | (c.crashed ? 128 : 0));
   w.i16(clampInt(c.laneFromD * 1000, -32767, 32767));
+  w.i8(clampInt(c.laneOff * 100, -127, 127));
 }
 
 export function newSnapshot(): Snapshot {
@@ -453,11 +468,11 @@ export function readSnapshot(r: Reader, out: Snapshot): boolean {
   out.driverCount = nd;
 
   const nc = r.u16();
-  if (r.left !== nc * 25) return false;
+  if (r.left !== nc * 26) return false;
   for (let i = 0; i < nc; i++) {
     const c = (out.cars[i] ??= {
       id: 0, gen: 0, spec: 0, colorIdx: 0, color2Idx: -1, s: 0, d: 0, v: 0, acc: 0, yaw: 0, yawRate: 0, vd: 0,
-      laneT: -1, targetLane: 0, laneFromD: 0, blink: 0, braking: false, crashed: false,
+      laneT: -1, targetLane: 0, laneFromD: 0, laneOff: 0, blink: 0, braking: false, crashed: false,
     });
     c.id = r.u16();
     c.gen = r.u8();
@@ -480,6 +495,7 @@ export function readSnapshot(r: Reader, out: Snapshot): boolean {
     c.braking = (bits & 64) !== 0;
     c.crashed = (bits & 128) !== 0;
     c.laneFromD = r.i16() / 1000;
+    c.laneOff = r.i8() / 100;
   }
   out.carCount = nc;
   return true;

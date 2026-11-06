@@ -325,7 +325,7 @@ function updateBlinker(): void {
 input.onPress = (code) => {
   if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
-  else if (code === 'KeyC') {
+  else if (code === 'KeyV') {
     const mode = view.cycleCamera();
     saveCameraMode(car, mode);
     hud.tag(`CAMERA · ${mode.toUpperCase()}`);
@@ -591,6 +591,8 @@ view.renderer.setAnimationLoop((now: number) => {
   hud.update(dt);
   updateBlinker();
   updateMouseHud();
+  // C held: rear view (while driving).
+  view.setLookBack(state === 'play' && input.isDown('KeyC'));
   if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);

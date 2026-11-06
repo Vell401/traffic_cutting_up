@@ -51,6 +51,8 @@ export class TrafficCar {
 
   lane = 0;
   targetLane = 0;
+  /** Where in its lane the car keeps: offset from the lane centre, m (+ = right). */
+  laneOff = 0;
   /** Lane change progress 0..1, or -1 when not changing. */
   laneT = -1;
   laneFromD = 0;
@@ -321,7 +323,7 @@ export class Traffic {
 
     if (c.laneT >= 0) {
       c.laneT += dt / trafficTune.laneChangeTime;
-      const toD = laneCenter(c.targetLane);
+      const toD = laneCenter(c.targetLane) + c.laneOff;
       if (c.laneT >= 0.5) c.lane = c.targetLane;
       if (c.laneT >= 1) {
         c.laneT = -1;
@@ -337,6 +339,7 @@ export class Traffic {
         if (this.safeToChange(c, c.targetLane)) {
           c.laneT = 0;
           c.laneFromD = c.d;
+          c.laneOff = this.pickLaneOffset(c.spec);
         } else {
           c.blink = 0;
           c.targetLane = c.lane;
@@ -525,7 +528,18 @@ export class Traffic {
     if (!this.laneFree(lane, s, spec.len, 22)) return false;
     const v0 = this.laneSpeed(lane, spec);
     if (fromBehind && v0 < p.vAlong + 3) return false;
-    return this.spawnAt(spec, s, lane, v0) !== null;
+    return this.spawnAt(spec, s, lane, v0, laneCenter(lane) + this.pickLaneOffset(spec)) !== null;
+  }
+
+  /**
+   * Where a car keeps in its lane: a third hug the left line, a third the right one, the rest drive
+   * near the middle, each by its own amount (bigger cars have less room).
+   */
+  private pickLaneOffset(spec: VehicleSpec): number {
+    const room = Math.max(0, (LANE_W - spec.wid) / 2 - 0.3);
+    const r = this.rng();
+    const amount = range(this.rng, 0.55, 1) * room;
+    return r < 0.34 ? -amount : r < 0.68 ? amount : (amount - 0.775 * room) * 0.4;
   }
 
   /** Three vehicles abreast with one lane left open: thread the gap or go round. */
@@ -603,6 +617,7 @@ export class Traffic {
     c.v = v0;
     c.v0 = v0;
     c.lane = c.targetLane = lane;
+    c.laneOff = d - laneCenter(lane);
     c.laneT = -1;
     c.blink = 0;
     c.blinkT = 0;

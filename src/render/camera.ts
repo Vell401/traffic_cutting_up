@@ -51,6 +51,8 @@ export class ChaseCamera {
   rig: CameraRig = CAMERA_RIGS[1];
   /** Boost on: the view widens a little. */
   boost = false;
+  /** C held: look back (the chase views from in front of the car, the others from its tail). */
+  lookBack = false;
   private boostFov = 0;
   private yaw = 0;
   private shake = 0;
@@ -120,6 +122,10 @@ export class ChaseCamera {
   }
 
   update(dt: number, camera: THREE.PerspectiveCamera, target: THREE.Vector3, carYaw: number, kmh: number, cockpit: CockpitAnchor | null): void {
+    if (this.lookBack) {
+      this.rearView(camera, target, carYaw);
+      return;
+    }
     if (this.mode === 'cockpit' && cockpit && this.rig.cockpit) {
       this.firstPerson(dt, camera, cockpit, kmh);
       return;
@@ -192,6 +198,32 @@ export class ChaseCamera {
     const base = rigid ? 8 : 0;
     this.boostFov = damp(this.boostFov, this.boost ? 6 : 0, 4, dt);
     this.setFov(camera, damp(camera.fov, lerp(ct.fovMin + base, ct.fovMax + base, sp) + this.boostFov, 3, dt));
+  }
+
+  /**
+   * Rear view while C is held. Chase views: from in front of the car over its roof at the road behind
+   * (the car stays in the picture); cockpit, hood and bumper: from the tail, straight back.
+   */
+  private rearView(camera: THREE.PerspectiveCamera, target: THREE.Vector3, carYaw: number): void {
+    // Rigid to the car: no swing when C is let go either.
+    this.yaw = carYaw;
+    this.first = false;
+    const fx = Math.sin(carYaw);
+    const fz = -Math.cos(carYaw);
+    const ct = this.rig.chase;
+    if (this.mode === 'chase' || this.mode === 'far') {
+      const ahead = ct.dist + (this.mode === 'far' ? this.rig.far.dist : 0);
+      camera.position.set(target.x + fx * ahead, target.y + ct.height + 0.25, target.z + fz * ahead);
+      this.look.set(target.x - fx * 14, target.y + ct.lookHeight, target.z - fz * 14);
+      this.setNear(camera, 0.5);
+    } else {
+      const tail = this.rig.bumper.f + 0.35;
+      camera.position.set(target.x - fx * tail, target.y + 1.15, target.z - fz * tail);
+      this.look.set(camera.position.x - fx * 30, target.y + 0.9, camera.position.z - fz * 30);
+      this.setNear(camera, 0.2);
+    }
+    camera.lookAt(this.look);
+    this.setFov(camera, ct.fovMin + 4);
   }
 
   /** Driver's eye on the suspended body; the head sways with the g-forces and glances into turns. */

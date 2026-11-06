@@ -58,7 +58,7 @@ export const mercedesTune: DriftTune = {
   escLead: 0.1,
   escMoment: 5200,
   escCut: 0.72,
-  steerGripScale: 1.35,
+  steerGripScale: 1.55,
   lockUnder: 0.00055,
   steerRateSpeed: 25,
   counterSteer: 0.8,

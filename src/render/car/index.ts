@@ -162,11 +162,66 @@ function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
   });
 }
 
+/** Something that turns and rolls a car's wheels. */
+export interface Wheels {
+  /** steer: front wheel angle (rad, + = right); spin: rolled angle (rad). */
+  update(steer: number, spin: number): void;
+}
+
+/*
+ * Wheels of the imported A45, laid out like a racing-sim car: WHEEL_xx (tyre and rim) and DISC_xx roll
+ * about their x axis, the front ones and SUSP_LF / SUSP_RF (caliper, hub) also turn with the steering.
+ * In the model's own frame x points to the car's left and z forward, so a right turn is a negative
+ * angle about y.
+ */
+const CORNERS = ['LF', 'RF', 'LR', 'RR'] as const;
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+class ImportedWheels implements Wheels {
+  private readonly parts: { node: THREE.Object3D; rest: THREE.Quaternion; front: boolean; rolls: boolean }[] = [];
+  private readonly qs = new THREE.Quaternion();
+  private readonly qr = new THREE.Quaternion();
+
+  constructor(model: THREE.Object3D) {
+    for (const [prefix, rolls] of [['WHEEL_', true], ['DISC_', true], ['SUSP_', false]] as const) {
+      for (const c of CORNERS) {
+        const node = model.getObjectByName(prefix + c);
+        if (node) this.parts.push({ node, rest: node.quaternion.clone(), front: c[1] === 'F', rolls });
+      }
+    }
+  }
+
+  /** The model has wheels of its own to drive. */
+  get found(): boolean {
+    return this.parts.some((p) => p.rolls);
+  }
+
+  update(steer: number, spin: number): void {
+    this.qs.setFromAxisAngle(Y_AXIS, -steer);
+    this.qr.setFromAxisAngle(X_AXIS_W, spin);
+    for (const p of this.parts) {
+      if (!p.front && !p.rolls) continue;
+      p.node.quaternion.copy(p.rest);
+      if (p.front) p.node.quaternion.multiply(this.qs);
+      if (p.rolls) p.node.quaternion.multiply(this.qr);
+    }
+  }
+}
+const X_AXIS_W = new THREE.Vector3(1, 0, 0);
+
+/** Procedural wheels until the imported model has loaded, then the model's own (no doubled wheels). */
+class SwappableWheels implements Wheels {
+  constructor(public target: Wheels) {}
+  update(steer: number, spin: number): void {
+    this.target.update(steer, spin);
+  }
+}
+
 export interface CarParts {
   /** Pitches and rolls with the suspension. */
   body: THREE.Group;
   /** Wheels (on the root, not on the body). */
-  wheels: WheelSet;
+  wheels: Wheels;
   wheelRoot: THREE.Group;
   tail: THREE.MeshBasicMaterial;
   tailIdle: THREE.Color;
@@ -428,6 +483,7 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   const wheelRoot = new THREE.Group();
   wheelRoot.scale.copy(scale);
   wheelRoot.add(wheels.group);
+  const wheelDrive = new SwappableWheels(wheels);
   // Placeholder turn signals for the procedural shell; the imported model brings its own lamps.
   const indicators = new Indicators();
   const placeholders = indicatorBoxes(body, indicators, [
@@ -455,8 +511,14 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
     hookA45Lamps(imported, indicators);
     body.add(imported);
     cockpit?.attach(imported, body);
+    // The model brings its own wheels: drive those and drop the procedural set.
+    const own = new ImportedWheels(imported);
+    if (own.found) {
+      wheelRoot.remove(wheels.group);
+      wheelDrive.target = own;
+    }
   });
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit, indicators };
+  return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit, indicators };
 }
 
 function buildCoupeParts(paint: number, L: number, W: number): CarParts {
