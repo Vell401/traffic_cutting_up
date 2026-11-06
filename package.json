@@ -14,7 +14,8 @@
     "smoke": "node dist-server/smoke.js",
     "start:server": "node dist-server/main.js",
     "netcheck": "tsx scripts/netcheck.ts",
-    "bot": "tsx scripts/bot.ts"
+    "bot": "tsx scripts/bot.ts",
+    "build:traffic-lab": "node scripts/build-traffic-lab.mjs"
   },
   "dependencies": {
     "postprocessing": "^6.39.6",

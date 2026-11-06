@@ -4,181 +4,132 @@ import type { RoadPoint } from '../sim/road';
 import { MAX_TRAFFIC, type TrafficCar } from '../sim/traffic';
 import { VEHICLES } from '../sim/vehicles';
 import type { Sim } from '../sim/world';
-import { buildVehicle, buildWheel, type VehicleModel } from './carModels';
+import { buildModel, defaults, type Kind, type LOD } from './trafficModels';
 
-const TAIL = new THREE.Color(0.9, 0.04, 0.03);
-const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
-const HEAD = new THREE.Color(2.4, 2.25, 1.9);
-const BLINK_ON = new THREE.Color(3.2, 1.45, 0.08);
-const BLINK_OFF = new THREE.Color(0.1, 0.05, 0.01);
-const LIGHTS_PER_CAR = 6;
-/** Lamps sit this far beyond the nominal length so they clear the bevelled body. */
-const LAMP_OUT = 0.08;
-
-interface TypeMeshes {
-  model: VehicleModel;
-  body: THREE.InstancedMesh;
-  cargo: THREE.InstancedMesh | null;
+interface Batch {
+  meshes: THREE.InstancedMesh[];
+  signals: THREE.InstancedBufferAttribute;
   count: number;
 }
 
-/**
- * Traffic drawn with one instanced mesh per vehicle type (plus cargo boxes for trucks), all wheels in
- * one instanced mesh, every lamp in another and the blob shadows in a third: ~12 draw calls for up to
- * 72 vehicles. Per-instance colour carries paint, cargo colour, brake state and blinkers.
+/** Three draws per occupied type/LOD, plus shared blob shadows. Wheels are baked in.
+ * Cargo tint and lamp states use semantic attributes, not extra per-car meshes.
  */
 export class TrafficView {
   readonly group = new THREE.Group();
-  private readonly types = new Map<string, TypeMeshes>();
-  private readonly wheels: THREE.InstancedMesh;
-  private readonly lights: THREE.InstancedMesh;
+  private readonly types = new Map<string, Batch[]>();
+  private readonly levels = new WeakMap<TrafficCar, { gen: number; lod: LOD }>();
   private readonly shadows: THREE.InstancedMesh;
-
   private readonly m = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
-  private readonly qWheel = new THREE.Quaternion();
   private readonly p = new THREE.Vector3();
-  private readonly sc = new THREE.Vector3();
+  private readonly sc = new THREE.Vector3(1, 1, 1);
   private readonly up = new THREE.Vector3(0, 1, 0);
   private readonly col = new THREE.Color();
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
-  private cos = 1;
-  private sin = 0;
-  private wx = 0;
-  private wz = 0;
-  private wheelCount = 0;
+  private readonly eye: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
 
   constructor(shadowTex: THREE.Texture) {
-    const paint = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0.35 });
-    const cargo = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.1 });
+    const paint = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: defaults.roughness, metalness: defaults.metalness });
+    const neutral = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .7, metalness: .1 });
+    neutral.onBeforeCompile = shader => {
+      shader.vertexShader = 'attribute float partRole;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', `
+        #include <color_vertex>
+        vColor.xyz = color.xyz * mix(vec3(1.0), instanceColor, partRole);
+      `);
+    };
+    neutral.customProgramCacheKey = () => 'traffic-cargo-v1';
+    const lights = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    lights.onBeforeCompile = shader => {
+      shader.vertexShader = 'attribute float partRole;\nattribute vec3 trafficSignal;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', `
+        #include <color_vertex>
+        if (partRole < 1.5) vColor.xyz = vec3(2.4, 2.25, 1.9);
+        else if (partRole < 2.5) vColor.xyz = mix(vec3(.9, .04, .03), vec3(2.6, .07, .04), trafficSignal.x);
+        else vColor.xyz = mix(vec3(.1, .05, .01), vec3(3.2, 1.45, .08), partRole < 3.5 ? trafficSignal.y : trafficSignal.z);
+      `);
+    };
+    lights.customProgramCacheKey = () => 'traffic-lamps-v1';
+    const materials = [paint, neutral, lights];
     for (const spec of VEHICLES) {
-      const model = buildVehicle(spec.name, spec.len, spec.wid);
-      const body = this.instanced(model.body, paint, MAX_TRAFFIC);
-      const cargoMesh = model.cargo ? this.instanced(model.cargo, cargo, MAX_TRAFFIC) : null;
-      this.types.set(spec.name, { model, body, cargo: cargoMesh, count: 0 });
+      const batches = ([0, 1, 2] as LOD[]).map(lod => {
+        // White cargo lets the instance colour select its final shade; neutral details retain theirs.
+        const model = buildModel(spec.name as Kind, lod, { ...defaults, cargoColor: '#ffffff' });
+        const signals = new THREE.InstancedBufferAttribute(new Float32Array(MAX_TRAFFIC * 3), 3).setUsage(THREE.DynamicDrawUsage);
+        model.parts[2].setAttribute('trafficSignal', signals);
+        const meshes = model.parts.map((geo, i) => {
+          const mesh = this.instanced(geo, materials[i]);
+          mesh.name = `traffic/${spec.name}/lod${lod}/${['body', 'details', 'lights'][i]}`;
+          return mesh;
+        });
+        return { meshes, signals, count: 0 };
+      });
+      this.types.set(spec.name, batches);
     }
-    this.wheels = this.instanced(buildWheel(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.2 }), MAX_TRAFFIC * 4);
-    this.lights = this.instanced(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), MAX_TRAFFIC * LIGHTS_PER_CAR);
     this.shadows = this.instanced(
       new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x000000, map: shadowTex, transparent: true, opacity: 0.75, depthWrite: false }),
-      MAX_TRAFFIC,
+      new THREE.MeshBasicMaterial({ color: 0, map: shadowTex, transparent: true, opacity: .75, depthWrite: false }),
     );
+    this.shadows.name = 'traffic/shadows';
     this.shadows.renderOrder = 1;
   }
 
-  private instanced(geo: THREE.BufferGeometry, mat: THREE.Material, count: number): THREE.InstancedMesh {
-    const im = new THREE.InstancedMesh(geo, mat, count);
-    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    im.frustumCulled = false;
-    im.count = 0;
-    im.setColorAt(0, this.col.set(1, 1, 1));
-    this.group.add(im);
-    return im;
+  private instanced(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.InstancedMesh {
+    const mesh = new THREE.InstancedMesh(geo, mat, MAX_TRAFFIC);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.frustumCulled = false;
+    mesh.count = 0;
+    mesh.setColorAt(0, this.col.setRGB(1, 1, 1));
+    mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(mesh);
+    return mesh;
   }
 
   update(sim: Sim, alpha: number, ox: number, oz: number, time: number): void {
-    const road = sim.road;
-    for (const t of this.types.values()) t.count = 0;
-    this.wheelCount = 0;
+    for (const batches of this.types.values()) for (const b of batches) b.count = 0;
+    // Distance to the player is independent of floating-origin resets and ring wrapping.
+    sim.road.toWorld(lerp(sim.player.prevS, sim.player.s, alpha), lerp(sim.player.prevD, sim.player.d, alpha), this.eye);
     let n = 0;
-    let li = 0;
-    const blinkOn = time % 0.8 < 0.4;
+    const blinkOn = time % .8 < .4;
     for (const c of sim.traffic.cars) {
       if (!c.active) continue;
-      const s = lerp(c.prevS, c.s, alpha);
-      const d = lerp(c.prevD, c.d, alpha);
-      const yawLocal = lerp(c.prevYaw, c.yaw, alpha);
-      road.toWorld(s, d, this.pt);
-      const yaw = this.pt.th + yawLocal;
-      this.cos = Math.cos(yaw);
-      this.sin = Math.sin(yaw);
-      this.wx = this.pt.x - ox;
-      this.wz = this.pt.z - oz;
-      this.q.setFromAxisAngle(this.up, -yaw);
-
-      const t = this.types.get(c.spec.name)!;
-      this.sc.set(1, 1, 1);
-      this.at(0, 0, 0);
-      this.m.compose(this.p, this.q, this.sc);
-      t.body.setMatrixAt(t.count, this.m);
-      t.body.setColorAt(t.count, this.col.setHex(c.color));
-      if (t.cargo) {
-        t.cargo.setMatrixAt(t.count, this.m);
-        t.cargo.setColorAt(t.count, this.col.setHex(c.color2));
+      sim.road.toWorld(lerp(c.prevS, c.s, alpha), lerp(c.prevD, c.d, alpha), this.pt);
+      const distance = Math.hypot(this.pt.x - this.eye.x, this.pt.z - this.eye.z);
+      let state = this.levels.get(c);
+      if (!state || state.gen !== c.gen) {
+        state = { gen: c.gen, lod: distance < 45 ? 0 : distance < 120 ? 1 : 2 };
+        this.levels.set(c, state);
+      } else {
+        // Separate enter/leave distances prevent flicker around a boundary.
+        if (state.lod === 0 && distance > 50) state.lod = 1;
+        if (state.lod === 1 && distance > 130) state.lod = 2;
+        if (state.lod === 2 && distance < 110) state.lod = 1;
+        if (state.lod === 1 && distance < 40) state.lod = 0;
       }
-      t.count++;
-
-      this.placeWheels(t.model, c);
-
-      this.at(0, 0.03, 0);
+      const b = this.types.get(c.spec.name)![state.lod], i = b.count++;
+      this.q.setFromAxisAngle(this.up, -(this.pt.th + lerp(c.prevYaw, c.yaw, alpha)));
+      this.p.set(this.pt.x - ox, 0, this.pt.z - oz);
+      this.sc.set(1, 1, 1);
+      this.m.compose(this.p, this.q, this.sc);
+      for (const mesh of b.meshes) mesh.setMatrixAt(i, this.m);
+      b.meshes[0].setColorAt(i, this.col.setHex(c.color));
+      b.meshes[1].setColorAt(i, this.col.setHex(c.color2));
+      b.signals.setXYZ(i, Number(c.braking), Number(blinkOn && (c.blink === -1 || c.blink === 2)), Number(blinkOn && (c.blink === 1 || c.blink === 2)));
+      this.p.y = .03;
       this.sc.set(c.spec.wid * 1.5, 1, c.spec.len * 1.25);
       this.m.compose(this.p, this.q, this.sc);
-      this.shadows.setMatrixAt(n, this.m);
-
-      li = this.carLights(c, li, blinkOn);
-      n++;
+      this.shadows.setMatrixAt(n++, this.m);
     }
-    for (const t of this.types.values()) {
-      for (const im of t.cargo ? [t.body, t.cargo] : [t.body]) {
-        im.count = t.count;
-        im.instanceMatrix.needsUpdate = true;
-        im.instanceColor!.needsUpdate = true;
+    for (const batches of this.types.values()) for (const b of batches) {
+      for (const mesh of b.meshes) {
+        mesh.count = b.count;
+        mesh.visible = b.count > 0;
+        if (b.count) { mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor!.needsUpdate = true; }
       }
+      if (b.count) b.signals.needsUpdate = true;
     }
     this.shadows.count = n;
     this.shadows.instanceMatrix.needsUpdate = true;
-    this.wheels.count = this.wheelCount;
-    this.wheels.instanceMatrix.needsUpdate = true;
-    this.lights.count = li;
-    this.lights.instanceMatrix.needsUpdate = true;
-    this.lights.instanceColor!.needsUpdate = true;
-  }
-
-  /** Origin-relative world position of a car-space point (car faces -Z, +Z is the rear). */
-  private at(lx: number, ly: number, lz: number): void {
-    const c = this.cos;
-    const s = this.sin;
-    this.p.set(this.wx + lx * c - lz * s, ly, this.wz + lx * s + lz * c);
-  }
-
-  private placeWheels(model: VehicleModel, c: TrafficCar): void {
-    // Rolling is invisible at night; crashed cars keep their wheels where they are.
-    this.qWheel.copy(this.q);
-    for (const axle of model.axles) {
-      const x = c.spec.wid / 2 - axle.width / 2 - 0.02;
-      for (const side of [-1, 1]) {
-        this.at(side * x, axle.r, -axle.f);
-        this.sc.set(axle.width, axle.r, axle.r);
-        this.m.compose(this.p, this.qWheel, this.sc);
-        this.wheels.setMatrixAt(this.wheelCount++, this.m);
-      }
-    }
-  }
-
-  private light(i: number, lx: number, ly: number, lz: number, w: number, h: number, color: THREE.Color): void {
-    this.at(lx, ly, lz);
-    this.sc.set(w, h, 0.05);
-    this.m.compose(this.p, this.q, this.sc);
-    this.lights.setMatrixAt(i, this.m);
-    this.lights.setColorAt(i, color);
-  }
-
-  private carLights(c: TrafficCar, i: number, blinkOn: boolean): number {
-    const spec = c.spec;
-    const rear = spec.len / 2 + LAMP_OUT;
-    const front = -spec.len / 2 - LAMP_OUT;
-    const hw = spec.wid / 2;
-    const y = spec.lightY;
-    const tail = c.braking ? TAIL_BRAKE : TAIL;
-    this.light(i++, -(hw - 0.3), y, rear, 0.4, 0.13, tail);
-    this.light(i++, hw - 0.3, y, rear, 0.4, 0.13, tail);
-    this.light(i++, -(hw - 0.34), y - 0.08, front, 0.36, 0.1, HEAD);
-    this.light(i++, hw - 0.34, y - 0.08, front, 0.36, 0.1, HEAD);
-    const left = blinkOn && (c.blink === -1 || c.blink === 2);
-    const right = blinkOn && (c.blink === 1 || c.blink === 2);
-    this.light(i++, -(hw - 0.08), y + 0.1, rear + 0.005, 0.12, 0.1, left ? BLINK_ON : BLINK_OFF);
-    this.light(i++, hw - 0.08, y + 0.1, rear + 0.005, 0.12, 0.1, right ? BLINK_ON : BLINK_OFF);
-    return i;
   }
 }

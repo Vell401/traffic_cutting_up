@@ -1,4 +1,4 @@
-/** Traffic vehicle catalogue: hitbox size and mass for the sim; shapes live in render/carModels.ts by name. */
+/** Traffic vehicle catalogue: hitbox size and mass for the sim; shapes live in render/trafficModels.ts by name. */
 
 export interface VehicleSpec {
   name: string;
@@ -20,7 +20,7 @@ const ALL = [0, 1, 2, 3];
 
 export const VEHICLES: VehicleSpec[] = [
   {
-    name: 'sedan', truck: false, weight: 30, len: 4.75, wid: 1.82, mass: 1500,
+    name: 'sedan', truck: false, weight: 10, len: 4.75, wid: 1.82, mass: 1500,
     lightY: 0.68, colors: CAR_COLORS, cargoColors: [], lanes: ALL,
   },
   {
@@ -42,5 +42,14 @@ export const VEHICLES: VehicleSpec[] = [
   {
     name: 'semi', truck: true, weight: 5, len: 14.5, wid: 2.5, mass: 18000,
     lightY: 1.0, colors: [0xf2f4f6, 0x9aa3ad, 0x2b2f36, 0x7a1f1f], cargoColors: CARGO, lanes: [2, 3],
+  },
+  // Append to preserve existing network spec indices; split the former sedan weight 30.
+  {
+    name: 'sedanClassic', truck: false, weight: 10, len: 4.75, wid: 1.82, mass: 1500,
+    lightY: 0.68, colors: CAR_COLORS, cargoColors: [], lanes: ALL,
+  },
+  {
+    name: 'sedanModern', truck: false, weight: 10, len: 4.75, wid: 1.82, mass: 1500,
+    lightY: 0.68, colors: CAR_COLORS, cargoColors: [], lanes: ALL,
   },
 ];
