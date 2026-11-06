@@ -1,3 +1,4 @@
+import { ROAD_HALF, SHOULDER } from '../config';
 import type { CurveStep, RoadScript, SectionStep } from './road';
 
 /*
@@ -60,3 +61,18 @@ export function ringScript(): RoadScript {
   const t = third();
   return { sections: SECTIONS, curves: [...t, ...t, ...t], loop: true, ring: true };
 }
+
+/*
+ * Spawn pad (online): numbered places on the right shoulder of the long open straight before the third
+ * third (7612–8400 m), front place first. Every driver owns one place: joining puts the car there and
+ * R brings it back, standing, ghosted, ready to pull out into the right lane.
+ */
+export const SPAWN_S = 7800;
+export const SPAWN_GAP = 22;
+/** On the shoulder: between the edge line and the barrier. */
+export const SPAWN_D = ROAD_HALF + SHOULDER / 2;
+/** Places drawn on the pad (servers with more drivers queue further back). */
+export const SPAWN_PLACES = 5;
+
+/** s (on lap 0) of spawn place i. */
+export const spawnS = (i: number): number => SPAWN_S - i * SPAWN_GAP;

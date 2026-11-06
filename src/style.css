@@ -628,7 +628,7 @@ body.online .solo-only {
   position: absolute;
   top: 18px;
   right: 18px;
-  min-width: 250px;
+  min-width: 330px;
   padding: 10px 12px 8px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -641,7 +641,7 @@ body.online .solo-only {
 #board .bh,
 #board .row {
   display: grid;
-  grid-template-columns: 12px 1fr 64px 64px;
+  grid-template-columns: 12px 1fr 74px 60px 60px;
   gap: 8px;
   align-items: center;
 }
@@ -657,9 +657,20 @@ body.online .solo-only {
   color: var(--accent);
 }
 #board .bh span:not(:first-child),
+#board .row .d,
 #board .row .s,
 #board .row .b {
   text-align: right;
+}
+#board .row .d {
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+#board .row .d.near {
+  color: var(--ink);
+}
+#board .row.me .d {
+  color: var(--ink-dim);
 }
 #board .row {
   padding: 3px 0;
@@ -783,4 +794,20 @@ body.online .solo-only {
 #netStatus.bad {
   border-color: var(--hot);
   color: var(--hot);
+}
+
+/* Narrow windows: the board moves under the score instead of over it. */
+@media (max-width: 760px) {
+  #board {
+    top: auto;
+    bottom: 96px;
+    right: 8px;
+    min-width: 0;
+    font-size: 11px;
+  }
+  #board .bh,
+  #board .row {
+    grid-template-columns: 10px 1fr 62px 48px 48px;
+    gap: 6px;
+  }
 }

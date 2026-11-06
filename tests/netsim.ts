@@ -59,7 +59,8 @@ export interface BotOptions {
 /** Simple driver: keeps a lane, brakes for the car ahead, changes lanes to pass. */
 export class Bot {
   readonly input: DriveInput = { steer: 0, throttle: 0, brake: 0 };
-  private lane = 1;
+  /** Lane the bot keeps; picked from where the car is on the first step (the spawn place is on the shoulder). */
+  private lane = -1;
   private changeT = 0;
   constructor(
     private readonly sim: Sim,
@@ -69,6 +70,7 @@ export class Bot {
 
   drive(dt: number): DriveInput {
     const p = this.sim.player;
+    if (this.lane < 0) this.lane = clamp(Math.round((p.d - laneCenter(0)) / (laneCenter(1) - laneCenter(0))), 0, LANES - 1);
     this.changeT -= dt;
     let gap = Infinity;
     let lead = 0;

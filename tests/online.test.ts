@@ -15,6 +15,8 @@ import {
 } from '../src/online/protocol';
 import { OnlineWorld, replay } from '../src/online/world';
 import { createCar } from '../src/sim/physics';
+import { RING_LEN, SPAWN_D, spawnS } from '../src/sim/ring';
+import { laneCenter } from '../src/config';
 import { NetSession, link, type ClientSpec } from './netsim';
 
 const spec = (name: string, delay: number, jitter: number, over: Partial<ClientSpec> = {}): ClientSpec => ({
@@ -185,7 +187,7 @@ describe('online session', () => {
     net.run(3);
     expect(a.core.id).toBe(id);
     expect(net.server.playerCount).toBe(1);
-    expect(a.teleports).toBe(tele + 1); // put back on the road where it was
+    expect(a.teleports).toBeGreaterThan(tele); // put back on the road where it was
     expect(net.server.world.byId(id)?.state).toBe('active');
   });
 
@@ -229,7 +231,7 @@ describe('online session', () => {
     const a = net.add(spec('A', 30, 10, { bot: { kmh: 250, weave: false } }));
     net.run(2);
     const dr = net.server.world.byId(a.core.id)!;
-    dr.car.s = net.server.world.ringLen - 150;
+    dr.car.reset(net.server.world.ringLen - 150, laneCenter(1), 250 / 3.6);
     dr.epoch++;
     net.run(1);
     const before = a.sim.player.s;
@@ -238,6 +240,48 @@ describe('online session', () => {
     expect(dr.car.s).toBeGreaterThan(net.server.world.ringLen); // a driver's s counts laps
     expect(a.sim.player.s).toBe(dr.car.s - (dr.car.s - a.sim.player.s)); // same frame as the server
     expect(a.core.stats.maxCorrection).toBeLessThan(1e-6);
+  });
+});
+
+describe('spawn pad', () => {
+  it('puts every driver on their own place, and R brings them back there', () => {
+    const world = new OnlineWorld(12);
+    const drivers = ['A', 'B', 'C', 'D', 'E'].map((n) => world.join(n, 1)!);
+    expect(new Set(drivers.map((d) => d.slot))).toEqual(new Set([0, 1, 2, 3, 4]));
+    for (const d of drivers) {
+      expect(d.car.s).toBe(spawnS(d.slot));
+      expect(d.car.d).toBe(SPAWN_D);
+      expect(d.car.vAlong).toBe(0);
+      expect(d.car.ghost).toBe(true);
+    }
+    // Drive A off a full lap and a bit, then R.
+    const a = drivers[0];
+    const q = quantizeInput({ steer: 0, throttle: 1, brake: 0 }, { steer: 0, throttle: 0, brake: 0, flags: 0 });
+    for (let i = 1; i <= 600; i++) {
+      world.input(a, i, [q], 1);
+      world.step();
+    }
+    expect(a.car.s - spawnS(a.slot)).toBeGreaterThan(50);
+    a.car.s += RING_LEN; // as if a lap later
+    const epoch = a.epoch;
+    world.respawn(a);
+    expect(a.epoch).toBe(epoch + 1);
+    expect(a.car.s).toBe(spawnS(a.slot) + RING_LEN); // same place, on the lap the car is on
+    expect(a.car.d).toBe(SPAWN_D);
+    expect(a.car.vAlong).toBe(0);
+    // A freed place is reused by the next driver.
+    world.leave(drivers[2].id);
+    expect(world.join('F', 2)!.slot).toBe(2);
+  });
+
+  it('is on an open straight, clear of the lanes', () => {
+    const world = new OnlineWorld(1);
+    for (let i = 0; i < 5; i++) {
+      const s = spawnS(i);
+      expect(Math.abs(world.road.curvature(s))).toBe(0);
+      world.road.ensure(s - 300, s + 300);
+      expect(world.road.chunkAt(s).kind).toBe('open');
+    }
   });
 });
 

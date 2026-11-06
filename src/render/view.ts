@@ -10,6 +10,8 @@ import { PlayerView } from './playerView';
 import { Post } from './post';
 import { RoadView } from './roadView';
 import { Blimp, FarGround } from './scenery';
+import { SpawnPad } from './spawnPad';
+import { SPAWN_PLACES } from '../sim/ring';
 import { Sparks } from './sparks';
 import { HORIZON, MOON_DIR, makeSky } from './sky';
 import { makeRadialTexture } from './textures';
@@ -48,6 +50,7 @@ export class View {
   private readonly shadowTex: THREE.Texture;
   private readonly v3 = new THREE.Vector3();
   private readonly ptRemote: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
+  private readonly spawnPad: SpawnPad | null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -84,6 +87,8 @@ export class View {
     this.sky = makeSky();
     this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points, this.farGround.mesh, this.blimp.group);
     this.post = new Post(r, this.scene, this.camera, quality);
+    this.spawnPad = sim.online ? new SpawnPad(SPAWN_PLACES) : null;
+    if (this.spawnPad) this.scene.add(this.spawnPad.group);
 
     sim.events.on('nearMiss', (e) => {
       this.chase.kick(0.25);
@@ -149,6 +154,7 @@ export class View {
     this.sky.position.copy(this.camera.position);
     this.farGround.update(sim.road, s, this.camera.position);
     this.blimp.update(sim.road, s, this.ox, this.oz, this.time);
+    this.spawnPad?.update(sim.road, s, this.ox, this.oz, sim.spawn.owners, sim.spawn.mine);
 
     if (!this.warmedUp) this.warmUp();
     this.renderer.info.reset();

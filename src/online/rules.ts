@@ -1,11 +1,11 @@
 import { carTune, scoreTune, trafficTune, SIM_HZ } from '../config';
 import { driftTune } from '../sim/vehicleDrift';
-import { ringScript } from '../sim/ring';
+import { SPAWN_D, SPAWN_GAP, SPAWN_S, ringScript } from '../sim/ring';
 import { VEHICLES } from '../sim/vehicles';
 import type { TrafficPreset } from '../sim/director';
 
 /** Bumped on any change to the message formats. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /**
  * Session settings the server decides and sends in `welcome`. The client never picks traffic: it is one
@@ -73,7 +73,7 @@ let cached = '';
 export function rulesHash(): string {
   if (!cached) {
     cached = fnv1a(
-      JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, trafficTune, scoreTune, VEHICLES, ring: ringScript() }),
+      JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] }),
     );
   }
   return cached;

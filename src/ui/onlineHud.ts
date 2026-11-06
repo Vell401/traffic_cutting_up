@@ -22,6 +22,9 @@ export class OnlineHud {
   private readonly pos = { x: 0, y: 0, dist: 0 };
   private myId = 0;
   private netT = 0;
+  private distT = 0;
+  /** Board cells showing the distance to each driver (id → cell). */
+  private readonly dist = new Map<number, HTMLElement>();
 
   constructor(private readonly sim: Sim) {
     this.board.hidden = false;
@@ -29,17 +32,48 @@ export class OnlineHud {
 
   setMe(id: number): void {
     this.myId = id;
+    this.sim.spawn.mine = -1;
   }
 
   players(list: PlayerInfo[]): void {
+    // Spawn pad colours: who owns which place.
+    const sp = this.sim.spawn;
+    sp.owners.length = 0;
+    for (const p of list) sp.owners[p.slot] = p.color;
+    for (let i = 0; i < sp.owners.length; i++) sp.owners[i] ??= null;
+    sp.mine = list.find((p) => p.id === this.myId)?.slot ?? -1;
+
     const sorted = [...list].sort((a, b) => b.best - a.best || b.score - a.score);
     this.rows.innerHTML = sorted
       .map((p) => {
         const cls = [p.id === this.myId ? 'me' : '', p.state !== 'active' ? 'off' : ''].join(' ');
         const note = p.state === 'offline' ? ' · нет связи' : p.state === 'away' ? ' · в боксах' : '';
-        return `<div class="row ${cls}"><i style="background:${hex(p.color)}"></i><span class="n">${esc(p.name)}<em>${note}</em></span><span class="s num">${fmt.format(p.score)}</span><span class="b num">${fmt.format(p.best)}</span></div>`;
+        return `<div class="row ${cls}"><i style="background:${hex(p.color)}"></i><span class="n">${esc(p.name)}<em>${note}</em></span><span class="d num" data-id="${p.id}"></span><span class="s num">${fmt.format(p.score)}</span><span class="b num">${fmt.format(p.best)}</span></div>`;
       })
       .join('');
+    this.dist.clear();
+    for (const el of this.rows.querySelectorAll<HTMLElement>('.d')) this.dist.set(Number(el.dataset.id), el);
+    this.distT = 0;
+  }
+
+  /** Distance along the ring (the short way round) from our car to each other driver. */
+  private updateDistances(): void {
+    const own = this.sim.player.s;
+    for (const [id, el] of this.dist) {
+      let text = '';
+      if (id === this.myId) text = 'вы';
+      else {
+        const r = this.sim.remotes.find((x) => x.id === id);
+        if (r) {
+          const ds = r.car.s - own;
+          const m = Math.abs(ds);
+          const v = m < 1000 ? `${Math.round(m / 5) * 5} м` : `${(m / 1000).toFixed(1).replace('.', ',')} км`;
+          text = `${ds >= 0 ? '▲' : '▼'} ${v}`;
+          el.classList.toggle('near', m < 150);
+        }
+      }
+      if (el.textContent !== text) el.textContent = text;
+    }
   }
 
   addFeed(text: string): void {
@@ -82,6 +116,11 @@ export class OnlineHud {
       if (seen.has(id)) continue;
       el.remove();
       this.tags.delete(id);
+    }
+    this.distT -= dt;
+    if (this.distT <= 0) {
+      this.distT = 0.2;
+      this.updateDistances();
     }
     this.netT -= dt;
     if (this.netT <= 0) {

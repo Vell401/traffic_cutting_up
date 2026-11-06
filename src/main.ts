@@ -7,6 +7,7 @@ import { View } from './render/view';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
 import { PHYSICS, type PhysicsId } from './sim/physics';
+import { spawnS } from './sim/ring';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
 import { conditionsFromUrl, healthUrl, serverUrl } from './online/link';
@@ -144,7 +145,11 @@ function startOnline(): void {
     },
     onPlayers: (list) => ohud.players(list),
     onFeed: (text) => ohud.addFeed(text),
-    onTeleport: () => view.snapCamera(),
+    onTeleport: () => {
+      view.snapCamera();
+      const mine = sim.spawn.mine;
+      if (mine >= 0 && Math.abs(sim.road.rel(sim.player.s, spawnS(mine))) < 3) hud.tag(`SPAWN · МЕСТО ${mine + 1}`, 2.5);
+    },
   });
   session.start(name, sim.player.physicsId as PhysicsId);
   if (import.meta.env.DEV) Object.assign((window as unknown as { __game: object }).__game, { session });

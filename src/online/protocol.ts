@@ -29,6 +29,8 @@ export interface PlayerInfo {
   name: string;
   color: number;
   physics: PhysicsId;
+  /** Spawn place (0-based) the driver owns. */
+  slot: number;
   score: number;
   best: number;
   /** On the road, away (no input) or disconnected (slot kept for a reconnect). */

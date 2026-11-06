@@ -57,6 +57,8 @@ export class Sim {
    * car, the offset takes the jump and decays, so the car glides to the corrected spot.
    */
   readonly visual = { ds: 0, dd: 0, dpsi: 0 };
+  /** Online spawn pad: paint of the driver on each place (null = free) and our own place. */
+  readonly spawn = { owners: [] as (number | null)[], mine: -1 };
   readonly online: boolean;
 
   private readonly drivers: PlayerCar[] = [];

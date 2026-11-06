@@ -5,7 +5,7 @@ import { Contacts, type Hit } from '../sim/contact';
 import { Director } from '../sim/director';
 import type { SimEvents } from '../sim/events';
 import { createCar, type PhysicsId } from '../sim/physics';
-import { ringScript } from '../sim/ring';
+import { SPAWN_D, ringScript, spawnS } from '../sim/ring';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
 import { MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
@@ -86,6 +86,8 @@ export class Driver {
     readonly name: string,
     readonly physics: PhysicsId,
     readonly color: number,
+    /** Spawn place this driver owns (joins and respawns there). */
+    readonly slot: number,
     capacity: number,
     ringLen: number,
   ) {
@@ -201,7 +203,9 @@ export class OnlineWorld {
     this.nextId = (id % 250) + 1;
     const clean = cleanName(name, id);
     this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics });
-    const dr = new Driver(id, clean, physics === 2 ? 2 : 1, DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length], this.rules.inputMax, this.ringLen);
+    let slot = 0;
+    while (this.drivers.some((d) => d.slot === slot)) slot++;
+    const dr = new Driver(id, clean, physics === 2 ? 2 : 1, DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length], slot, this.rules.inputMax, this.ringLen);
     let at = 0;
     while (at < this.drivers.length && this.drivers[at].id < id) at++;
     this.drivers.splice(at, 0, dr);
@@ -243,7 +247,7 @@ export class OnlineWorld {
     dr.epoch++;
   }
 
-  /** Back onto a lane where the car is, run over (like R in single player). */
+  /** R: back to the driver's spawn place; the run is over. */
   respawn(dr: Driver): void {
     this.journal?.({ k: 'respawn', t: this.tick, id: dr.id });
     if (dr.state !== 'active') return;
@@ -337,32 +341,30 @@ export class OnlineWorld {
   }
 
   /**
-   * Put a driver's car on the road: a new driver ~140 m behind someone already driving (or anywhere on
-   * an empty ring), a respawn or a return from away right where the car is. Ghosted for a few seconds.
+   * Put a driver's car on the road. Joining and R: standing on the driver's own spawn place (the lap
+   * nearest to where the car was, so s keeps counting laps). Back from away: right where the car was,
+   * at 90 km/h on the freest lane. Ghosted for a few seconds either way.
    */
   private place(dr: Driver, how: 'join' | 'respawn' | 'return'): void {
     const car = dr.car;
-    let s = car.s;
-    let kmh = 90;
-    if (how === 'join') {
-      const other = this.drivers.find((o) => o !== dr && o.state === 'active');
-      s = other ? other.car.s - 140 : this.rng() * this.ringLen;
-      kmh = 100;
+    if (how === 'return') {
+      car.reset(car.s, laneCenter(this.freeLane(car.s)), 90 / 3.6);
+    } else {
+      const home = spawnS(dr.slot);
+      const lap = how === 'join' ? 0 : Math.round((car.s - home) / this.ringLen);
+      car.reset(home + this.ringLen * lap, SPAWN_D, 0);
     }
-    car.reset(s, laneCenter(this.freeLane(s)), kmh / 3.6);
     car.ghost = true;
     dr.ghostT = this.rules.ghostSeconds;
     dr.score.grace = Math.max(dr.score.grace, this.rules.ghostSeconds);
     dr.state = 'active';
     dr.starve = 0;
     dr.epoch++;
-    if (how !== 'respawn') {
-      // A stretch of the ring nobody drives yet is empty: fill this driver's window now.
-      this.cars.length = 0;
-      for (const o of this.drivers) if (o.state === 'active') this.cars.push(o.car);
-      this.traffic.setDrivers(this.cars);
-      this.traffic.populate(car);
-    }
+    // A stretch of the ring nobody drives yet is empty: fill this driver's window now.
+    this.cars.length = 0;
+    for (const o of this.drivers) if (o.state === 'active') this.cars.push(o.car);
+    this.traffic.setDrivers(this.cars);
+    this.traffic.populate(car);
   }
 
   private goAway(dr: Driver): void {
@@ -378,6 +380,7 @@ export class OnlineWorld {
       name: dr.name,
       color: dr.color,
       physics: dr.physics,
+      slot: dr.slot,
       score: Math.floor(dr.score.score),
       best: dr.score.best,
       state: !connected(dr) ? 'offline' : dr.state,
