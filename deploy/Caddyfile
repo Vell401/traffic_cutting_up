@@ -1,0 +1,17 @@
+# Caddy: automatic HTTPS + WebSocket proxy to the game server on localhost:8787.
+# The static site (dist/) can live on any cloud static host; set VITE_ONLINE_URL=wss://game.example.com/ws
+# when building it. Or serve both from here (uncomment the site block).
+
+game.example.com {
+	encode gzip
+	reverse_proxy /ws 127.0.0.1:8787
+	reverse_proxy /health 127.0.0.1:8787
+}
+
+# traffic.example.com {
+# 	root * /opt/traffic/dist
+# 	encode gzip zstd
+# 	file_server
+# 	reverse_proxy /ws 127.0.0.1:8787
+# 	reverse_proxy /health 127.0.0.1:8787
+# }

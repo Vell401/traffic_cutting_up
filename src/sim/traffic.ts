@@ -5,11 +5,22 @@ import type { Director } from './director';
 import { VEHICLES, type VehicleSpec } from './vehicles';
 import type { PlayerCar } from './vehicle';
 
+/** Cars around one driver (and what a client draws). The server's pool holds this many per driver. */
 export const MAX_TRAFFIC = 112;
-/** Traffic lives in [player.s - BEHIND, player.s + AHEAD]; new cars appear far ahead, hidden by fog. */
-const BEHIND = 220;
-const AHEAD = 850;
+/** Traffic lives in [driver.s - BEHIND, driver.s + AHEAD]; new cars appear far ahead, hidden by fog. */
+export const BEHIND = 220;
+export const AHEAD = 850;
 const SPAWN_AHEAD_MIN = 680;
+/** A new car must not appear within this far behind another driver (or closer than SPAWN_AHEAD_MIN ahead). */
+const SEEN_BEHIND = 200;
+/** A wreck is cleared after CRASH_CLEAR s once nobody is within CLEAR_RADIUS of it, and never later than CRASH_MAX. */
+const CRASH_CLEAR = 15;
+const CLEAR_RADIUS = 150;
+const CRASH_MAX = 60;
+/** Leader/follower search horizon: beyond it the road counts as free (IDM barely reacts past ~300 m). */
+const LOOK = 1200;
+/** Longest vehicle's half length (search cut-off). */
+const MAX_HALF_LEN = 7.5;
 const GLASS = 0x0d1015;
 const ALL_LANES = [0, 1, 2, 3];
 const BOX_TRUCK = VEHICLES.find((v) => v.name === 'boxTruck')!;
@@ -20,6 +31,13 @@ export class TrafficCar {
   color = 0xffffff;
   /** Cabin glass or cargo box colour. */
   color2 = GLASS;
+  /** Indexes into spec.colors / spec.cargoColors (-1 = glass): what the network sends instead of colours. */
+  colorIdx = 0;
+  color2Idx = -1;
+  /** Bumped every time the slot is (re)used, so bookkeeping kept elsewhere can tell a new car from the old one. */
+  gen = 0;
+  /** Index in Traffic's s-sorted order (neighbour search), -1 when not in it. */
+  ord = -1;
 
   s = 0;
   d = 0;
@@ -50,13 +68,8 @@ export class TrafficCar {
   crashT = 0;
   vd = 0;
   yawRate = 0;
-
-  // Scoring bookkeeping (owned by Scoring).
+  /** Hit by a driver: gives no more near misses. */
   hit = false;
-  ovl = false;
-  ovlSign = 0;
-  minGap = Infinity;
-  splitDone = false;
 
   constructor(readonly id: number) {}
 }
@@ -70,6 +83,15 @@ function idm(v: number, v0: number, gap: number, vLead: number, T: number): numb
   return t.idmA * (free - (sStar / g) * (sStar / g));
 }
 
+/*
+ * Traffic lives around drivers: each driver has a window [s - BEHIND, s + AHEAD] that is kept topped up
+ * to the director's density, and a car is removed once it is in nobody's window. Single player has one
+ * driver; the online server passes every driver on the ring, and a new car is only placed where no
+ * other driver can see it appear.
+ *
+ * On a ring (ringLen finite) positions stay in [0, ringLen) and every distance takes the short way round.
+ * Neighbour searches walk an s-sorted list instead of testing every car against every other car.
+ */
 export class Traffic {
   readonly cars: TrafficCar[] = [];
   activeCount = 0;
@@ -77,6 +99,16 @@ export class Traffic {
   limitS = Infinity;
   /** Test panel switch: no new traffic while off. */
   enabled = true;
+  /** Closed ring length (online); Infinity on an open road. */
+  ringLen = Infinity;
+
+  /** Drivers the traffic populates around and treats as obstacles (ghosts excepted). */
+  private drivers: readonly PlayerCar[] = [];
+  private readonly one: PlayerCar[] = [];
+  /** Active cars sorted by s. */
+  private readonly order: TrafficCar[] = [];
+  private orderLen = 0;
+  private windowCount = new Int32Array(1);
 
   // Results of the last leader/follower query (avoids allocations in the hot loop).
   private lGap = Infinity;
@@ -87,74 +119,201 @@ export class Traffic {
   constructor(
     private readonly rng: Rng,
     readonly director: Director,
+    capacity = MAX_TRAFFIC,
   ) {
-    for (let i = 0; i < MAX_TRAFFIC; i++) this.cars.push(new TrafficCar(i));
+    for (let i = 0; i < capacity; i++) this.cars.push(new TrafficCar(i));
   }
 
+  /** Target number of cars in one driver's window. */
   targetCount(): number {
     return Math.min(MAX_TRAFFIC - 6, Math.round((this.director.density() * LANES * (BEHIND + AHEAD)) / 1000));
   }
 
-  reset(p: PlayerCar): void {
-    for (const c of this.cars) c.active = false;
+  /** Signed distance from b to a along the road (the short way round on a ring). */
+  rel(a: number, b: number): number {
+    const x = a - b;
+    const L = this.ringLen;
+    return L === Infinity ? x : x - L * Math.round(x / L);
+  }
+
+  /** Position into [0, ringLen) on a ring; unchanged on an open road. */
+  wrap(s: number): number {
+    const L = this.ringLen;
+    if (L === Infinity) return s;
+    s %= L;
+    return s < 0 ? s + L : s;
+  }
+
+  private use(who: PlayerCar | readonly PlayerCar[]): readonly PlayerCar[] {
+    if (Array.isArray(who)) {
+      this.drivers = who as readonly PlayerCar[];
+    } else {
+      this.one[0] = who as PlayerCar;
+      this.one.length = 1;
+      this.drivers = this.one;
+    }
+    return this.drivers;
+  }
+
+  /** Set the drivers without stepping (before populate() or a scripted spawn between steps). */
+  setDrivers(who: PlayerCar | readonly PlayerCar[]): void {
+    this.use(who);
+  }
+
+  /** Fresh population around the driver(s). */
+  reset(who: PlayerCar | readonly PlayerCar[]): void {
+    const drivers = this.use(who);
+    for (const c of this.cars) {
+      c.active = false;
+      c.ord = -1;
+    }
+    this.orderLen = 0;
     this.activeCount = 0;
     this.limitS = Infinity;
     if (!this.enabled) return;
+    for (const p of drivers) this.populate(p);
+  }
+
+  /** Fill one driver's window at once (start, or a driver joining an empty stretch of the ring). */
+  populate(p: PlayerCar): void {
+    if (!this.enabled) return;
     const target = this.targetCount();
-    for (let i = 0; i < target * 6 && this.activeCount < target; i++) {
+    let have = 0;
+    for (const c of this.cars) if (c.active && this.inWindow(c.s, p, 0)) have++;
+    const others = this.drivers.length > 1;
+    for (let i = 0; i < target * 6 && have < target; i++) {
       const s = range(this.rng, p.s - BEHIND + 30, p.s + AHEAD - 30);
       if (Math.abs(s - p.s) < 45) continue;
-      this.trySpawn(s, p, false);
+      if (others && this.seenByOthers(this.wrap(s), p)) continue;
+      if (this.trySpawn(this.wrap(s), p, false)) have++;
     }
   }
 
-  /** Remove cars near the player (respawn). */
+  /** Remove cars near s (respawn). */
   clearAround(s: number, radius: number): void {
     for (const c of this.cars) {
-      if (c.active && Math.abs(c.s - s) < radius) this.deactivate(c);
+      if (c.active && Math.abs(this.rel(c.s, s)) < radius) this.deactivate(c);
     }
   }
 
-  step(dt: number, p: PlayerCar): void {
+  private inWindow(s: number, p: PlayerCar, extra: number): boolean {
+    const r = this.rel(s, p.s);
+    return r >= -BEHIND && r <= AHEAD + extra;
+  }
+
+  /** Would a car appearing at s pop into view of a driver other than `p`? */
+  private seenByOthers(s: number, p: PlayerCar): boolean {
+    for (const q of this.drivers) {
+      if (q === p) continue;
+      const r = this.rel(s, q.s);
+      if (r > -SEEN_BEHIND && r < SPAWN_AHEAD_MIN - 20) return true;
+    }
+    return false;
+  }
+
+  step(dt: number, who: PlayerCar | readonly PlayerCar[]): void {
     const rng = this.rng;
+    const drivers = this.use(who);
+    const nd = drivers.length;
+    if (this.windowCount.length < nd) this.windowCount = new Int32Array(nd);
+    const counts = this.windowCount;
+    counts.fill(0);
     for (const c of this.cars) {
       if (!c.active) continue;
-      if (c.s < p.s - BEHIND || c.s > p.s + AHEAD + 60 || c.s > this.limitS || (c.crashed && c.crashT > 15)) this.deactivate(c);
+      let seen = false;
+      let near = false;
+      for (let i = 0; i < nd; i++) {
+        const r = this.rel(c.s, drivers[i].s);
+        if (r >= -BEHIND && r <= AHEAD + 60) seen = true;
+        if (Math.abs(r) < CLEAR_RADIUS) near = true;
+      }
+      const wreckGone = c.crashed && (c.crashT > CRASH_MAX || (c.crashT > CRASH_CLEAR && !near));
+      if (!seen || c.s > this.limitS || wreckGone) {
+        this.deactivate(c);
+        continue;
+      }
+      for (let i = 0; i < nd; i++) if (this.inWindow(c.s, drivers[i], 60)) counts[i]++;
     }
 
-    if (this.enabled && this.activeCount < this.targetCount()) {
-      // When we crawl, traffic overtakes us: feed it from behind as well.
-      const behind = p.vAlong < 24 && rng() < 0.5;
-      const s = behind ? p.s - BEHIND + range(rng, 5, 40) : p.s + range(rng, SPAWN_AHEAD_MIN, AHEAD);
-      const pattern = behind ? 'single' : this.director.pattern();
-      if (pattern === 'wall') this.spawnWall(s, p);
-      else if (pattern === 'platoon') this.spawnPlatoon(s, p);
-      else this.trySpawn(s, p, behind);
+    if (this.enabled) {
+      for (let i = 0; i < nd; i++) {
+        const p = drivers[i];
+        if (counts[i] >= this.targetCount()) continue;
+        // When we crawl, traffic overtakes us: feed it from behind as well.
+        const behind = p.vAlong < 24 && rng() < 0.5;
+        const s = this.wrap(behind ? p.s - BEHIND + range(rng, 5, 40) : p.s + range(rng, SPAWN_AHEAD_MIN, AHEAD));
+        if (nd > 1 && this.seenByOthers(s, p)) continue;
+        const pattern = behind ? 'single' : this.director.pattern();
+        if (pattern === 'wall') this.spawnWall(s, p);
+        else if (pattern === 'platoon') this.spawnPlatoon(s, p);
+        else this.trySpawn(s, p, behind);
+      }
     }
 
+    this.sortOrder();
     for (const c of this.cars) {
       if (!c.active) continue;
       c.prevS = c.s;
       c.prevD = c.d;
       c.prevYaw = c.yaw;
       if (c.crashed) this.stepCrashed(c, dt);
-      else this.think(c, dt, p);
+      else this.think(c, dt);
     }
 
+    const L = this.ringLen;
     for (const c of this.cars) {
-      if (!c.active || c.crashed) continue;
-      c.v = Math.max(0, c.v + c.acc * dt);
-      c.s += c.v * dt;
-      c.yaw = Math.atan2((c.d - c.prevD) / dt, Math.max(c.v, 1));
+      if (!c.active) continue;
+      if (!c.crashed) {
+        c.v = Math.max(0, c.v + c.acc * dt);
+        c.s += c.v * dt;
+        c.yaw = Math.atan2((c.d - c.prevD) / dt, Math.max(c.v, 1));
+      }
+      if (c.s >= L) {
+        c.s -= L;
+        c.prevS -= L;
+      } else if (c.s < 0 && L !== Infinity) {
+        // A collision pushed it back over the ring's seam.
+        c.s += L;
+        c.prevS += L;
+      }
     }
   }
 
-  private think(c: TrafficCar, dt: number, p: PlayerCar): void {
+  /** Keep `order` = active cars sorted by s. Insertion sort: the order barely changes between steps. */
+  private sortOrder(): void {
+    const ord = this.order;
+    let n = 0;
+    for (let i = 0; i < this.orderLen; i++) {
+      const c = ord[i];
+      if (c.active) ord[n++] = c;
+      else c.ord = -1;
+    }
+    for (const c of this.cars) {
+      if (c.active && c.ord < 0) {
+        c.ord = n;
+        ord[n++] = c;
+      }
+    }
+    ord.length = n;
+    for (let i = 1; i < n; i++) {
+      const c = ord[i];
+      let j = i - 1;
+      while (j >= 0 && ord[j].s > c.s) {
+        ord[j + 1] = ord[j];
+        j--;
+      }
+      ord[j + 1] = c;
+    }
+    for (let i = 0; i < n; i++) ord[i].ord = i;
+    this.orderLen = n;
+  }
+
+  private think(c: TrafficCar, dt: number): void {
     const rng = this.rng;
-    this.leader(c, c.d, p);
+    this.leader(c, c.d);
     let acc = idm(c.v, c.v0, this.lGap, this.lV, c.tGap);
     if (c.laneT >= 0) {
-      this.leader(c, laneCenter(c.targetLane), p);
+      this.leader(c, laneCenter(c.targetLane));
       acc = Math.min(acc, idm(c.v, c.v0, this.lGap, this.lV, c.tGap));
     }
     c.acc = clamp(acc, -9, trafficTune.idmA);
@@ -175,7 +334,7 @@ export class Traffic {
     } else if (c.blink !== 0) {
       c.blinkT -= dt;
       if (c.blinkT <= 0) {
-        if (this.safeToChange(c, c.targetLane, p)) {
+        if (this.safeToChange(c, c.targetLane)) {
           c.laneT = 0;
           c.laneFromD = c.d;
         } else {
@@ -188,24 +347,24 @@ export class Traffic {
       c.decisionT -= dt;
       if (c.decisionT <= 0) {
         c.decisionT = range(rng, 1.5, 4);
-        this.considerLaneChange(c, p, acc);
+        this.considerLaneChange(c, acc);
       }
     }
   }
 
   /** Simplified MOBIL: change lanes when the other lane lets us accelerate noticeably more and it is safe. */
-  private considerLaneChange(c: TrafficCar, p: PlayerCar, aCur: number): void {
+  private considerLaneChange(c: TrafficCar, aCur: number): void {
     let bestLane = -1;
     let bestGain = 0.35;
     for (let dir = -1; dir <= 1; dir += 2) {
       const l = c.lane + dir;
       if (c.spec.lanes.indexOf(l) < 0) continue;
-      this.leader(c, laneCenter(l), p);
+      this.leader(c, laneCenter(l));
       const aNew = idm(c.v, c.v0, this.lGap, this.lV, c.tGap);
       let gain = aNew - aCur;
       if (dir > 0) gain += 0.1;
       if (this.rng() < trafficTune.whim) gain += 0.6;
-      if (gain > bestGain && this.safeToChange(c, l, p)) {
+      if (gain > bestGain && this.safeToChange(c, l)) {
         bestGain = gain;
         bestLane = l;
       }
@@ -217,47 +376,66 @@ export class Traffic {
     }
   }
 
-  private safeToChange(c: TrafficCar, lane: number, p: PlayerCar): boolean {
+  private safeToChange(c: TrafficCar, lane: number): boolean {
     const d = laneCenter(lane);
     const hl = c.spec.len / 2;
-    this.leader(c, d, p);
+    this.leader(c, d);
     if (this.lGap < 6) return false;
     this.follower(c, d);
     if (this.fCar) {
       if (this.fGap < 4) return false;
       if (idm(this.fCar.v, this.fCar.v0, this.fGap, c.v, this.fCar.tGap) < -3.5) return false;
     }
-    const pInLane = Math.abs(p.d - d) < LANE_W * 0.9;
-    if (pInLane && Math.abs(p.s - c.s) < hl + p.tune.length / 2 + 2) return false;
-    // Fair play: polite drivers never cut in front of a fast-approaching player. Rude ones only check the car beside them.
-    if (!c.rude && pInLane && p.s < c.s) {
-      const gap = c.s - p.s - hl - p.tune.length / 2;
-      const closing = Math.max(0, p.vAlong - c.v);
-      if (gap < 12 + closing * 1.6) return false;
+    for (const p of this.drivers) {
+      if (p.ghost || Math.abs(p.d - d) >= LANE_W * 0.9) continue;
+      const ahead = this.rel(c.s, p.s);
+      if (Math.abs(ahead) < hl + p.tune.length / 2 + 2) return false;
+      // Fair play: polite drivers never cut in front of a fast-approaching player. Rude ones only check the car beside them.
+      if (!c.rude && ahead > 0) {
+        const gap = ahead - hl - p.tune.length / 2;
+        const closing = Math.max(0, p.vAlong - c.v);
+        if (gap < 12 + closing * 1.6) return false;
+      }
     }
     return true;
   }
 
-  /** Nearest obstacle ahead of `self` in the corridor around lateral offset d (the player included). */
-  private leader(self: TrafficCar, d: number, p: PlayerCar): void {
+  /** Nearest obstacle ahead of `self` in the corridor around lateral offset d (drivers included). */
+  private leader(self: TrafficCar, d: number): void {
     const hl = self.spec.len / 2;
     const hw = self.spec.wid / 2;
     let gap = Infinity;
     let lv = 0;
-    for (const o of this.cars) {
-      if (!o.active || o === self || o.s <= self.s) continue;
+    const ord = this.order;
+    const n = this.orderLen;
+    const ring = this.ringLen !== Infinity;
+    for (let k = 1; k < n; k++) {
+      let j = self.ord + k;
+      if (j >= n) {
+        if (!ring) break;
+        j -= n;
+      }
+      const o = ord[j];
+      const ds = this.rel(o.s, self.s);
+      // Past half the ring the distance turns negative: everything further on is behind.
+      if (ds < 0 || ds > LOOK || ds - hl - MAX_HALF_LEN >= gap) break;
+      if (ds === 0) continue;
       if (Math.abs(o.d - d) > hw + o.spec.wid / 2 + 0.3) continue;
-      const g = o.s - self.s - hl - o.spec.len / 2;
+      const g = ds - hl - o.spec.len / 2;
       if (g < gap) {
         gap = g;
         lv = o.v;
       }
     }
-    if (p.s > self.s && Math.abs(p.d - d) < hw + p.tune.width / 2 + 0.3) {
-      const g = p.s - self.s - hl - p.tune.length / 2;
-      if (g < gap) {
-        gap = g;
-        lv = p.vAlong;
+    for (const p of this.drivers) {
+      if (p.ghost) continue;
+      const ds = this.rel(p.s, self.s);
+      if (ds > 0 && Math.abs(p.d - d) < hw + p.tune.width / 2 + 0.3) {
+        const g = ds - hl - p.tune.length / 2;
+        if (g < gap) {
+          gap = g;
+          lv = p.vAlong;
+        }
       }
     }
     this.lGap = gap;
@@ -269,10 +447,22 @@ export class Traffic {
     const hw = self.spec.wid / 2;
     let gap = Infinity;
     let car: TrafficCar | null = null;
-    for (const o of this.cars) {
-      if (!o.active || o === self || o.s >= self.s) continue;
+    const ord = this.order;
+    const n = this.orderLen;
+    const ring = this.ringLen !== Infinity;
+    for (let k = 1; k < n; k++) {
+      let j = self.ord - k;
+      if (j < 0) {
+        if (!ring) break;
+        j += n;
+      }
+      const o = ord[j];
+      const ds = this.rel(self.s, o.s);
+      // Past half the ring the distance turns negative: everything further on is behind.
+      if (ds < 0 || ds > LOOK || ds - hl - MAX_HALF_LEN >= gap) break;
+      if (ds === 0) continue;
       if (Math.abs(o.d - d) > hw + o.spec.wid / 2 + 0.3) continue;
-      const g = self.s - o.s - hl - o.spec.len / 2;
+      const g = ds - hl - o.spec.len / 2;
       if (g < gap) {
         gap = g;
         car = o;
@@ -282,7 +472,8 @@ export class Traffic {
     this.fCar = car;
   }
 
-  private stepCrashed(c: TrafficCar, dt: number): void {
+  /** A wrecked car: slides to a stop, spins down, hazards on. Also run by client-side prediction. */
+  stepCrashed(c: TrafficCar, dt: number): void {
     c.crashT += dt;
     c.v = Math.max(0, c.v - 6 * dt);
     c.vd *= Math.exp(-2.5 * dt);
@@ -301,13 +492,16 @@ export class Traffic {
   }
 
   /** Is a lane free of other vehicles around s (± clearance beyond both cars' half lengths)? */
-  private laneFree(lane: number, s: number, len: number, clearance: number, p: PlayerCar): boolean {
+  private laneFree(lane: number, s: number, len: number, clearance: number): boolean {
     const d = laneCenter(lane);
     for (const o of this.cars) {
       if (!o.active) continue;
-      if (Math.abs(o.d - d) < LANE_W * 0.9 && Math.abs(o.s - s) < (o.spec.len + len) / 2 + clearance) return false;
+      if (Math.abs(o.d - d) < LANE_W * 0.9 && Math.abs(this.rel(o.s, s)) < (o.spec.len + len) / 2 + clearance) return false;
     }
-    return !(Math.abs(p.d - d) < LANE_W && Math.abs(p.s - s) < 40);
+    for (const p of this.drivers) {
+      if (Math.abs(p.d - d) < LANE_W && Math.abs(this.rel(p.s, s)) < 40) return false;
+    }
+    return true;
   }
 
   private laneSpeed(lane: number, spec: VehicleSpec): number {
@@ -320,7 +514,7 @@ export class Traffic {
   /** Keep a formation's lanes until the player has had time to reach it. */
   private holdLanes(c: TrafficCar, p: PlayerCar): void {
     const closing = Math.max(3, p.vAlong - c.v);
-    c.decisionT = Math.min(45, 6 + (c.s - p.s) / closing);
+    c.decisionT = Math.min(45, 6 + this.rel(c.s, p.s) / closing);
   }
 
   private trySpawn(s: number, p: PlayerCar, fromBehind: boolean): boolean {
@@ -328,7 +522,7 @@ export class Traffic {
     const dir = this.director;
     const spec = dir.pickSpec();
     const lane = dir.pickLane(dir.lanesFor(spec));
-    if (!this.laneFree(lane, s, spec.len, 22, p)) return false;
+    if (!this.laneFree(lane, s, spec.len, 22)) return false;
     const v0 = this.laneSpeed(lane, spec);
     if (fromBehind && v0 < p.vAlong + 3) return false;
     return this.spawnAt(spec, s, lane, v0) !== null;
@@ -341,13 +535,13 @@ export class Traffic {
     const gapLane = Math.floor(rng() * LANES);
     const lanes: number[] = [];
     for (let l = 0; l < LANES; l++) if (l !== gapLane) lanes.push(l);
-    if (MAX_TRAFFIC - this.activeCount < lanes.length) return false;
-    for (const l of lanes) if (!this.laneFree(l, s, 15, 30, p)) return false;
-    if (!this.laneFree(gapLane, s, 15, 25, p)) return false;
+    if (this.cars.length - this.activeCount < lanes.length) return false;
+    for (const l of lanes) if (!this.laneFree(l, s, 15, 30)) return false;
+    if (!this.laneFree(gapLane, s, 15, 25)) return false;
     const v0 = range(rng, 86, 100) / 3.6;
     for (const l of lanes) {
       const spec = l >= 2 && rng() < 0.3 ? BOX_TRUCK : this.director.pickCar();
-      const c = this.spawnAt(spec, s + range(rng, -1.5, 1.5), l, v0);
+      const c = this.spawnAt(spec, this.wrap(s + range(rng, -1.5, 1.5)), l, v0);
       if (!c) break;
       c.rude = false;
       this.holdLanes(c, p);
@@ -360,7 +554,7 @@ export class Traffic {
     if (s + 80 > this.limitS) return false;
     const rng = this.rng;
     const n = 3 + Math.floor(rng() * 3);
-    if (MAX_TRAFFIC - this.activeCount < n) return false;
+    if (this.cars.length - this.activeCount < n) return false;
     const lane = this.director.pickLane(ALL_LANES);
     const specs: VehicleSpec[] = [];
     const gaps: number[] = [];
@@ -370,11 +564,11 @@ export class Traffic {
       gaps.push(range(rng, 9, 14));
       span += specs[i].len + gaps[i];
     }
-    if (!this.laneFree(lane, s + span / 2, span, 25, p)) return false;
+    if (!this.laneFree(lane, this.wrap(s + span / 2), span, 25)) return false;
     const v0 = this.laneSpeed(lane, specs[0]);
     let at = s;
     for (let i = 0; i < n; i++) {
-      const c = this.spawnAt(specs[i], at + specs[i].len / 2, lane, v0);
+      const c = this.spawnAt(specs[i], this.wrap(at + specs[i].len / 2), lane, v0);
       if (!c) break;
       c.tGap = 0.55;
       c.rude = false;
@@ -397,9 +591,12 @@ export class Traffic {
     if (!c) return null;
 
     c.active = true;
+    c.gen++;
     c.spec = spec;
-    c.color = spec.colors[Math.floor(rng() * spec.colors.length)];
-    c.color2 = spec.truck ? spec.cargoColors[Math.floor(rng() * spec.cargoColors.length)] : GLASS;
+    c.colorIdx = Math.floor(rng() * spec.colors.length);
+    c.color = spec.colors[c.colorIdx];
+    c.color2Idx = spec.truck ? Math.floor(rng() * spec.cargoColors.length) : -1;
+    c.color2 = c.color2Idx >= 0 ? spec.cargoColors[c.color2Idx] : GLASS;
     c.s = c.prevS = s;
     c.d = c.prevD = d;
     c.yaw = c.prevYaw = 0;
@@ -419,10 +616,6 @@ export class Traffic {
     c.vd = 0;
     c.yawRate = 0;
     c.hit = false;
-    c.ovl = false;
-    c.ovlSign = 0;
-    c.minGap = Infinity;
-    c.splitDone = false;
     this.activeCount++;
     return c;
   }

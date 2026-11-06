@@ -12,6 +12,8 @@ import type { PlayerCar } from './vehicle';
  *  - touching a barrier kills the combo; hitting a car ends the run (score compared with best and reset).
  */
 export class Scoring {
+  /** Ring length when scoring on the online ring (distances wrap); Infinity on an open road. */
+  ringLen = Infinity;
   score = 0;
   best = 0;
   combo = 0;
@@ -23,7 +25,30 @@ export class Scoring {
   /** Seconds left in which contacts do not end the fresh run. */
   grace = 0;
 
+  // Per traffic car bookkeeping, indexed by car id and reset when the slot's generation changes. It lives
+  // here, not on the car, because online every driver scores the same cars on their own.
+  private gen = new Int32Array(0);
+  private ovl = new Uint8Array(0);
+  private ovlSign = new Int8Array(0);
+  private minGap = new Float64Array(0);
+  private splitDone = new Uint8Array(0);
+
   constructor(private readonly events: Emitter<SimEvents>) {}
+
+  private slots(n: number): void {
+    if (this.gen.length >= n) return;
+    this.gen = new Int32Array(n).fill(-1);
+    this.ovl = new Uint8Array(n);
+    this.ovlSign = new Int8Array(n);
+    this.minGap = new Float64Array(n).fill(Infinity);
+    this.splitDone = new Uint8Array(n);
+  }
+
+  private rel(a: number, b: number): number {
+    const x = a - b;
+    const L = this.ringLen;
+    return L === Infinity ? x : x - L * Math.round(x / L);
+  }
 
   resetRun(): void {
     this.score = 0;
@@ -62,39 +87,53 @@ export class Scoring {
     const pExt = p.halfExtentD();
     let splitL: TrafficCar | null = null;
     let splitR: TrafficCar | null = null;
+    this.slots(traffic.cars.length);
+    const { gen, ovl, ovlSign, minGap, splitDone } = this;
     for (const c of traffic.cars) {
       if (!c.active || c.crashed) continue;
-      const ds = c.s - p.s;
+      const i = c.id;
+      if (gen[i] !== c.gen) {
+        gen[i] = c.gen;
+        ovl[i] = 0;
+        ovlSign[i] = 0;
+        minGap[i] = Infinity;
+        splitDone[i] = 0;
+      }
+      const ds = this.rel(c.s, p.s);
+      if (ds > 40 || ds < -40) {
+        if (!ovl[i]) continue;
+      }
       const alongside = Math.abs(ds) < pHalfLen + c.spec.len / 2 + 0.5;
       const gap = Math.abs(c.d - p.d) - c.spec.wid / 2 - pExt;
       if (alongside) {
-        if (!c.ovl) {
-          c.ovl = true;
-          c.ovlSign = ds >= 0 ? 1 : -1;
-          c.minGap = gap;
-        } else if (gap < c.minGap) {
-          c.minGap = gap;
+        if (!ovl[i]) {
+          ovl[i] = 1;
+          ovlSign[i] = ds >= 0 ? 1 : -1;
+          minGap[i] = gap;
+        } else if (gap < minGap[i]) {
+          minGap[i] = gap;
         }
-        if (gap < t.splitGap && !c.splitDone) {
+        if (gap < t.splitGap && !splitDone[i]) {
           if (c.d < p.d) splitL = c;
           else splitR = c;
         }
-      } else if (c.ovl) {
-        c.ovl = false;
-        const passed = (ds >= 0 ? 1 : -1) !== c.ovlSign;
+      } else if (ovl[i]) {
+        ovl[i] = 0;
+        const passed = (ds >= 0 ? 1 : -1) !== ovlSign[i];
         const relKmh = Math.abs(p.vAlong - c.v) * 3.6;
-        if (passed && !c.hit && c.minGap < 2.5 && relKmh > 10) {
-          this.events.emit('passBy', { side: c.d > p.d ? 1 : -1, gap: Math.max(0, c.minGap), truck: c.spec.truck, relSpeed: relKmh / 3.6 });
+        const mg = minGap[i];
+        if (passed && !c.hit && mg < 2.5 && relKmh > 10) {
+          this.events.emit('passBy', { side: c.d > p.d ? 1 : -1, gap: Math.max(0, mg), truck: c.spec.truck, relSpeed: relKmh / 3.6 });
         }
-        if (passed && scoring && !c.hit && !p.onShoulder && c.minGap < t.nearGap && kmh >= t.minSpeedKmh && relKmh >= t.minRelKmh) {
-          this.nearMiss(c, Math.max(0, c.minGap), kmh, c.d > p.d ? 1 : -1);
+        if (passed && scoring && !c.hit && !p.onShoulder && mg < t.nearGap && kmh >= t.minSpeedKmh && relKmh >= t.minRelKmh) {
+          this.nearMiss(c, Math.max(0, mg), kmh, c.d > p.d ? 1 : -1);
         }
-        c.minGap = Infinity;
+        minGap[i] = Infinity;
       }
     }
     if (splitL && splitR && scoring && kmh >= t.minSpeedKmh && !p.onShoulder) {
-      splitL.splitDone = true;
-      splitR.splitDone = true;
+      splitDone[splitL.id] = 1;
+      splitDone[splitR.id] = 1;
       this.bumpCombo();
       const points = Math.round(t.splitPoints * clamp(kmh / 150, 1, 2.2) * this.mult);
       this.score += points;

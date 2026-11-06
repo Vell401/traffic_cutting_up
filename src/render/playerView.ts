@@ -16,8 +16,11 @@ export class PlayerView {
   private readonly tailMat = new THREE.MeshBasicMaterial({ color: TAIL_IDLE.clone() });
   private pitch = 0;
   private roll = 0;
+  private ghost = false;
+  private readonly mats: THREE.Material[] = [];
 
-  constructor(paint: number, shadowTex: THREE.Texture, length = 4.6, width = 1.9) {
+  /** headlight: the real spot light (the player's own car only; others get just the lamps). */
+  constructor(paint: number, shadowTex: THREE.Texture, length = 4.6, width = 1.9, headlight = true) {
     const L = length;
     const W = width;
     const paintMat = new THREE.MeshPhysicalMaterial({
@@ -79,9 +82,28 @@ export class PlayerView {
     this.headlight = new THREE.SpotLight(0xfff0d8, 900, 120, 0.42, 0.55, 2);
     this.headlight.position.set(0, 0.65, -L / 2);
     this.headlight.target.position.set(0, 0, -40);
-    this.root.add(this.headlight, this.headlight.target);
+    if (headlight) this.root.add(this.headlight, this.headlight.target);
 
     this.root.add(this.body);
+    this.root.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (m && !this.mats.includes(m)) this.mats.push(m);
+    });
+  }
+
+  /** Online spawn protection: the car is drawn see-through while traffic passes through it. */
+  setGhost(on: boolean): void {
+    if (on === this.ghost) return;
+    this.ghost = on;
+    for (const m of this.mats) {
+      const base = (m.userData.baseOpacity ??= m.opacity) as number;
+      const baseTransparent = (m.userData.baseTransparent ??= m.transparent) as boolean;
+      const baseDepthWrite = (m.userData.baseDepthWrite ??= m.depthWrite) as boolean;
+      m.transparent = on || baseTransparent;
+      m.opacity = on ? base * 0.35 : base;
+      m.depthWrite = on ? false : baseDepthWrite;
+      m.needsUpdate = true;
+    }
   }
 
   update(dt: number, car: PlayerCar, pos: THREE.Vector3, yaw: number): void {

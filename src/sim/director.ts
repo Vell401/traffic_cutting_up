@@ -60,6 +60,8 @@ export class Director {
   preset: TrafficPreset = 1;
   /** 0..1, grows with the distance of the current run. */
   intensity = 0;
+  /** Online: the server holds the difficulty here instead of ramping it with a run. */
+  fixedIntensity: number | null = null;
   runDist = 0;
   /** Relative spawn weight of each lane (a "hot" lane gets most of the traffic). */
   readonly laneBias = [1, 1, 1, 1];
@@ -72,13 +74,13 @@ export class Director {
 
   resetRun(): void {
     this.runDist = 0;
-    this.intensity = 0;
+    this.intensity = this.fixedIntensity ?? 0;
   }
 
   step(ds: number): void {
     if (ds <= 0) return;
     this.runDist += ds;
-    this.intensity = Math.min(1, this.runDist / RAMP_DIST);
+    this.intensity = this.fixedIntensity ?? Math.min(1, this.runDist / RAMP_DIST);
     this.modeLeft -= ds;
     if (this.modeLeft <= 0) this.nextMode();
   }

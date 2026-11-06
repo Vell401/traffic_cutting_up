@@ -25,6 +25,13 @@
       <div id="shoulder">SHOULDER · NO SCORE</div>
       <div id="modeTag"></div>
       <div id="banner"><div class="t"></div><div class="s"></div></div>
+      <div id="tags"></div>
+      <div id="board" hidden>
+        <div class="bh"><span>Online</span><span>заезд</span><span>рекорд</span></div>
+        <div id="boardRows"></div>
+        <div id="boardNet"></div>
+      </div>
+      <div id="feed"></div>
       <div class="speedo">
         <div class="rpm"><i id="rpmBar"></i></div>
         <div class="row">
@@ -35,8 +42,10 @@
       </div>
     </div>
 
+    <div id="netStatus"></div>
+
     <div id="start" class="overlay">
-      <button id="testBtn" class="corner-btn" title="Короткая трасса со всеми участками и режимами трафика">Test</button>
+      <button id="testBtn" class="corner-btn solo-only" title="Короткая трасса со всеми участками и режимами трафика">Test</button>
       <div class="card">
         <div class="kicker">Night highway · cut up</div>
         <h1>Traffic<br />Cutting Up</h1>
@@ -52,16 +61,28 @@
           <span><kbd>F1</kbd> метрики</span>
         </div>
         <div class="opts">
+          <span class="ol">Режим</span>
+          <div>
+            <div id="modeSeg" class="seg"></div>
+            <div id="modeDesc" class="odesc"></div>
+          </div>
+          <span class="ol online-only">Имя</span>
+          <div class="online-only">
+            <input id="nameInput" maxlength="16" spellcheck="false" autocomplete="nickname" placeholder="Driver" />
+            <div id="serverInfo" class="odesc"></div>
+          </div>
           <span class="ol">Физика</span>
           <div>
             <div id="physicsSeg" class="seg"></div>
             <div id="physicsDesc" class="odesc"></div>
           </div>
-          <span class="ol">Трафик</span>
-          <div>
+          <span class="ol solo-only">Трафик</span>
+          <div class="solo-only">
             <div id="trafficSeg" class="seg"></div>
             <div id="trafficDesc" class="odesc"></div>
           </div>
+          <span class="ol online-only">Трафик</span>
+          <div class="online-only"><div class="odesc flat">Общий для всех на сервере: плотность и режимы задаёт сервер</div></div>
           <span class="ol">Графика</span>
           <div>
             <div class="seg">
@@ -70,7 +91,8 @@
             </div>
           </div>
         </div>
-        <button id="startBtn">Поехали <span>Enter</span></button>
+        <div id="onlineMsg" class="online-only"></div>
+        <button id="startBtn"><em class="solo-only">Поехали</em><em class="online-only">Подключиться</em> <span>Enter</span></button>
       </div>
     </div>
 
@@ -84,9 +106,9 @@
 
     <div id="pause" class="overlay hidden">
       <div class="card small">
-        <h2>Пауза</h2>
-        <p class="tag">P или Esc — продолжить</p>
-        <button id="menuBtn" class="ghost-btn">Выйти в меню</button>
+        <h2><span class="solo-only">Пауза</span><span class="online-only">Меню</span></h2>
+        <p class="tag"><span class="solo-only">P или Esc — продолжить</span><span class="online-only">Мир не останавливается: машина катится без газа. P или Esc — назад</span></p>
+        <button id="menuBtn" class="ghost-btn"><span class="solo-only">Выйти в меню</span><span class="online-only">Выйти из онлайна</span></button>
       </div>
     </div>
 

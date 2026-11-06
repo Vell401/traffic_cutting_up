@@ -67,6 +67,79 @@ export class PlayerCar {
   wallImpact = 0;
   protected wallFreeT = WALL_REHIT;
   protected lastWallSide = 0;
+  /** Online spawn protection: traffic ignores the car and contacts are off. Not part of the physics state. */
+  ghost = false;
+
+  /**
+   * Every value step() carries from one call to the next, in a fixed order: the server sends it so a
+   * client can rewind its predicted car to the confirmed state and replay its newer inputs. Returns
+   * the index after the last value written.
+   */
+  saveState(out: Float64Array, o = 0): number {
+    out[o++] = this.s;
+    out[o++] = this.d;
+    out[o++] = this.psi;
+    out[o++] = this.vx;
+    out[o++] = this.vy;
+    out[o++] = this.r;
+    out[o++] = this.prevS;
+    out[o++] = this.prevD;
+    out[o++] = this.prevPsi;
+    out[o++] = this.steerIn;
+    out[o++] = this.steerAngle;
+    out[o++] = this.steerHold;
+    out[o++] = this.throttle;
+    out[o++] = this.brake;
+    out[o++] = this.gear;
+    out[o++] = this.rpm;
+    out[o++] = this.shiftT;
+    out[o++] = this.accLong;
+    out[o++] = this.accLat;
+    out[o++] = this.wheelSpin;
+    out[o++] = this.onShoulder ? 1 : 0;
+    out[o++] = this.wallSide;
+    out[o++] = this.wallHit ? 1 : 0;
+    out[o++] = this.wallImpact;
+    out[o++] = this.wallFreeT;
+    out[o++] = this.lastWallSide;
+    return o;
+  }
+
+  /** Inverse of saveState(). Returns the index after the last value read. */
+  loadState(src: ArrayLike<number>, o = 0): number {
+    this.s = src[o++];
+    this.d = src[o++];
+    this.psi = src[o++];
+    this.vx = src[o++];
+    this.vy = src[o++];
+    this.r = src[o++];
+    this.prevS = src[o++];
+    this.prevD = src[o++];
+    this.prevPsi = src[o++];
+    this.steerIn = src[o++];
+    this.steerAngle = src[o++];
+    this.steerHold = src[o++];
+    this.throttle = src[o++];
+    this.brake = src[o++];
+    this.gear = src[o++];
+    this.rpm = src[o++];
+    this.shiftT = src[o++];
+    this.accLong = src[o++];
+    this.accLat = src[o++];
+    this.wheelSpin = src[o++];
+    this.onShoulder = src[o++] !== 0;
+    this.wallSide = src[o++];
+    this.wallHit = src[o++] !== 0;
+    this.wallImpact = src[o++];
+    this.wallFreeT = src[o++];
+    this.lastWallSide = src[o++];
+    return o;
+  }
+
+  /** Number of values saveState() writes. */
+  get stateSize(): number {
+    return 26;
+  }
 
   reset(s: number, d: number, speed: number): void {
     this.s = this.prevS = s;

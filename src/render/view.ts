@@ -42,6 +42,12 @@ export class View {
   private oz = 0;
   private time = 0;
   private warmedUp = false;
+  /** Online: other drivers' cars (id → view, with the paint it was built with). */
+  private readonly remoteViews = new Map<number, { view: PlayerView; color: number; frame: number }>();
+  private frame = 0;
+  private readonly shadowTex: THREE.Texture;
+  private readonly v3 = new THREE.Vector3();
+  private readonly ptRemote: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -71,6 +77,7 @@ export class View {
     pmrem.dispose();
 
     const shadowTex = makeRadialTexture(64, 1.2);
+    this.shadowTex = shadowTex;
     this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy());
     this.playerView = new PlayerView(0x1f4fd8, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.trafficView = new TrafficView(shadowTex);
@@ -114,9 +121,11 @@ export class View {
     const p = sim.player;
     this.time += dt;
 
-    const s = lerp(p.prevS, p.s, alpha);
-    const d = lerp(p.prevD, p.d, alpha);
-    const psi = lerp(p.prevPsi, p.psi, alpha);
+    // Online: sim.visual carries the remainder of a server correction, gliding out.
+    const vis = sim.visual;
+    const s = lerp(p.prevS, p.s, alpha) + vis.ds;
+    const d = lerp(p.prevD, p.d, alpha) + vis.dd;
+    const psi = lerp(p.prevPsi, p.psi, alpha) + vis.dpsi;
     sim.road.toWorld(s, d, this.pt);
     if (Math.abs(this.pt.x - this.ox) > ORIGIN_SHIFT || Math.abs(this.pt.z - this.oz) > ORIGIN_SHIFT) {
       this.ox = Math.round(this.pt.x);
@@ -126,6 +135,8 @@ export class View {
     this.carPos.set(this.pt.x - this.ox, 0, this.pt.z - this.oz);
 
     this.playerView.update(dt, p, this.carPos, yaw);
+    this.playerView.setGhost(p.ghost);
+    if (sim.remotes.length > 0 || this.remoteViews.size > 0) this.updateRemotes(alpha, dt, s);
     this.carYaw = yaw;
     this.carWorldX = this.pt.x;
     this.carWorldZ = this.pt.z;
@@ -142,6 +153,55 @@ export class View {
     if (!this.warmedUp) this.warmUp();
     this.renderer.info.reset();
     this.post.render(dt, p.vAlong * 3.6);
+  }
+
+  /** Other online drivers: interpolated like our car, drawn while within sight of the road we draw. */
+  private updateRemotes(alpha: number, dt: number, ownS: number): void {
+    const sim = this.sim;
+    const frame = ++this.frame;
+    for (const r of sim.remotes) {
+      let entry = this.remoteViews.get(r.id);
+      if (entry && entry.color !== r.color) {
+        this.scene.remove(entry.view.root);
+        entry = undefined;
+      }
+      if (!entry) {
+        const view = new PlayerView(r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, false);
+        this.scene.add(view.root);
+        entry = { view, color: r.color, frame };
+        this.remoteViews.set(r.id, entry);
+      }
+      entry.frame = frame;
+      const c = r.car;
+      const s = lerp(c.prevS, c.s, alpha);
+      const near = r.visible && s > ownS - 400 && s < ownS + 1300;
+      entry.view.root.visible = near;
+      if (!near) continue;
+      const d = lerp(c.prevD, c.d, alpha);
+      const psi = lerp(c.prevPsi, c.psi, alpha);
+      sim.road.toWorld(s, d, this.ptRemote);
+      this.v3.set(this.ptRemote.x - this.ox, 0, this.ptRemote.z - this.oz);
+      entry.view.update(dt, c, this.v3, this.ptRemote.th + psi);
+      entry.view.setGhost(c.ghost);
+    }
+    for (const [id, entry] of this.remoteViews) {
+      if (entry.frame === frame) continue;
+      this.scene.remove(entry.view.root);
+      this.remoteViews.delete(id);
+    }
+  }
+
+  /** Screen position (CSS px) of a name tag above another driver's car; false when not on screen. */
+  remoteTag(id: number, out: { x: number; y: number; dist: number }): boolean {
+    const entry = this.remoteViews.get(id);
+    if (!entry || !entry.view.root.visible) return false;
+    const pos = entry.view.root.position;
+    out.dist = pos.distanceTo(this.carPos);
+    this.v3.set(pos.x, 2.1, pos.z).project(this.camera);
+    if (this.v3.z > 1 || this.v3.x < -1.1 || this.v3.x > 1.1 || this.v3.y < -1.1 || this.v3.y > 1.1) return false;
+    out.x = (this.v3.x * 0.5 + 0.5) * window.innerWidth;
+    out.y = (-this.v3.y * 0.5 + 0.5) * window.innerHeight;
+    return true;
   }
 
   /** After a teleport: no camera swing from the old heading. */

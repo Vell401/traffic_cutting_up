@@ -1,12 +1,13 @@
 import { laneCenter } from '../config';
 import { Emitter } from '../core/events';
 import type { Rng } from '../core/rng';
-import { obbOverlap, type Contact, type OBB } from './collision';
+import { Contacts, type Hit } from './contact';
 import { Director } from './director';
 import type { SimEvents } from './events';
+import { ringScript } from './ring';
 import { Road, type RoadScript } from './road';
 import { Scoring } from './scoring';
-import { Traffic, type TrafficCar } from './traffic';
+import { Traffic } from './traffic';
 import { createCar, type PhysicsId } from './physics';
 import type { DriveInput, PlayerCar } from './vehicle';
 import { clamp } from '../core/math';
@@ -22,6 +23,22 @@ export interface SimOptions {
   track?: RoadScript;
   /** Car physics variant (start menu). */
   physics?: PhysicsId;
+  /**
+   * Online client: the shared 12 km ring, no local traffic. The network code drives the player car,
+   * the traffic cars and the other drivers; step() only runs for the menu's attract mode.
+   */
+  online?: boolean;
+}
+
+/** Another online driver, as this client draws it. */
+export interface RemoteDriver {
+  id: number;
+  name: string;
+  /** Body paint. */
+  color: number;
+  /** Display state only (never stepped): s is in this client's road frame. */
+  car: PlayerCar;
+  visible: boolean;
 }
 
 /** Whole simulation: pure TS, no rendering. Stepped at a fixed rate by the game loop. */
@@ -33,10 +50,17 @@ export class Sim {
   readonly score: Scoring;
   readonly director: Director;
   time = 0;
+  /** Online: the other drivers (empty in single player). */
+  readonly remotes: RemoteDriver[] = [];
+  /**
+   * Online: offset of the drawn car from the simulated one. When a server correction moves the predicted
+   * car, the offset takes the jump and decays, so the car glides to the corrected spot.
+   */
+  readonly visual = { ds: 0, dd: 0, dpsi: 0 };
+  readonly online: boolean;
 
-  private readonly boxA: OBB = { x: 0, y: 0, hx: 0, hy: 0, rot: 0 };
-  private readonly boxB: OBB = { x: 0, y: 0, hx: 0, hy: 0, rot: 0 };
-  private readonly contact: Contact = { nx: 0, ny: 0, depth: 0 };
+  private readonly drivers: PlayerCar[] = [];
+  private readonly contacts: Contacts;
 
   /** The car has been stopped at the end of a finite track. */
   trackEnded = false;
@@ -45,16 +69,20 @@ export class Sim {
     private readonly rng: Rng = Math.random,
     options: SimOptions = {},
   ) {
+    this.online = !!options.online;
     this.player = createCar(options.physics ?? 1);
-    this.road = new Road(rng, options.track);
+    this.drivers.push(this.player);
+    this.road = new Road(rng, this.online ? ringScript() : options.track);
     this.director = new Director(rng, this.events);
     this.traffic = new Traffic(rng, this.director);
     this.score = new Scoring(this.events);
+    this.contacts = new Contacts(rng);
     this.events.on('runEnd', () => this.director.resetRun());
     const start = options.track ? SHOWCASE_START_S : START_S;
     this.player.reset(start, laneCenter(1), (options.track ? 160 : 100) / 3.6);
     this.road.ensure(start - 300, start + 1700);
-    this.traffic.reset(this.player);
+    if (this.online) this.traffic.enabled = false;
+    this.traffic.reset(this.drivers);
   }
 
   /** Swap in a finite showcase track and put the car at its start. */
@@ -75,6 +103,7 @@ export class Sim {
     car.reset(old.s, old.d, Math.max(old.vAlong, 0));
     car.psi = car.prevPsi = old.psi;
     this.player = car;
+    this.drivers[0] = car;
   }
 
   /** Put the car back on a lane at the current spot. Counts as the end of the run. */
@@ -97,8 +126,8 @@ export class Sim {
       this.events.emit('wallHit', { speed: p.wallImpact });
       this.score.onWall();
     }
-    this.traffic.step(dt, p);
-    this.collide();
+    this.traffic.step(dt, this.drivers);
+    this.contacts.collide(p, this.traffic.cars, this.onHit);
     this.score.step(dt, p, this.traffic);
   }
 
@@ -125,84 +154,9 @@ export class Sim {
     return this.endInput;
   }
 
-  private collide(): void {
-    const p = this.player;
-    const A = this.boxA;
-    A.x = 0;
-    A.y = p.d;
-    A.hx = p.tune.length / 2;
-    A.hy = p.tune.width / 2;
-    A.rot = p.psi;
-    const B = this.boxB;
-    for (const c of this.traffic.cars) {
-      if (!c.active) continue;
-      const ds = c.s - p.s;
-      if (Math.abs(ds) > 12) continue;
-      B.x = ds;
-      B.y = c.d;
-      B.hx = c.spec.len / 2;
-      B.hy = c.spec.wid / 2;
-      B.rot = c.yaw;
-      if (obbOverlap(A, B, this.contact)) {
-        this.resolve(c);
-        A.y = p.d;
-      }
-    }
-  }
-
-  /** Impulse response in the road plane (x along, y across). The hit car turns into a wreck. */
-  private resolve(c: TrafficCar): void {
-    const p = this.player;
-    const n = this.contact;
-    const m1 = p.tune.mass;
-    const m2 = c.spec.mass;
-    const w1 = m2 / (m1 + m2);
-    const w2 = m1 / (m1 + m2);
-
-    p.s -= n.nx * n.depth * w1;
-    p.d -= n.ny * n.depth * w1;
-    c.s += n.nx * n.depth * w2;
-    c.d += n.ny * n.depth * w2;
-
-    let pA = p.vAlong;
-    let pL = p.vLat;
-    const cA = c.v;
-    const cL = c.crashed ? c.vd : Math.tan(c.yaw) * c.v;
-    const rel = (pA - cA) * n.nx + (pL - cL) * n.ny;
-    let newCA = cA;
-    let newCL = cL;
-
-    if (rel > 0) {
-      const j = (1.25 * rel) / (1 / m1 + 1 / m2);
-      pA -= (j * n.nx) / m1;
-      pL -= (j * n.ny) / m1;
-      newCA = cA + (j * n.nx) / m2;
-      newCL = cL + (j * n.ny) / m2;
-
-      // Off-centre contact spins both cars. Contact point ≈ midway between the centres.
-      const rx = (c.s - p.s) * 0.5;
-      const ry = (c.d - p.d) * 0.5;
-      const Jx = -j * n.nx;
-      const Jy = -j * n.ny;
-      p.r += (rx * Jy - ry * Jx) / (m1 * p.tune.cgToFront * p.tune.cgToRear);
-      p.setRoadVelocity(pA, pL);
-
-      const Ic = (m2 * c.spec.len * c.spec.len) / 12;
-      c.yawRate += (-rx * -Jy - -ry * -Jx) / Ic + (this.rng() - 0.5) * 0.4;
-    }
-
-    if (!c.crashed) {
-      c.crashed = true;
-      c.crashT = 0;
-      c.laneT = -1;
-    }
-    c.v = Math.max(0, newCA);
-    c.vd = newCL;
-
-    if (!c.hit) {
-      c.hit = true;
-      this.events.emit('crash', { speed: Math.max(rel, 0) });
-      this.score.onCrash();
-    }
-  }
+  private readonly onHit = (h: Hit): void => {
+    if (!h.first) return;
+    this.events.emit('crash', { speed: h.speed });
+    this.score.onCrash();
+  };
 }

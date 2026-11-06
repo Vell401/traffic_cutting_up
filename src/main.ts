@@ -6,13 +6,16 @@ import { clamp } from './core/math';
 import { View } from './render/view';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
-import { PHYSICS } from './sim/physics';
+import { PHYSICS, type PhysicsId } from './sim/physics';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
+import { conditionsFromUrl, healthUrl, serverUrl } from './online/link';
+import { OnlineSession } from './online/session';
 import type { Debug } from './ui/debug';
-import { QUALITY, loadPhysics, loadQuality, loadTraffic, savePhysics, saveQuality, saveTraffic, type Quality } from './settings';
+import { QUALITY, loadName, loadPhysics, loadQuality, loadTraffic, saveName, savePhysics, saveQuality, saveTraffic, type Quality } from './settings';
 import { Hud } from './ui/hud';
 import { Metrics } from './ui/metrics';
+import { OnlineHud } from './ui/onlineHud';
 
 const BEST_KEY = 'tcu.best.v1';
 const loadBest = (): number => {
@@ -34,10 +37,12 @@ const canvas = document.getElementById('c') as HTMLCanvasElement;
 const params = new URLSearchParams(location.search);
 /** ?test: short finite showcase tracks picked from a side panel; no records saved. */
 const TEST = params.has('test');
+/** ?online: the shared ring on the game server (its own page lifecycle: leaving reloads the page). */
+const ONLINE = params.has('online') && !TEST;
 let showcase = 0;
-const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadPhysics() });
+const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadPhysics(), online: ONLINE });
 sim.director.preset = loadTraffic();
-sim.score.best = loadBest();
+sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
 const quality = loadQuality();
 const view = new View(canvas, sim, QUALITY[quality]);
@@ -56,29 +61,129 @@ const startEl = document.getElementById('start')!;
 const pauseEl = document.getElementById('pause')!;
 
 sim.events.on('runEnd', (e) => {
-  if (e.newBest && !TEST) saveBest(e.best);
+  if (e.newBest && !TEST && !ONLINE) saveBest(e.best);
 });
 
 function start(): void {
   if (state !== 'menu') return;
-  state = 'play';
-  document.body.classList.remove('menu');
-  startEl.classList.add('hidden');
+  if (ONLINE) {
+    startOnline();
+    return;
+  }
+  enterPlay();
   sim.score.resetRun();
   sim.score.grace = 0;
 }
 
+function enterPlay(): void {
+  state = 'play';
+  document.body.classList.remove('menu');
+  startEl.classList.add('hidden');
+}
+
+/** Online the world never stops: P / Esc only show the menu card while the car rolls on without input. */
+let onlineMenu = false;
 function setPaused(paused: boolean): void {
   if (state === 'menu') return;
+  if (ONLINE) {
+    onlineMenu = paused;
+    pauseEl.classList.toggle('hidden', !paused);
+    return;
+  }
   state = paused ? 'pause' : 'play';
   pauseEl.classList.toggle('hidden', !paused);
   sound.setPaused(paused);
+}
+
+// ---------------------------------------------------------------- online
+
+const onlineMsg = document.getElementById('onlineMsg')!;
+const nameInput = document.getElementById('nameInput') as HTMLInputElement;
+let session: OnlineSession | null = null;
+let onlineHud: OnlineHud | null = null;
+
+function menuMessage(text: string, bad = false): void {
+  onlineMsg.textContent = text;
+  onlineMsg.classList.toggle('bad', bad);
+}
+
+function startOnline(): void {
+  if (session && session.state !== 'failed') return;
+  const name = nameInput.value.trim().slice(0, 16) || 'Driver';
+  saveName(name);
+  nameInput.blur();
+  const ohud = (onlineHud ??= new OnlineHud(sim));
+  metrics.net = () => {
+    const st = session?.core.stats;
+    if (!st) return '';
+    return `net  ping ${st.rtt.toFixed(0)} ms  ahead ${st.horizon} steps  srv queue ${st.queue}  corrections ${st.corrections} (last ${(st.lastCorrection * 100).toFixed(1)} cm, max ${(st.maxCorrection * 100).toFixed(1)} cm)  in ${(st.bytesIn / 1024).toFixed(0)} kB`;
+  };
+  session = new OnlineSession(sim, serverUrl(params), conditionsFromUrl(params), {
+    onState: (st, text) => {
+      if (st === 'joined') {
+        ohud.setMe(session!.core.id);
+        ohud.setStatus('');
+        menuMessage('');
+        if (state === 'menu') enterPlay();
+      } else if (st === 'connecting') {
+        menuMessage(text);
+      } else if (st === 'reconnecting') {
+        ohud.setStatus(text, true);
+      } else if (st === 'failed') {
+        ohud.setStatus('');
+        menuMessage(text, true);
+        if (state !== 'menu') {
+          // Back to the menu card; the car stays where the server left it.
+          state = 'menu';
+          onlineMenu = false;
+          pauseEl.classList.add('hidden');
+          document.body.classList.add('menu');
+          startEl.classList.remove('hidden');
+        }
+      }
+    },
+    onPlayers: (list) => ohud.players(list),
+    onFeed: (text) => ohud.addFeed(text),
+    onTeleport: () => view.snapCamera(),
+  });
+  session.start(name, sim.player.physicsId as PhysicsId);
+  if (import.meta.env.DEV) Object.assign((window as unknown as { __game: object }).__game, { session });
+}
+
+/** Menu line under the name field: is the server up, how many are driving. */
+async function probeServer(): Promise<void> {
+  const info = document.getElementById('serverInfo')!;
+  const url = serverUrl(params);
+  info.textContent = `Сервер ${url.replace(/^wss?:\/\//, '')} …`;
+  try {
+    const res = await fetch(healthUrl(url), { cache: 'no-store' });
+    const h = (await res.json()) as { players: number; drivers: unknown[] };
+    info.textContent = `Сервер на связи · на трассе ${h.players}`;
+  } catch {
+    info.textContent = 'Сервер не отвечает (npm run server)';
+  }
+}
+
+if (ONLINE) {
+  document.body.classList.add('online');
+  nameInput.value = loadName();
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.code === 'Enter') start();
+    e.stopPropagation(); // typing a name must not drive, pause or switch cameras
+  });
+  nameInput.addEventListener('keyup', (e) => e.stopPropagation());
+  void probeServer();
 }
 
 let debug: Debug | null = null;
 let debugOn = false;
 let debugLoading = false;
 async function toggleDebug(): Promise<void> {
+  if (ONLINE) {
+    // Live tuning would make our prediction disagree with the server's physics.
+    hud.tag('ТЮНИНГ ТОЛЬКО В ОДИНОЧНОМ РЕЖИМЕ');
+    return;
+  }
   debugOn = !debugOn;
   if (!debug && !debugLoading) {
     debugLoading = true;
@@ -97,9 +202,10 @@ input.onPress = (code) => {
   else if (code === 'KeyC') hud.tag(`CAMERA · ${view.cycleCamera().toUpperCase()}`);
   else if (code === 'KeyM') hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
   else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
-  else if (code === 'KeyP' || code === 'Escape') setPaused(state === 'play');
+  else if (code === 'KeyP' || code === 'Escape') setPaused(ONLINE ? !onlineMenu : state === 'play');
   else if (code === 'KeyR' && state === 'play') {
-    if (TEST) loadShowcase(showcase);
+    if (ONLINE) session?.requestRespawn();
+    else if (TEST) loadShowcase(showcase);
     else sim.respawn();
   } else if (TEST && state === 'play' && /^Digit[0-9]$/.test(code)) {
     const i = (Number(code.slice(5)) + 9) % 10; // 1..9, 0 = tenth
@@ -155,7 +261,19 @@ document.getElementById('testBtn')!.addEventListener('click', () => {
   location.search = '?test';
 });
 document.getElementById('menuBtn')!.addEventListener('click', () => {
+  if (ONLINE) {
+    session?.leave();
+    location.href = `${location.pathname}?online`;
+    return;
+  }
   location.href = location.pathname;
+});
+// Mode: single player and online are separate pages (online keeps its own sim, ring and lifecycle).
+choice('modeSeg', 'modeDesc', [
+  { id: 1, name: 'Одиночный', desc: 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
+  { id: 2, name: 'Онлайн', desc: 'Общее кольцо 12 км и общий трафик с другими игроками на сервере' },
+] as const, ONLINE ? 2 : 1, (id) => {
+  if ((id === 2) !== ONLINE) location.search = id === 2 ? '?online' : '';
 });
 // ---------------------------------------------------------------- test panel
 
@@ -218,8 +336,12 @@ if (TEST) {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state === 'play') setPaused(true);
+  // Online the server takes a hidden tab's car off the road and puts it back on return.
+  if (document.hidden && state === 'play' && !ONLINE) setPaused(true);
 });
+
+/** Online menu card open: no pedals, no steering (the car rolls on). */
+const NEUTRAL: DriveInput = { steer: 0, throttle: 0, brake: 0 };
 
 /** Menu background: keep the lane, cruise at ~105 km/h, follow the car ahead. */
 const auto: DriveInput = { steer: 0, throttle: 0, brake: 0 };
@@ -253,7 +375,21 @@ view.renderer.setAnimationLoop((now: number) => {
   input.poll();
   const t0 = performance.now();
   let n = 0;
-  if (state !== 'pause') {
+  if (session && session.core.ready && state !== 'menu') {
+    // Online: our car is predicted step by step; the server confirms (and corrects) it. The world
+    // runs in real time, so a slow frame is caught up further than offline (up to 0.25 s).
+    acc += Math.min(frameMs / 1000, 0.25);
+    while (acc >= STEP && n < 30) {
+      session.step(onlineMenu ? NEUTRAL : input.drive);
+      acc -= STEP;
+      n++;
+    }
+    if (n === 30) acc = 0;
+    session.frame(dt);
+  } else if (session && state !== 'menu') {
+    // Joined, first snapshot on its way: nothing to step yet.
+    acc = 0;
+  } else if (state !== 'pause') {
     acc += dt;
     while (acc >= STEP && n < 12) {
       sim.step(STEP, state === 'play' ? input.drive : autopilot());
@@ -269,6 +405,7 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);
+  if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);
   if (TEST && state === 'play') announceSection();

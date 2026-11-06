@@ -215,6 +215,48 @@ export class DriftCar extends PlayerCar {
     super(driftTune);
   }
 
+  override saveState(out: Float64Array, o = 0): number {
+    o = super.saveState(out, o);
+    out[o++] = this.omegaR;
+    out[o++] = this.omegaF;
+    out[o++] = this.slipRear;
+    out[o++] = this.slipAngleRear;
+    out[o++] = this.esc;
+    out[o++] = this.escCmd;
+    out[o++] = this.axLag;
+    out[o++] = this.ayLag;
+    out[o++] = this.driveTq;
+    out[o++] = this.dragTq;
+    out[o++] = this.inertiaR;
+    out[o++] = this.cosD;
+    out[o++] = this.sinD;
+    out[o++] = this.innerGrip;
+    return o;
+  }
+
+  override loadState(src: ArrayLike<number>, o = 0): number {
+    o = super.loadState(src, o);
+    this.omegaR = src[o++];
+    this.omegaF = src[o++];
+    this.slipRear = src[o++];
+    this.slipAngleRear = src[o++];
+    this.esc = src[o++];
+    this.escCmd = src[o++];
+    this.axLag = src[o++];
+    this.ayLag = src[o++];
+    this.driveTq = src[o++];
+    this.dragTq = src[o++];
+    this.inertiaR = src[o++];
+    this.cosD = src[o++];
+    this.sinD = src[o++];
+    this.innerGrip = src[o++];
+    return o;
+  }
+
+  override get stateSize(): number {
+    return super.stateSize + 14;
+  }
+
   override reset(s: number, d: number, speed: number): void {
     super.reset(s, d, speed);
     const t = this.tune;

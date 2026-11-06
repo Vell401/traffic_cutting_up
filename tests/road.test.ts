@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../src/core/rng';
 import { CHUNK_LEN, CHUNK_SAMPLES, GROUND_LEVEL, MIN_RADIUS, Road, SAMPLE_DS } from '../src/sim/road';
 import { SHOWCASES } from '../src/sim/testTrack';
+import { RING_LEN, ringScript } from '../src/sim/ring';
 
 describe('Road', () => {
   const road = new Road(mulberry32(7));
@@ -136,5 +137,58 @@ describe('Road', () => {
       }
     }
     expect(bridges).toBeGreaterThan(0);
+  });
+});
+
+describe('Online ring', () => {
+  const ring = new Road(mulberry32(3), ringScript());
+  const L = ring.ringLen;
+  const a = { x: 0, z: 0, th: 0, k: 0 };
+  const b = { x: 0, z: 0, th: 0, k: 0 };
+
+  it('is a 12 km lap that closes on itself', () => {
+    expect(L).toBe(RING_LEN);
+    expect(L).toBe(12_000);
+    for (let s = -500; s < L + 500; s += 37.7) {
+      ring.sample(s, a);
+      ring.sample(s + L, b);
+      expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeLessThan(1e-9);
+      expect(b.k).toBeCloseTo(a.k, 15);
+      expect(b.th - a.th).toBeCloseTo(2 * Math.PI, 9);
+    }
+    // No step at the seam.
+    ring.sample(L - 0.5, a);
+    ring.sample(L + 0.5, b);
+    expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeCloseTo(1, 4);
+  });
+
+  it('keeps to gentle curves and the bridge rule', () => {
+    let maxK = 0;
+    for (let s = 0; s < L; s += 2) maxK = Math.max(maxK, Math.abs(ring.curvature(s)));
+    expect(1 / maxK).toBeGreaterThan(MIN_RADIUS);
+    ring.ensure(0, L);
+    for (const c of ring.chunks) {
+      if (c.kind === 'bridge') {
+        expect(['bridge', 'viaduct']).toContain(c.prevKind);
+        expect(['bridge', 'viaduct']).toContain(c.nextKind);
+      }
+    }
+  });
+
+  it('draws the same lap every time round, and can be entered anywhere', () => {
+    const grab = (s: number) => {
+      ring.ensure(s - 300, s + 1700);
+      const c = ring.chunkAt(s);
+      return { kind: c.kind, seed: c.seed, x: [...c.x], index: c.index };
+    };
+    const lap0 = grab(1000);
+    const lap5 = grab(5 * L + 1000);
+    const back = grab(-L + 1000);
+    expect(lap5.index).toBe(lap0.index + 5 * (L / CHUNK_LEN));
+    for (const other of [lap5, back]) {
+      expect(other.kind).toBe(lap0.kind);
+      expect(other.seed).toBe(lap0.seed);
+      expect(other.x).toEqual(lap0.x);
+    }
   });
 });

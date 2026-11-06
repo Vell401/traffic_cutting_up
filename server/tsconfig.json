@@ -1,0 +1,24 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "./**/*.ts",
+    "../src/online/**/*.ts",
+    "../src/sim/**/*.ts",
+    "../src/core/math.ts",
+    "../src/core/rng.ts",
+    "../src/core/events.ts",
+    "../src/config.ts"
+  ],
+  "exclude": [
+    "../src/online/link.ts",
+    "../src/online/session.ts"
+  ]
+}

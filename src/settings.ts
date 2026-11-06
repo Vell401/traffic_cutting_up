@@ -58,3 +58,20 @@ export const loadPhysics = (): 1 | 2 => loadChoice('tcu.physics', [1, 2] as cons
 export const savePhysics = (v: 1 | 2): void => saveChoice('tcu.physics', v);
 export const loadTraffic = (): 1 | 2 => loadChoice('tcu.traffic', [1, 2] as const, 1);
 export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);
+
+/** Online driver name. */
+export function loadName(): string {
+  try {
+    return localStorage.getItem('tcu.name') ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveName(name: string): void {
+  try {
+    localStorage.setItem('tcu.name', name);
+  } catch {
+    /* storage unavailable */
+  }
+}

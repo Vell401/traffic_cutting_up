@@ -68,6 +68,8 @@ const blank = (): Window => ({ frames: 0, frameMs: 0, frameMax: 0, simMs: 0, ren
  */
 export class Metrics {
   visible = false;
+  /** Online: one more line with the netcode numbers. */
+  net: (() => string) | null = null;
   /** Disable GPU queries while stats-gl is open: it runs its own and timer queries cannot nest. */
   gpuAllowed = true;
   private readonly el: HTMLPreElement;
@@ -148,6 +150,7 @@ export class Metrics {
       `traffic ${sim.traffic.activeCount}/${sim.traffic.targetCount()}  mode ${d.mode}  difficulty ${(d.intensity * 100).toFixed(0)}%`,
       `road ${(p.s / 1000).toFixed(2)} km  ${c.kind}/${c.light}  chunks ${sim.road.chunks.length}`,
       `car ${(p.vAlong * 3.6).toFixed(0)} km/h  gear ${p.gear}  ${p.rpm.toFixed(0)} rpm  d ${p.d.toFixed(2)} m  ψ ${((p.psi * 180) / Math.PI).toFixed(1)}°`,
+      ...(this.net ? [this.net()] : []),
     ].join('\n');
   }
 }

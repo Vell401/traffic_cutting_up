@@ -1,0 +1,36 @@
+# systemd unit for the game server.
+#   sudo cp deploy/traffic-server.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now traffic-server
+#   journalctl -u traffic-server -f
+# Log size is bounded by journald (SystemMaxUse= in /etc/systemd/journald.conf) and by the server itself
+# (at most 50 lines per 10 s).
+[Unit]
+Description=Traffic Cutting Up game server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=traffic
+WorkingDirectory=/opt/traffic
+ExecStart=/usr/bin/node dist-server/main.js
+Environment=NODE_ENV=production
+Environment=PORT=8787
+Environment=HOST=127.0.0.1
+Environment=ORIGINS=https://traffic.example.com
+Environment=MAX_PLAYERS=5
+Environment=LOG_EVERY=60
+# Environment=JOURNAL_DIR=/opt/traffic/sessions
+Restart=always
+RestartSec=2
+# Memory guard: the server runs at ~60-100 MB; anything near this is a leak and gets restarted.
+MemoryMax=400M
+# Hardening.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/traffic/sessions
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
