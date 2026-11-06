@@ -50,7 +50,7 @@ npm run build      # typecheck + production-сборка в dist/
 npm run server     # игровой сервер на :8787 (dev-сайт проксирует к нему /ws и /health)
 npm run bot        # 2 бота-водителя на локальный сервер
 npm run netcheck   # отчёт о качестве езды при задержках 0–150 мс, джиттере, низком FPS, авариях
-npm run build:server  # dist-server/main.js для VPS (см. docs/online.md и deploy/)
+npm run build:server  # dist-server/main.js для VPS; продакшен: пуш в main сам выкатывается на VPS (docs/deploy.md)
 ```
 
 ## Управление
@@ -88,7 +88,7 @@ src/
   render/car/    машины игроков: R34 (кузов из сечений, ливрея, салон, приборы), колёса, камеры каждой машины
   ui/            HUD, онлайн-таблица и панель тюнинга
 server/          Node: HTTP /health + WebSocket /ws, цикл 120 Гц
-deploy/          systemd, Caddy, nginx для VPS
+deploy/          деплой: Docker (Caddy + игра), скрипты VPS и раннера; systemd/nginx — вариант без Docker
 scripts/         боты и отчёт о качестве сети
 tests/           vitest (в т.ч. онлайн-сессия через имитацию сети)
 ```

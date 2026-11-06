@@ -1,0 +1,24 @@
+# HTTPS in front of the game: the static site from /srv, the WebSocket and /health to the game
+# container. There is no domain yet: the certificate is self-signed for the server's IP (deploy.sh
+# makes it once), so a browser asks to accept it the first time.
+{
+	# Browsers send no SNI when the address is an IP: serve this site's certificate anyway.
+	default_sni {$SITE_ADDRESS}
+	admin off
+}
+
+{$SITE_ADDRESS} {
+	tls /certs/cert.pem /certs/key.pem
+	encode zstd gzip
+
+	@game path /ws /health
+	reverse_proxy @game game:8787
+
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@page path / /index.html
+	header @page Cache-Control "no-cache"
+
+	root * /srv
+	file_server
+}

@@ -1,0 +1,32 @@
+# Every push to main is built, tested and deployed on the VPS by the self-hosted runner there
+# (registered with deploy/runner-register.sh). The image build runs the typecheck and the tests,
+# so a broken commit never replaces the running game.
+#
+# The repository is public: this runner must only ever take pushes to main. Never give it a
+# pull_request trigger (a fork's pull request could run its own code on the server).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits for the running one instead of cancelling it midway.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, vps_ru]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, test and restart the stack
+        run: bash deploy/deploy.sh
+        env:
+          # Repository variable (Settings → Secrets and variables → Actions → Variables); empty = the server's IP.
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}

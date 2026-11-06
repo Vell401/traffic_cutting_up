@@ -1,0 +1,45 @@
+# Production stack, started by deploy/deploy.sh on the VPS:
+#   game  the Node game server (WebSocket /ws, /health), reachable only inside the stack
+#   web   Caddy: HTTPS with the self-signed certificate, the static site, /ws and /health to game
+# SITE_ADDRESS is the server's IP (or a domain later); CERT_DIR holds cert.pem and key.pem.
+name: traffic
+
+services:
+  game:
+    build:
+      context: .
+      target: server
+    image: traffic-game
+    restart: unless-stopped
+    environment:
+      PORT: "8787"
+      ORIGINS: https://${SITE_ADDRESS:?set SITE_ADDRESS}
+      MAX_PLAYERS: ${MAX_PLAYERS:-5}
+      LOG_EVERY: "60"
+    expose:
+      - "8787"
+    mem_limit: 512m
+
+  web:
+    build:
+      context: .
+      target: web
+    image: traffic-web
+    restart: unless-stopped
+    depends_on:
+      game:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ${CERT_DIR:-/opt/traffic/certs}:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 256m
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,72 @@
+# Деплой: GitHub Actions → VPS в Docker
+
+Каждый пуш в `main` уезжает на сервер сам. Раннер GitHub Actions стоит на VPS. Он собирает образы, прогоняет проверку типов и тесты и перезапускает контейнеры. Если сборка или тесты упали, работающая игра остаётся как была.
+
+```
+push в main ─▶ GitHub ─▶ раннер на VPS (пользователь gha)
+                           └─ deploy/deploy.sh
+                                ├─ сертификат для IP (один раз, на 10 лет)
+                                ├─ docker compose build   (npm ci, typecheck, тесты, сборка сайта и сервера)
+                                ├─ docker compose up -d
+                                └─ проверка https://<адрес>/health
+```
+
+## Что крутится на сервере
+
+| контейнер | что делает | порты |
+|---|---|---|
+| `traffic-web-1` | Caddy: HTTPS, раздаёт сайт, проксирует `/ws` и `/health` в игру, с http перенаправляет на https | 80, 443 |
+| `traffic-game-1` | игровой сервер Node (120 Гц, WebSocket) | 8787, только внутри Docker |
+
+- Контейнеры перезапускаются сами (`restart: unless-stopped`), в том числе после перезагрузки сервера.
+- Логи ограничены: по 10 МБ × 3 файла на контейнер.
+- Память ограничена: игре 512 МБ, Caddy 256 МБ.
+- Старые образы и кэш сборки старше недели удаляются после каждого деплоя.
+
+## HTTPS без домена
+
+`deploy.sh` один раз делает самоподписанный сертификат на IP сервера. Сертификат лежит в `/opt/traffic/certs` и живёт 10 лет.
+
+Браузер при первом заходе предупреждает, что сертификат недоверенный. Нажмите «Дополнительно → Перейти на сайт», дальше всё работает, включая WebSocket (`wss://` идёт на тот же адрес).
+
+Чтобы предупреждения не было совсем, можно добавить `cert.pem` в доверенные корневые сертификаты на своих компьютерах.
+
+Когда появится домен:
+1. Задайте переменную репозитория `SITE_ADDRESS` = домен (Settings → Secrets and variables → Actions → Variables).
+2. В `deploy/docker/Caddyfile` уберите строку `tls …` — Caddy сам получит сертификат Let's Encrypt.
+
+## Первая настройка сервера
+
+На vps_ru это уже сделано. Для нового сервера на Ubuntu 24.04:
+
+1. Под root запустите `bash deploy/vps-setup.sh`. Скрипт ставит:
+   - swap 2 ГБ;
+   - Docker с Compose;
+   - пользователя `gha` в группе docker;
+   - раннер в `/opt/actions-runner`.
+2. Под root запустите `bash /opt/actions-runner/register.sh` (это то же, что `deploy/runner-register.sh`). Скрипт спросит токен и не покажет его на экране.
+   - Токен берётся в GitHub: **Settings → Actions → Runners → New self-hosted runner**, значение после `--token` в блоке Configure. Токен действует час.
+   - После регистрации раннер работает как служба systemd от пользователя `gha` с меткой `vps_ru`.
+3. Сделайте пуш в `main` или запустите workflow **Deploy** вручную (Actions → Deploy → Run workflow).
+
+## Безопасность раннера
+
+Репозиторий публичный. На раннер попадают только пуши в `main`: проверка pull request (`ci.yml`) идёт на серверах GitHub.
+
+- Не добавляйте `pull_request` в `deploy.yml`.
+- В Settings → Actions → General включите «Require approval for all outside collaborators».
+
+Причина: чужой pull request иначе может запустить свой код на VPS. У пользователя `gha` есть доступ к Docker, а это фактически root.
+
+## Полезные команды на сервере
+
+```bash
+cd /opt/actions-runner/_work/traffic_cutting_up/traffic_cutting_up   # последняя выкатка
+docker compose ps                        # состояние, здоровье
+docker compose logs -f --tail 100 game   # логи игрового сервера
+curl -sk https://localhost/health        # метрики сервера (через Caddy)
+systemctl status 'actions.runner.*'      # раннер
+journalctl -u 'actions.runner.*' -f      # логи раннера
+```
+
+Откат на прошлую версию: Actions → Deploy → выберите прошлый успешный запуск → **Re-run all jobs**. Он соберёт и выкатит тот коммит.
