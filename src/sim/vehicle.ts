@@ -17,9 +17,9 @@ export interface DriveInput {
  */
 const YAW_GAIN = 16;
 /** A barrier contact counts as a new hit only after this long away from the wall. */
-const WALL_REHIT = 0.5;
+export const WALL_REHIT = 0.5;
 
-const magicFormula = (alpha: number, B: number, C: number): number => Math.sin(C * Math.atan(B * alpha));
+export const magicFormula = (alpha: number, B: number, C: number): number => Math.sin(C * Math.atan(B * alpha));
 
 /*
  * Player car: dynamic bicycle model integrated directly in road (Frenet) coordinates.
@@ -29,7 +29,10 @@ const magicFormula = (alpha: number, B: number, C: number): number => Math.sin(C
  *   vx, vy – body-frame velocity (forward, right); r – yaw rate (positive = turning right)
  */
 export class PlayerCar {
-  readonly tune: CarTune = carTune;
+  /** Physics variant number shown in the menu (1 = grip arcade). */
+  readonly physicsId: number = 1;
+
+  constructor(readonly tune: CarTune = carTune) {}
 
   s = 0;
   d = 0;
@@ -45,7 +48,7 @@ export class PlayerCar {
   steerIn = 0;
   steerAngle = 0;
   /** Seconds the current keyboard steering direction has been held. */
-  private steerHold = 0;
+  protected steerHold = 0;
   throttle = 0;
   brake = 0;
   gear = 1;
@@ -62,8 +65,8 @@ export class PlayerCar {
   /** Set on the step a new barrier contact starts. */
   wallHit = false;
   wallImpact = 0;
-  private wallFreeT = WALL_REHIT;
-  private lastWallSide = 0;
+  protected wallFreeT = WALL_REHIT;
+  protected lastWallSide = 0;
 
   reset(s: number, d: number, speed: number): void {
     this.s = this.prevS = s;
@@ -126,14 +129,7 @@ export class PlayerCar {
     const v = Math.max(this.vx, 0);
 
     // Steering: ramped input, lock limited so full input ≈ grip limit at any speed.
-    // Keyboard ramp is progressive: a tap gives a small angle for fine corrections, holding the key
-    // speeds the ramp up to full rate within ~0.15 s. Releasing snaps back to centre.
-    const target = clamp(inp.steer, -1, 1);
-    const releasing = Math.abs(target) < Math.abs(this.steerIn) || target * this.steerIn < 0;
-    this.steerHold = target !== 0 && !releasing ? this.steerHold + dt : 0;
-    const press = t.steerRate * (0.4 + 0.6 * Math.min(1, this.steerHold / 0.15));
-    const rate = inp.analog ? 14 : releasing ? t.steerReturn : press;
-    this.steerIn = moveTo(this.steerIn, target, rate * dt);
+    this.rampSteer(dt, inp);
     const gripSteer = (t.steerGripScale * t.gripFront * G * L) / Math.max(v * v, 1);
     this.steerAngle = this.steerIn * Math.min(t.maxSteerLow, gripSteer);
     const delta = this.steerAngle;
@@ -223,11 +219,27 @@ export class PlayerCar {
   }
 
   /**
+   * Steering input ramp (shared by the physics variants): updates steerIn from the raw input.
+   * Keyboard ramp is progressive: a tap gives a small angle for fine corrections, holding the key
+   * speeds the ramp up to full rate within ~0.15 s. Releasing snaps back to centre.
+   * pressScale scales the keyboard press rate (1 = as tuned).
+   */
+  protected rampSteer(dt: number, inp: DriveInput, pressScale = 1): void {
+    const t = this.tune;
+    const target = clamp(inp.steer, -1, 1);
+    const releasing = Math.abs(target) < Math.abs(this.steerIn) || target * this.steerIn < 0;
+    this.steerHold = target !== 0 && !releasing ? this.steerHold + dt : 0;
+    const press = t.steerRate * pressScale * (0.4 + 0.6 * Math.min(1, this.steerHold / 0.15));
+    const rate = inp.analog ? 14 : releasing ? t.steerReturn : press;
+    this.steerIn = moveTo(this.steerIn, target, rate * dt);
+  }
+
+  /**
    * Traction control: the most rear-wheel thrust that still leaves the rear tires enough grip for the
    * cornering the driver asks for, cut further if the rear is already sliding. Without it, full throttle
    * below ~150 km/h used up the whole friction circle and the car pivoted instead of turning.
    */
-  private tractionLimit(v: number, delta: number, Fzr: number, L: number): number {
+  protected tractionLimit(v: number, delta: number, Fzr: number, L: number): number {
     const t = this.tune;
     const Dr0 = t.gripRear * Fzr;
     const raw = 0.95 * Dr0;
@@ -242,7 +254,7 @@ export class PlayerCar {
     return raw + (Math.min(raw, cap) - raw) * t.tractionControl;
   }
 
-  private resolveWalls(dt: number): void {
+  protected resolveWalls(dt: number): void {
     const ext = this.halfExtentD();
     let side = 0;
     if (this.d + ext > WALL_D) {

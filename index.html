@@ -51,11 +51,23 @@
           <span><kbd>`</kbd> тюнинг</span>
           <span><kbd>F1</kbd> метрики</span>
         </div>
-        <div class="quality">
-          <span>Графика</span>
-          <div class="seg">
-            <button data-quality="medium">Medium</button>
-            <button data-quality="high">High</button>
+        <div class="opts">
+          <span class="ol">Физика</span>
+          <div>
+            <div id="physicsSeg" class="seg"></div>
+            <div id="physicsDesc" class="odesc"></div>
+          </div>
+          <span class="ol">Трафик</span>
+          <div>
+            <div id="trafficSeg" class="seg"></div>
+            <div id="trafficDesc" class="odesc"></div>
+          </div>
+          <span class="ol">Графика</span>
+          <div>
+            <div class="seg">
+              <button data-quality="medium">Medium</button>
+              <button data-quality="high">High</button>
+            </div>
           </div>
         </div>
         <button id="startBtn">Поехали <span>Enter</span></button>

@@ -5,10 +5,12 @@ import { Input } from './core/input';
 import { clamp } from './core/math';
 import { View } from './render/view';
 import type { DriveInput } from './sim/vehicle';
+import { TRAFFIC_PRESETS } from './sim/director';
+import { PHYSICS } from './sim/physics';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
 import type { Debug } from './ui/debug';
-import { QUALITY, loadQuality, saveQuality, type Quality } from './settings';
+import { QUALITY, loadPhysics, loadQuality, loadTraffic, savePhysics, saveQuality, saveTraffic, type Quality } from './settings';
 import { Hud } from './ui/hud';
 import { Metrics } from './ui/metrics';
 
@@ -33,7 +35,8 @@ const params = new URLSearchParams(location.search);
 /** ?test: short finite showcase tracks picked from a side panel; no records saved. */
 const TEST = params.has('test');
 let showcase = 0;
-const sim = new Sim(Math.random, TEST ? { track: SHOWCASES[0].script } : {});
+const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadPhysics() });
+sim.director.preset = loadTraffic();
 sim.score.best = loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
 const quality = loadQuality();
@@ -112,6 +115,42 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-quality]')
     location.reload(); // textures and render targets are built once at startup
   });
 }
+/** Start-menu segmented choice (numbered variants) with a description line under it. */
+function choice<T extends number>(
+  segId: string,
+  descId: string,
+  items: readonly { id: T; name: string; desc: string }[],
+  current: T,
+  onPick: (id: T) => void,
+): void {
+  const seg = document.getElementById(segId)!;
+  const desc = document.getElementById(descId)!;
+  const show = (id: T) => {
+    for (const b of seg.children) b.classList.toggle('on', (b as HTMLElement).dataset.id === String(id));
+    desc.textContent = items.find((it) => it.id === id)?.desc ?? '';
+  };
+  for (const it of items) {
+    const b = document.createElement('button');
+    b.dataset.id = String(it.id);
+    b.innerHTML = `<b>${it.id}</b>${it.name}`;
+    b.addEventListener('click', () => {
+      show(it.id);
+      onPick(it.id);
+      b.blur(); // keep Space/Enter for starting the run
+    });
+    seg.appendChild(b);
+  }
+  show(current);
+}
+choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as 1 | 2, (id) => {
+  savePhysics(id);
+  sim.setPhysics(id);
+});
+choice('trafficSeg', 'trafficDesc', TRAFFIC_PRESETS, sim.director.preset, (id) => {
+  saveTraffic(id);
+  sim.director.preset = id;
+  sim.traffic.reset(sim.player); // repopulate at once (the menu card hides the pop)
+});
 document.getElementById('testBtn')!.addEventListener('click', () => {
   location.search = '?test';
 });

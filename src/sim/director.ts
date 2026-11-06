@@ -36,8 +36,28 @@ const FIRST_MODE_LEN = 1000;
 
 export type SpawnPattern = 'single' | 'wall' | 'platoon';
 
+/** Traffic variants offered in the start menu. */
+export type TrafficPreset = 1 | 2;
+
+export interface TrafficPresetInfo {
+  id: TrafficPreset;
+  name: string;
+  desc: string;
+}
+
+export const TRAFFIC_PRESETS: readonly TrafficPresetInfo[] = [
+  { id: 1, name: 'Обычный', desc: 'Сбалансированный поток, режимы меняются каждый километр' },
+  { id: 2, name: 'Плотный', desc: 'В ~1,7 раза больше машин, короче дистанции, чаще стенки и колонны' },
+];
+
+/** Dense preset: density multiplier and how much closer cars follow each other. */
+const DENSE_DENSITY = 1.7;
+const DENSE_GAP = 0.82;
+
 export class Director {
   mode: TrafficMode = 'normal';
+  /** Start-menu traffic variant. */
+  preset: TrafficPreset = 1;
   /** 0..1, grows with the distance of the current run. */
   intensity = 0;
   runDist = 0;
@@ -65,7 +85,13 @@ export class Director {
 
   /** Target cars per kilometre per lane right now. */
   density(): number {
-    return trafficTune.density * (0.75 + 0.6 * this.intensity) * MODE_DENSITY[this.mode];
+    const k = this.preset === 2 ? DENSE_DENSITY : 1;
+    return trafficTune.density * k * (0.75 + 0.6 * this.intensity) * MODE_DENSITY[this.mode];
+  }
+
+  /** IDM time headway for a newly spawned car. */
+  timeGap(): number {
+    return trafficTune.idmT * (this.preset === 2 ? DENSE_GAP : 1);
   }
 
   rudeShare(): number {
@@ -74,8 +100,11 @@ export class Director {
 
   pattern(): SpawnPattern {
     const r = this.rng();
-    if (this.mode === 'walls' && r < 0.4) return 'wall';
-    if (this.mode === 'platoons' && r < 0.45) return 'platoon';
+    const dense = this.preset === 2;
+    if (this.mode === 'walls' && r < (dense ? 0.5 : 0.4)) return 'wall';
+    if (this.mode === 'platoons' && r < (dense ? 0.55 : 0.45)) return 'platoon';
+    // Dense traffic bunches up everywhere: the odd platoon even outside platoon mode.
+    if (dense && this.mode !== 'sparse' && r > 0.93) return 'platoon';
     return 'single';
   }
 
@@ -129,13 +158,14 @@ export class Director {
 
   private nextMode(): void {
     const t = this.intensity;
+    const dense = this.preset === 2;
     const weights: [TrafficMode, number][] = [
       ['normal', 2.5],
-      ['sparse', 1.2 - 0.6 * t],
-      ['dense', 1 + 1.2 * t],
+      ['sparse', (1.2 - 0.6 * t) * (dense ? 0.35 : 1)],
+      ['dense', 1 + 1.2 * t + (dense ? 0.8 : 0)],
       ['trucks', 1.1],
-      ['walls', 0.8 + 1 * t],
-      ['platoons', 1],
+      ['walls', 0.8 + 1 * t + (dense ? 0.4 : 0)],
+      ['platoons', 1 + (dense ? 0.5 : 0)],
     ];
     let total = 0;
     for (const [m, w] of weights) if (m !== this.mode) total += w;

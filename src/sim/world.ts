@@ -7,7 +7,8 @@ import type { SimEvents } from './events';
 import { Road, type RoadScript } from './road';
 import { Scoring } from './scoring';
 import { Traffic, type TrafficCar } from './traffic';
-import { PlayerCar, type DriveInput } from './vehicle';
+import { createCar, type PhysicsId } from './physics';
+import type { DriveInput, PlayerCar } from './vehicle';
 import { clamp } from '../core/math';
 
 const START_S = 300;
@@ -19,13 +20,15 @@ const END_STOP_GAP = 14;
 export interface SimOptions {
   /** Start on a finite scripted track (test showcase) instead of the endless road. */
   track?: RoadScript;
+  /** Car physics variant (start menu). */
+  physics?: PhysicsId;
 }
 
 /** Whole simulation: pure TS, no rendering. Stepped at a fixed rate by the game loop. */
 export class Sim {
   readonly events = new Emitter<SimEvents>();
   road: Road;
-  readonly player = new PlayerCar();
+  player: PlayerCar;
   readonly traffic: Traffic;
   readonly score: Scoring;
   readonly director: Director;
@@ -42,6 +45,7 @@ export class Sim {
     private readonly rng: Rng = Math.random,
     options: SimOptions = {},
   ) {
+    this.player = createCar(options.physics ?? 1);
     this.road = new Road(rng, options.track);
     this.director = new Director(rng, this.events);
     this.traffic = new Traffic(rng, this.director);
@@ -61,6 +65,16 @@ export class Sim {
     this.trackEnded = false;
     this.traffic.reset(this.player);
     this.score.resetRun();
+  }
+
+  /** Swap the car physics in place (start menu): same spot, lane and speed. */
+  setPhysics(id: PhysicsId): void {
+    const old = this.player;
+    if (old.physicsId === id) return;
+    const car = createCar(id);
+    car.reset(old.s, old.d, Math.max(old.vAlong, 0));
+    car.psi = car.prevPsi = old.psi;
+    this.player = car;
   }
 
   /** Put the car back on a lane at the current spot. Counts as the end of the run. */

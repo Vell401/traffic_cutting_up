@@ -9,6 +9,7 @@ import { LampLights } from './lampLights';
 import { PlayerView } from './playerView';
 import { Post } from './post';
 import { RoadView } from './roadView';
+import { Blimp, FarGround } from './scenery';
 import { Sparks } from './sparks';
 import { HORIZON, MOON_DIR, makeSky } from './sky';
 import { makeRadialTexture } from './textures';
@@ -30,6 +31,8 @@ export class View {
   private readonly chase = new ChaseCamera();
   private readonly post: Post;
   private readonly sparks = new Sparks();
+  private readonly farGround = new FarGround();
+  private readonly blimp = new Blimp();
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly carPos = new THREE.Vector3();
   private carYaw = 0;
@@ -72,7 +75,7 @@ export class View {
     this.playerView = new PlayerView(0x1f4fd8, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
-    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points);
+    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points, this.farGround.mesh, this.blimp.group);
     this.post = new Post(r, this.scene, this.camera, quality);
 
     sim.events.on('nearMiss', (e) => {
@@ -133,6 +136,8 @@ export class View {
     this.lampLights.update(this.roadView, sim.road, s, this.ox, this.oz);
     this.chase.update(dt, this.camera, this.carPos, yaw, p.vAlong * 3.6);
     this.sky.position.copy(this.camera.position);
+    this.farGround.update(sim.road, s, this.camera.position);
+    this.blimp.update(sim.road, s, this.ox, this.oz, this.time);
 
     if (!this.warmedUp) this.warmUp();
     this.renderer.info.reset();

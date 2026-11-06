@@ -383,15 +383,29 @@ kbd {
   opacity: 0.6;
 }
 
-.quality {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 22px;
+.opts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px 16px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+.ol {
+  padding-top: 9px;
   font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-dim);
+}
+.odesc {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+.seg button b {
+  margin-right: 6px;
+  opacity: 0.55;
 }
 .seg {
   display: inline-flex;

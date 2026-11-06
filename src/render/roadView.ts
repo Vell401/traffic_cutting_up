@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { LANE_W, WALL_D } from '../config';
+import { LANES, LANE_W, WALL_D, laneCenter } from '../config';
+import { smoothstep } from '../core/math';
 import { mulberry32, range, type Rng } from '../core/rng';
 import { CHUNK_LEN, GROUND_LEVEL, SAMPLE_DS, type LightKind, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
 import { makeCityMaterial } from './city';
@@ -16,7 +17,7 @@ import {
   strip,
 } from './meshBuilder';
 import type { QualityPreset } from '../settings';
-import { ROAD_TEX_PERIOD, SIGN_COLS, SIGN_ROWS, makeRadialTexture, makeRoadTexture, makeSignAtlas } from './textures';
+import { HIGHWAY_SIGNS, ROAD_TEX_PERIOD, SIGN_COLS, SIGN_ROWS, TUNNEL_SIGN, makeRadialTexture, makeRoadTexture, makeSignAtlas } from './textures';
 
 /*
  * Each 100 m road chunk is drawn with up to six merged meshes (road, structures, glowing bits,
@@ -38,6 +39,8 @@ const POOL_K: Record<LightKind, number> = { sodium: 0.8, led: 0.42 };
  * 6 cm at ~600 m, so far decals no longer z-fight with the road (that flicker read as ripples).
  */
 const DECAL_Y = 0.06;
+/** Ambient shade of the road and barriers deep inside a tunnel. */
+const TUNNEL_SHADE = 0.45;
 
 /** Outer edge of the barrier / viaduct deck. */
 const EDGE = WALL_D + 0.55;
@@ -57,6 +60,21 @@ const TUNNEL_H = 6.9;
 const TUNNEL_WALL = WALL_D + 0.2;
 const TUNNEL_LIGHT_STEP = 6;
 const PANEL_D = WALL_D + 0.4;
+/** Tunnel safety kit spacing (absolute s, so it is continuous across chunks). */
+const EXIT_STEP = 250;
+const NICHE_STEP = 125;
+const FAN_STEP = 200;
+const LANE_SIGNAL_STEP = 300;
+/** Nothing of the kit closer than this to a portal. */
+const KIT_PORTAL_GAP = 30;
+/** Painted band on the tunnel walls, picked per tunnel (null = bare concrete). */
+const TUNNEL_STRIPES: (THREE.Color | null)[] = [
+  null,
+  new THREE.Color(0.08, 0.2, 0.55),
+  new THREE.Color(0.07, 0.3, 0.14),
+  new THREE.Color(0.55, 0.24, 0.05),
+  new THREE.Color(0.5, 0.07, 0.05),
+];
 
 /** Jersey barrier cross-section (offset beyond WALL_D, height). */
 const PROFILE: [number, number][] = [
@@ -87,9 +105,138 @@ const COL = {
   necklace: new THREE.Color(1.4, 1.5, 1.8),
   aviation: new THREE.Color(4, 0.2, 0.1),
   roadEnd: new THREE.Color(3, 1.4, 0.1),
+  hull: new THREE.Color(0x9ea4ad),
+  deck: new THREE.Color(0x5a4a3a),
+  cabin: new THREE.Color(0x2a2e35),
+  yacht: new THREE.Color(0xc4c9d0),
+  boatWindow: new THREE.Color(1.8, 1.35, 0.8),
+  boatDeck: new THREE.Color(1.3, 1.35, 1.45),
+  navRed: new THREE.Color(4, 0.2, 0.15),
+  navGreen: new THREE.Color(0.2, 4, 0.5),
   emergency: new THREE.Color(0.2, 1.4, 0.5),
+  exitFrame: new THREE.Color(0.25, 2.4, 0.8),
+  exitDoor: new THREE.Color(0.07, 0.16, 0.1),
+  recess: new THREE.Color(0.02, 0.022, 0.025),
+  sosCabinet: new THREE.Color(2.2, 0.8, 0.12),
+  sosLamp: new THREE.Color(0.35, 0.7, 3.2),
+  fireCabinet: new THREE.Color(2.2, 0.12, 0.08),
+  fan: new THREE.Color(0.075, 0.078, 0.085),
+  fanFace: new THREE.Color(0.02, 0.02, 0.022),
+  ledLine: new THREE.Color(0.3, 1.1, 2.4),
   white: new THREE.Color(1, 1, 1),
 };
+
+/** UV rectangle of a sign atlas cell; `inset` keeps only the middle part horizontally. */
+function cellUV(cell: number, inset = 0): [number, number, number, number] {
+  const col = cell % SIGN_COLS;
+  const row = Math.floor(cell / SIGN_COLS);
+  return [(col + inset) / SIGN_COLS, 1 - (row + 1) / SIGN_ROWS, (col + 1 - inset) / SIGN_COLS, 1 - row / SIGN_ROWS];
+}
+
+/**
+ * Cylinder lying along the road at frame f (jet fans): `sides` faces plus the cap that faces oncoming
+ * traffic. Shaded by hand for the unlit glow material: lighter on top, darker underneath.
+ */
+function tube(mb: MeshBuilder, f: Frame, d: number, y: number, r: number, half: number, body: THREE.Color, face: THREE.Color, sides = 10): void {
+  const rx = Math.cos(f.th);
+  const rz = Math.sin(f.th);
+  const fx = Math.sin(f.th);
+  const fz = -Math.cos(f.th);
+  const cx = f.x + rx * d;
+  const cz = f.z + rz * d;
+  const p = [0, 0, 0];
+  const ring = (a: number, along: number) => {
+    const ca = Math.cos(a) * r;
+    p[0] = cx + rx * ca + fx * along;
+    p[1] = y + Math.sin(a) * r;
+    p[2] = cz + rz * ca + fz * along;
+  };
+  for (let k = 0; k < sides; k++) {
+    const a0 = (k / sides) * Math.PI * 2;
+    const a1 = ((k + 1) / sides) * Math.PI * 2;
+    const am = (a0 + a1) / 2;
+    const nx = rx * Math.cos(am);
+    const ny = Math.sin(am);
+    const nz = rz * Math.cos(am);
+    mb.color(body, 0.55 + 0.45 * ny);
+    ring(a0, -half);
+    const a = mb.v(p[0], p[1], p[2], nx, ny, nz);
+    ring(a0, half);
+    const b = mb.v(p[0], p[1], p[2], nx, ny, nz);
+    ring(a1, half);
+    const c = mb.v(p[0], p[1], p[2], nx, ny, nz);
+    ring(a1, -half);
+    const e = mb.v(p[0], p[1], p[2], nx, ny, nz);
+    mb.quad(a, b, c, e);
+    // Front cap (normal = -forward): a dark grille.
+    mb.color(face);
+    const o = mb.v(cx - fx * half, y, cz - fz * half, -fx, 0, -fz);
+    ring(a0, -half);
+    const q0 = mb.v(p[0], p[1], p[2], -fx, 0, -fz);
+    ring(a1, -half);
+    const q1 = mb.v(p[0], p[1], p[2], -fx, 0, -fz);
+    mb.tri(o, q0, q1);
+  }
+}
+
+/**
+ * Vertical prism over a polygon footprint (boat hulls): pts are [across, along] in a frame at (cx, cz)
+ * heading th. Sides get `side`, the top `top`; no bottom. Faces are oriented outward whatever the
+ * polygon's winding.
+ */
+function prism(mb: MeshBuilder, cx: number, cz: number, th: number, pts: [number, number][], y0: number, y1: number, side: THREE.Color, top: THREE.Color): void {
+  const rx = Math.cos(th);
+  const rz = Math.sin(th);
+  const fx = Math.sin(th);
+  const fz = -Math.cos(th);
+  const n = pts.length;
+  const X = (p: [number, number]) => cx + rx * p[0] + fx * p[1];
+  const Z = (p: [number, number]) => cz + rz * p[0] + fz * p[1];
+  let mx = 0;
+  let mz = 0;
+  for (const p of pts) {
+    mx += X(p) / n;
+    mz += Z(p) / n;
+  }
+  mb.color(side);
+  for (let k = 0; k < n; k++) {
+    const p = pts[k];
+    const q = pts[(k + 1) % n];
+    const ax = X(p);
+    const az = Z(p);
+    const bx = X(q);
+    const bz = Z(q);
+    // Edge × up = (-ez, 0, ex): outward when it points away from the centroid.
+    let nx = -(bz - az);
+    let nz = bx - ax;
+    const l = Math.hypot(nx, nz) || 1;
+    nx /= l;
+    nz /= l;
+    const out = nx * ((ax + bx) / 2 - mx) + nz * ((az + bz) / 2 - mz) > 0;
+    if (!out) {
+      nx = -nx;
+      nz = -nz;
+    }
+    const a0 = mb.v(ax, y0, az, nx, 0, nz);
+    const b0 = mb.v(bx, y0, bz, nx, 0, nz);
+    const b1 = mb.v(bx, y1, bz, nx, 0, nz);
+    const a1 = mb.v(ax, y1, az, nx, 0, nz);
+    if (out) mb.quad(a0, b0, b1, a1);
+    else mb.quad(b0, a0, a1, b1);
+  }
+  mb.color(top);
+  const c = mb.v(mx, y1, mz, 0, 1, 0);
+  for (let k = 0; k < n; k++) {
+    const p = pts[k];
+    const q = pts[(k + 1) % n];
+    const a = mb.v(X(p), y1, Z(p), 0, 1, 0);
+    const b = mb.v(X(q), y1, Z(q), 0, 1, 0);
+    // (a - c) × (b - c) must point up for a front face.
+    const up = (Z(p) - mz) * (X(q) - mx) - (X(p) - mx) * (Z(q) - mz) > 0;
+    if (up) mb.tri(c, a, b);
+    else mb.tri(c, b, a);
+  }
+}
 
 /** Thin lit cable from a to b: two crossed double-sided ribbons, visible from any angle. */
 function cable(mb: MeshBuilder, ax: number, ay: number, az: number, bx: number, by: number, bz: number, w: number): void {
@@ -156,12 +303,14 @@ class ChunkView {
   private readonly gy = new Float64Array(ROWS);
   private readonly faceY = new Float64Array(ROWS);
   private readonly roofY = new Float64Array(ROWS);
+  /** Per-row ambient shade of road and barriers: 1 outside, darker inside tunnels, ramped across portals. */
+  private readonly shadeRows = new Float64Array(ROWS);
   private readonly road = new MeshBuilder({ maxVerts: ROWS * 2, maxIndices: (ROWS - 1) * 6, uv: true });
   private readonly struct = new MeshBuilder({ maxVerts: 9000, maxIndices: 16000 });
   private readonly glow = new MeshBuilder({ maxVerts: 6000, maxIndices: 9000 });
   private readonly pools = new MeshBuilder({ maxVerts: 400, maxIndices: 600, uv: true });
   private readonly city = new MeshBuilder({ maxVerts: 3000, maxIndices: 4500, win: true });
-  private readonly signs = new MeshBuilder({ maxVerts: 32, maxIndices: 48, uv: true });
+  private readonly signs = new MeshBuilder({ maxVerts: 160, maxIndices: 240, uv: true });
   private readonly water = new MeshBuilder({ maxVerts: ROWS * 6, maxIndices: (ROWS - 1) * 18 });
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly pairs: [MeshBuilder, THREE.Mesh][];
@@ -206,7 +355,10 @@ class ChunkView {
       }
       return;
     }
-    for (let i = 0; i < ROWS; i++) this.gy[i] = road.groundY(c.s0 + i * SAMPLE_DS);
+    for (let i = 0; i < ROWS; i++) {
+      this.gy[i] = road.groundY(c.s0 + i * SAMPLE_DS);
+      this.shadeRows[i] = this.shade(i * SAMPLE_DS);
+    }
 
     this.buildRoad();
     this.buildBarriers();
@@ -273,11 +425,38 @@ class ChunkView {
     for (let s = k * step + phase; s < s0 + CHUNK_LEN; s = ++k * step + phase) yield [s - s0, k];
   }
 
+  /**
+   * Ambient shade at chunk-local s. Instead of switching at the chunk boundary (a hard line on the
+   * asphalt right at the portal) it ramps from 12 m before a tunnel mouth to 22 m inside, both ways.
+   */
+  private shade(sLocal: number): number {
+    const c = this.c;
+    // x = metres from the portal into the tunnel (negative = still outside).
+    const ramp = (x: number) => 1 + (TUNNEL_SHADE - 1) * smoothstep((x + 12) / 34);
+    if (c.kind === 'tunnel') {
+      let v = TUNNEL_SHADE;
+      if (c.prevKind !== 'tunnel') v = Math.max(v, ramp(sLocal));
+      if (c.nextKind !== 'tunnel') v = Math.max(v, ramp(CHUNK_LEN - sLocal));
+      return v;
+    }
+    let v = 1;
+    if (c.nextKind === 'tunnel') v = Math.min(v, ramp(sLocal - CHUNK_LEN));
+    if (c.prevKind === 'tunnel') v = Math.min(v, ramp(-sLocal));
+    return v;
+  }
+
+  /** Metres from the nearest open portal into this tunnel chunk (Infinity if none). */
+  private intoTunnel(sLocal: number): number {
+    const c = this.c;
+    let x = Infinity;
+    if (c.prevKind !== 'tunnel') x = sLocal;
+    if (c.nextKind !== 'tunnel') x = Math.min(x, CHUNK_LEN - sLocal);
+    return x;
+  }
+
   private buildRoad(): void {
     const mb = this.road;
     const fr = this.fr;
-    const tint = this.c.kind === 'tunnel' ? 0.45 : 1;
-    mb.rgb(tint, tint, tint);
     const u0 = (-EDGE + WALL_D) / (2 * WALL_D);
     const u1 = (EDGE + WALL_D) / (2 * WALL_D);
     let pa = -1;
@@ -286,6 +465,8 @@ class ChunkView {
       const v = (i * SAMPLE_DS) / ROAD_TEX_PERIOD;
       const cs = fr.cs[i];
       const sn = fr.sn[i];
+      const k = this.shadeRows[i];
+      mb.rgb(k, k, k);
       const a = mb.v(fr.bx[i] - cs * EDGE, 0, fr.bz[i] - sn * EDGE, 0, 1, 0, u0, v);
       const b = mb.v(fr.bx[i] + cs * EDGE, 0, fr.bz[i] + sn * EDGE, 0, 1, 0, u1, v);
       if (i > 0) mb.quad(pa, pb, b, a);
@@ -296,13 +477,12 @@ class ChunkView {
 
   private buildBarriers(): void {
     const mb = this.struct;
-    const k = this.c.kind === 'tunnel' ? 0.45 : 1;
     for (let j = 0; j < PROFILE.length - 1; j++) {
       const [d0, y0] = PROFILE[j];
       const [d1, y1] = PROFILE[j + 1];
-      mb.color(y0 > 0 && y0 === y1 ? COL.barrierTop : COL.barrier, k);
-      strip(mb, this.fr, WALL_D + d0, y0, WALL_D + d1, y1);
-      strip(mb, this.fr, -(WALL_D + d1), y1, -(WALL_D + d0), y0);
+      mb.color(y0 > 0 && y0 === y1 ? COL.barrierTop : COL.barrier);
+      strip(mb, this.fr, WALL_D + d0, y0, WALL_D + d1, y1, undefined, undefined, 1, this.shadeRows);
+      strip(mb, this.fr, -(WALL_D + d1), y1, -(WALL_D + d0), y0, undefined, undefined, 1, this.shadeRows);
     }
   }
 
@@ -481,6 +661,8 @@ class ChunkView {
       }
     }
 
+    this.buildTunnelKit();
+
     // Hill over the tunnel and the portal facades.
     for (let i = 0; i < ROWS; i++) this.roofY[i] = Math.max(this.gy[i], TUNNEL_H + 0.4);
     this.struct.color(COL.ground);
@@ -490,21 +672,133 @@ class ChunkView {
     if (c.nextKind !== 'tunnel') this.portal(CHUNK_LEN - 0.8);
   }
 
+  /**
+   * Tunnel safety kit so tunnels don't all look the same: emergency exits with lit doors and EXIT
+   * signs, SOS / fire niches, jet fans, lane control signals, and per-tunnel wall paint and LED lines.
+   */
+  private buildTunnelKit(): void {
+    const c = this.c;
+    const g = this.glow;
+    const fr = this.fr;
+    const TW = TUNNEL_WALL;
+    const clear = (s: number) => this.intoTunnel(s) > KIT_PORTAL_GAP;
+
+    // Per-tunnel look, seeded by where the section starts so every chunk of it agrees.
+    const look = mulberry32(Math.imul(Math.round(c.s0 - c.sectionIndex * CHUNK_LEN), 0x9e3779b1));
+    const paint = TUNNEL_STRIPES[Math.floor(look() * TUNNEL_STRIPES.length)];
+    // Paint is lit by the tunnel lamps like the wall around it (sodium turns it muddy, LED keeps it clean).
+    const stripe = paint && paint.clone().multiply(LIGHT_COLOR[c.light]).multiplyScalar(0.6);
+    const led = look() < 0.5;
+    for (const side of [-1, 1]) {
+      // Strips are one-sided: list the lower edge first on the right wall, the upper one on the left.
+      const d = side * (TW - 0.01);
+      const band = (lo: number, hi: number, col: THREE.Color) =>
+        side > 0 ? strip(g, fr, d, lo, d, hi, col, col) : strip(g, fr, d, hi, d, lo, col, col);
+      if (stripe) band(1.45, 1.95, stripe);
+      if (led) band(1.0, 1.07, COL.ledLine);
+    }
+
+    for (const [s, k] of this.every(EXIT_STEP, 120)) if (clear(s)) this.exitDoor(s, k % 2 === 0 ? 1 : -1);
+    for (const [s, k] of this.every(NICHE_STEP, 55)) if (clear(s)) this.niche(s, k % 2 === 0);
+    for (const [s] of this.every(FAN_STEP, 70)) {
+      if (!clear(s)) continue;
+      const f = this.at(s);
+      for (const d of [-6.4, 6.4]) {
+        g.color(COL.fan, 0.8);
+        box(g, f, d, TUNNEL_H - 0.18, 0.08, 0.18, 0.9);
+        tube(g, f, d, TUNNEL_H - 0.95, 0.6, 2.1, COL.fan, COL.fanFace);
+      }
+    }
+    for (const [s] of this.every(LANE_SIGNAL_STEP, 180)) {
+      if (!clear(s)) continue;
+      const f = this.at(s);
+      const [u0, v0, u1, v1] = cellUV(TUNNEL_SIGN.lane, 0.25);
+      for (let l = 0; l < LANES; l++) {
+        const d = laneCenter(l);
+        g.color(COL.recess);
+        box(g, f, d, TUNNEL_H - 0.75, 0.5, 0.5, 0.15);
+        box(g, f, d, TUNNEL_H - 0.12, 0.05, 0.12, 0.05);
+        this.signs.rgb(1.9, 1.9, 1.9);
+        signQuad(this.signs, this.shift(f, -0.17), d, TUNNEL_H - 0.75, 0.42, 0.42, u0, v0, u1, v1);
+      }
+    }
+  }
+
+  /** Lit sign board sticking out of the tunnel wall, facing oncoming traffic. */
+  private wallSign(s: number, side: number, cell: number): void {
+    const f = this.at(s);
+    const d = side * (TUNNEL_WALL - 0.95);
+    this.glow.color(COL.recess);
+    box(this.glow, f, side * (TUNNEL_WALL - 0.5), 4.78, 0.5, 0.03, 0.03);
+    box(this.glow, this.shift(f, 0.03), d, 4.3, 0.78, 0.4, 0.025);
+    const [u0, v0, u1, v1] = cellUV(cell);
+    this.signs.rgb(2, 2, 2);
+    signQuad(this.signs, this.shift(f, -0.01), d, 4.3, 0.75, 0.375, u0, v0, u1, v1);
+  }
+
+  /** Emergency exit: dark recess, green-lit door frame, guide lights in the barrier and an EXIT sign. */
+  private exitDoor(s: number, side: number): void {
+    const g = this.glow;
+    const f = this.at(s);
+    const TW = TUNNEL_WALL;
+    g.color(COL.recess);
+    box(g, f, side * (TW - 0.02), 2.2, 0.03, 1.25, 0.95);
+    g.color(COL.exitDoor);
+    box(g, f, side * (TW - 0.05), 2.05, 0.02, 1.05, 0.7);
+    g.color(COL.exitFrame);
+    box(g, f, side * (TW - 0.06), 3.22, 0.03, 0.05, 0.85);
+    for (const off of [-0.82, 0.82]) box(g, this.shift(f, off), side * (TW - 0.06), 2.1, 0.03, 1.15, 0.04);
+    g.color(COL.exitFrame, 1.4);
+    box(g, f, side * (TW - 0.06), 3.62, 0.03, 0.2, 0.6);
+    // Evacuation guide lights on the barrier top leading to the door.
+    g.color(COL.emergency, 1.6);
+    for (let a = -18; a <= 18; a += 3) {
+      if (Math.abs(a) < 2) continue;
+      box(g, this.shift(f, a), side * (WALL_D + 0.3), 0.97, 0.05, 0.03, 0.12);
+    }
+    this.pools.color(COL.emergency, 0.35);
+    flatQuad(this.pools, f, side * (WALL_D - 0.6), DECAL_Y, 2.4, 3);
+    if (s >= 6) this.wallSign(s - 6, side, TUNNEL_SIGN.exit);
+  }
+
+  /** Emergency phone (SOS) or fire extinguisher niche on the right wall. */
+  private niche(s: number, sos: boolean): void {
+    const g = this.glow;
+    const f = this.at(s);
+    const TW = TUNNEL_WALL;
+    g.color(COL.recess);
+    box(g, f, TW - 0.02, 2.0, 0.03, 1.05, 0.8);
+    g.color(sos ? COL.sosCabinet : COL.fireCabinet);
+    box(g, f, TW - 0.06, 1.75, 0.04, 0.42, 0.34);
+    g.color(sos ? COL.sosLamp : COL.fireCabinet, 1.3);
+    box(g, f, TW - 0.06, 3.25, 0.05, 0.08, 0.08);
+    this.pools.color(sos ? COL.sosCabinet : COL.fireCabinet, 0.12);
+    flatQuad(this.pools, f, WALL_D - 0.6, DECAL_Y, 2, 2.4);
+    if (s >= 5) this.wallSign(s - 5, 1, sos ? TUNNEL_SIGN.sos : TUNNEL_SIGN.fire);
+  }
+
   /** Soft light band along the chunk at offset d: the radial texture's middle row gives the falloff across. */
   private glowBand(d: number, halfW: number): void {
     const mb = this.pools;
     const fr = this.fr;
+    const r0 = mb.r;
+    const g0 = mb.g;
+    const b0 = mb.b;
     let pa = -1;
     let pb = -1;
     for (let i = 0; i < ROWS; i++) {
       const cs = fr.cs[i];
       const sn = fr.sn[i];
+      // Fade the band in over the first metres past a portal so the lit asphalt has no hard edge.
+      const k = smoothstep(this.intoTunnel(i * SAMPLE_DS) / 10);
+      mb.rgb(r0 * k, g0 * k, b0 * k);
       const a = mb.v(fr.bx[i] + cs * (d - halfW), DECAL_Y, fr.bz[i] + sn * (d - halfW), 0, 1, 0, 0, 0.5);
       const b = mb.v(fr.bx[i] + cs * (d + halfW), DECAL_Y, fr.bz[i] + sn * (d + halfW), 0, 1, 0, 1, 0.5);
       if (i > 0) mb.quad(pa, pb, b, a);
       pa = a;
       pb = b;
     }
+    mb.rgb(r0, g0, b0);
   }
 
   private portal(s: number): void {
@@ -581,15 +875,13 @@ class ChunkView {
     const hw = boards.length === 2 ? 2.6 : 2.4;
     const hh = hw / 2;
     const front = this.shift(f, -0.3);
-    const first = Math.floor(rng() * SIGN_COLS * SIGN_ROWS);
+    const first = Math.floor(rng() * HIGHWAY_SIGNS);
     const stride = 1 + Math.floor(rng() * 3);
     for (let b = 0; b < boards.length; b++) {
       const d = boards[b];
-      const cell = (first + b * stride) % (SIGN_COLS * SIGN_ROWS);
-      const col = cell % SIGN_COLS;
-      const row = Math.floor(cell / SIGN_COLS);
+      const [u0, v0, u1, v1] = cellUV((first + b * stride) % HIGHWAY_SIGNS);
       this.signs.rgb(1, 1, 1);
-      signQuad(this.signs, front, d, 7.0, hw, hh, col / SIGN_COLS, 1 - (row + 1) / SIGN_ROWS, (col + 1) / SIGN_COLS, 1 - row / SIGN_ROWS);
+      signQuad(this.signs, front, d, 7.0, hw, hh, u0, v0, u1, v1);
       this.glow.color(COL.white, 1.6);
       box(this.glow, front, d, 7.0 + hh + 0.12, hw * 0.6, 0.03, 0.06);
     }
@@ -615,11 +907,7 @@ class ChunkView {
   private buildCity(): void {
     const rng = this.rng;
     if (this.c.kind === 'bridge') {
-      // Open water: only the skyline on the far shores.
-      for (const side of [-1, 1]) {
-        const n = 2 + (rng() < 0.6 ? 1 : 0);
-        for (let k = 0; k < n; k++) this.building(range(rng, 5, 95), side * range(rng, 450, 900), range(rng, 25, 50), range(rng, 25, 50), range(rng, 70, 210));
-      }
+      this.buildBoats();
       return;
     }
     const rows: [number, number, number, number][] = [
@@ -641,6 +929,93 @@ class ChunkView {
       });
       if (rng() < 0.5) this.building(range(rng, 10, 90), side * range(rng, 380, 650), range(rng, 25, 45), range(rng, 25, 45), range(rng, 80, 190));
     }
+  }
+
+  /** Open water under the bridge: a few boats with cabin, deck and navigation lights. */
+  private buildBoats(): void {
+    const rng = this.rng;
+    for (const side of [-1, 1]) {
+      if (rng() < 0.8) this.boat(range(rng, 10, 90), side * range(rng, 110, 480), rng);
+    }
+  }
+
+  /** A yacht or a sailboat with a pointed bow (no barges: a box hull read as a floating block). */
+  private boat(sLocal: number, d: number, rng: Rng): void {
+    const f0 = this.at(sLocal);
+    const cx = f0.x + Math.cos(f0.th) * d;
+    const cz = f0.z + Math.sin(f0.th) * d;
+    const th = f0.th + range(rng, -0.7, 0.7) + (rng() < 0.5 ? Math.PI : 0);
+    const fx = Math.sin(th);
+    const fz = -Math.cos(th);
+    const sail = rng() < 0.4;
+    const len = sail ? range(rng, 11, 16) : range(rng, 20, 34);
+    const wid = len * (sail ? 0.3 : 0.24);
+    const water = GROUND_LEVEL.bridge;
+    const deck = water + (sail ? 1.1 : 1.8);
+    const at = (along: number): Frame => ({ x: cx + fx * along, z: cz + fz * along, th });
+
+    // Hull: stern transom, straight sides, then a pointed bow.
+    const w = wid / 2;
+    const hull: [number, number][] = [
+      [-w, -len / 2],
+      [w, -len / 2],
+      [w, len * 0.12],
+      [w * 0.55, len * 0.36],
+      [0, len / 2],
+      [-w * 0.55, len * 0.36],
+      [-w, len * 0.12],
+    ];
+    prism(this.struct, cx, cz, th, hull, water - 0.2, deck, COL.hull, COL.deck);
+    this.glow.color(COL.boatDeck, 0.5);
+    for (let k = 0; k < hull.length; k++) {
+      // Thin lit rub rail along the deck edge.
+      const [x0, a0] = hull[k];
+      const [x1, a1] = hull[(k + 1) % hull.length];
+      const ax = cx + Math.cos(th) * x0 + fx * a0;
+      const az = cz + Math.sin(th) * x0 + fz * a0;
+      const bx = cx + Math.cos(th) * x1 + fx * a1;
+      const bz = cz + Math.sin(th) * x1 + fz * a1;
+      cable(this.glow, ax, deck + 0.05, az, bx, deck + 0.05, bz, 0.05);
+    }
+
+    if (sail) {
+      // Small cabin, tall mast with a white top light, side lights at the bow.
+      this.struct.color(COL.cabin);
+      box(this.struct, at(-len * 0.08), 0, deck + 0.45, w * 0.55, 0.45, len * 0.16);
+      this.glow.color(COL.boatWindow, 0.8);
+      for (const side of [-1, 1]) box(this.glow, at(-len * 0.08), side * (w * 0.55 + 0.02), deck + 0.5, 0.03, 0.12, len * 0.12);
+      const mastH = len * 1.25;
+      this.struct.color(COL.steel);
+      box(this.struct, at(len * 0.08), 0, deck + mastH / 2, 0.1, mastH / 2, 0.1);
+      this.glow.color(COL.white, 3);
+      box(this.glow, at(len * 0.08), 0, deck + mastH + 0.2, 0.22, 0.22, 0.22);
+    } else {
+      // Motor yacht: two stepped decks of saloon windows and a flybridge.
+      const cab = -len * 0.08;
+      this.struct.color(COL.yacht);
+      box(this.struct, at(cab), 0, deck + 1.1, w * 0.8, 1.1, len * 0.3);
+      box(this.struct, at(cab - len * 0.06), 0, deck + 2.9, w * 0.62, 0.7, len * 0.18);
+      this.glow.color(COL.boatWindow);
+      for (const side of [-1, 1]) {
+        box(this.glow, at(cab), side * (w * 0.8 + 0.02), deck + 1.2, 0.04, 0.35, len * 0.26);
+        box(this.glow, at(cab - len * 0.06), side * (w * 0.62 + 0.02), deck + 2.95, 0.04, 0.25, len * 0.15);
+      }
+      this.glow.color(COL.boatDeck);
+      for (let a = -len / 2 + 2; a < len * 0.3; a += 3.5) {
+        box(this.glow, at(a), w - 0.15, deck + 0.12, 0.12, 0.12, 0.12);
+        box(this.glow, at(a), -(w - 0.15), deck + 0.12, 0.12, 0.12, 0.12);
+      }
+      this.glow.color(COL.white, 3);
+      box(this.glow, at(cab - len * 0.06), 0, deck + 5.2, 0.25, 0.25, 0.25);
+    }
+    this.glow.color(COL.navRed);
+    box(this.glow, at(len * 0.3), -w * 0.7, deck + 0.4, 0.22, 0.22, 0.22);
+    this.glow.color(COL.navGreen);
+    box(this.glow, at(len * 0.3), w * 0.7, deck + 0.4, 0.22, 0.22, 0.22);
+
+    // Their reflections stretch across the water toward the road.
+    this.pools.color(COL.boatWindow, sail ? 0.18 : 0.3);
+    flatQuad(this.pools, f0, d - Math.sign(d) * 14, water + 0.08, 14, len * 0.3);
   }
 
   /** Box building with window attributes: faces carry facade metres, the roof has none. */
@@ -729,7 +1104,8 @@ export class RoadView {
         depthWrite: false,
       }),
       city: makeCityMaterial(),
-      signs: new THREE.MeshBasicMaterial({ map: makeSignAtlas(anisotropy, q.signScale), color: new THREE.Color(0.8, 0.8, 0.8) }),
+      // Vertex colour sets the brightness: gantry boards 1, lit tunnel signs ~2 (they bloom a little).
+      signs: new THREE.MeshBasicMaterial({ map: makeSignAtlas(anisotropy, q.signScale), color: new THREE.Color(0.8, 0.8, 0.8), vertexColors: true }),
       // Dark glossy water: catches the moon and the lamp lights as highlights.
       water: new THREE.MeshStandardMaterial({ color: 0x060c16, vertexColors: true, roughness: 0.16, metalness: 0.6 }),
     };

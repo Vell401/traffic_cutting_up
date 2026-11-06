@@ -5,7 +5,7 @@ import type { Director } from './director';
 import { VEHICLES, type VehicleSpec } from './vehicles';
 import type { PlayerCar } from './vehicle';
 
-export const MAX_TRAFFIC = 72;
+export const MAX_TRAFFIC = 112;
 /** Traffic lives in [player.s - BEHIND, player.s + AHEAD]; new cars appear far ahead, hidden by fog. */
 const BEHIND = 220;
 const AHEAD = 850;
@@ -411,7 +411,7 @@ export class Traffic {
     c.blinkT = 0;
     c.decisionT = range(rng, 1, 4);
     c.rude = rng() < this.director.rudeShare();
-    c.tGap = trafficTune.idmT;
+    c.tGap = this.director.timeGap();
     c.acc = 0;
     c.braking = false;
     c.crashed = false;

@@ -76,4 +76,21 @@ describe('Director', () => {
     for (let i = 0; i < 120 * 30; i++) sim.step(1 / 120, input);
     expect(sim.traffic.activeCount).toBeGreaterThan(sim.traffic.targetCount() * 0.6);
   });
+
+  it('dense preset fills the road with more, closer traffic', () => {
+    const normal = new Sim(mulberry32(9));
+    const dense = new Sim(mulberry32(9));
+    dense.director.preset = 2;
+    normal.director.setMode('normal', 1e9);
+    dense.director.setMode('normal', 1e9);
+    expect(dense.director.density()).toBeCloseTo(normal.director.density() * 1.7);
+    expect(dense.director.timeGap()).toBeLessThan(normal.director.timeGap());
+    normal.traffic.reset(normal.player);
+    dense.traffic.reset(dense.player);
+    expect(dense.traffic.activeCount).toBeGreaterThan(normal.traffic.activeCount * 1.4);
+    // Even at peak difficulty in heavy traffic the pool never runs dry.
+    dense.director.step(1e6);
+    dense.director.setMode('dense', 1e9);
+    expect(dense.traffic.targetCount()).toBeLessThanOrEqual(dense.traffic.cars.length - 6);
+  });
 });

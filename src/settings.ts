@@ -35,3 +35,26 @@ export function saveQuality(q: Quality): void {
     /* storage unavailable: the choice lasts until reload */
   }
 }
+
+/** A numbered start-menu choice (physics, traffic) kept in localStorage. */
+function loadChoice<T extends number>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const v = Number(localStorage.getItem(key));
+    return (allowed as readonly number[]).includes(v) ? (v as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveChoice(key: string, v: number): void {
+  try {
+    localStorage.setItem(key, String(v));
+  } catch {
+    /* storage unavailable: the choice lasts until reload */
+  }
+}
+
+export const loadPhysics = (): 1 | 2 => loadChoice('tcu.physics', [1, 2] as const, 1);
+export const savePhysics = (v: 1 | 2): void => saveChoice('tcu.physics', v);
+export const loadTraffic = (): 1 | 2 => loadChoice('tcu.traffic', [1, 2] as const, 1);
+export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);

@@ -212,6 +212,8 @@ export function strip(
   colA?: THREE.Color,
   colB?: THREE.Color,
   colK = 1,
+  /** Optional per-row brightness (e.g. shade ramp at tunnel portals). */
+  rowK?: Float64Array,
 ): void {
   let prevA = -1;
   let prevB = -1;
@@ -230,9 +232,12 @@ export function strip(
     const sn = fr.sn[i];
     const bx = fr.bx[i];
     const bz = fr.bz[i];
-    if (colA) mb.color(colA, colK);
+    const k = rowK ? rowK[i] : 1;
+    if (colA) mb.color(colA, colK * k);
+    else if (rowK) mb.rgb(r0 * k, g0 * k, b0 * k);
     const a = mb.v(bx + cs * dA, ya, bz + sn * dA, cs * nd, ny, sn * nd);
-    if (colB) mb.color(colB, colK);
+    if (colB) mb.color(colB, colK * k);
+    else if (rowK) mb.rgb(r0 * k, g0 * k, b0 * k);
     const b = mb.v(bx + cs * dB, yb, bz + sn * dB, cs * nd, ny, sn * nd);
     if (i > 0) mb.quad(prevA, prevB, b, a);
     prevA = a;

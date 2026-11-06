@@ -274,7 +274,8 @@ export class Sound {
 
     // Engine.
     this.load += (p.throttle - this.load) * Math.min(1, dt * 10);
-    const f = (p.rpm / 60) * 3; // firing frequency of a six
+    // Firing frequency: three pulses per revolution for the straight six, four for the V8 (physics №2).
+    const f = (p.rpm / 60) * (p.physicsId === 2 ? 4 : 3);
     set(this.o1.frequency, f, 0.02);
     set(this.o2.frequency, f * 0.5, 0.02);
     set(this.intake.filter.frequency, f * 3);

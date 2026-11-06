@@ -177,9 +177,117 @@ const SIGNS: [string, string, string][] = [
   ['WEST LOOP', 'JCT 3 km', '↑'],
 ];
 export const SIGN_COLS = 2;
-export const SIGN_ROWS = 4;
+export const SIGN_ROWS = 6;
+/** Cells 0..7 are overhead destination boards; the tunnel signs follow. */
+export const HIGHWAY_SIGNS = SIGNS.length;
+export const TUNNEL_SIGN = { exit: 8, sos: 9, lane: 10, fire: 11 } as const;
 
-/** Atlas of green overhead sign boards (2 × 4 cells, 512 × 256 each). */
+type Ctx = CanvasRenderingContext2D;
+
+function signFrame(g: Ctx, x: number, y: number, w: number, h: number, bg: string, k: number): void {
+  g.fillStyle = bg;
+  g.fillRect(x, y, w, h);
+  g.strokeStyle = '#f4f7f4';
+  g.lineWidth = 10 * k;
+  g.strokeRect(x + 12 * k, y + 12 * k, w - 24 * k, h - 24 * k);
+}
+
+function signText(g: Ctx, text: string, cx: number, cy: number, size: number): void {
+  g.fillStyle = '#ffffff';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `800 ${size}px "Segoe UI", Arial, sans-serif`;
+  g.fillText(text, cx, cy);
+  g.textAlign = 'start';
+}
+
+/** Polyline with round joints (pictogram limbs). */
+function limb(g: Ctx, k: number, ...pts: number[]): void {
+  g.beginPath();
+  g.moveTo(pts[0] * k, pts[1] * k);
+  for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i] * k, pts[i + 1] * k);
+  g.stroke();
+}
+
+/** Emergency exit: running figure heading for a door, "EXIT". */
+function drawExit(g: Ctx, x: number, y: number, w: number, h: number, k: number): void {
+  signFrame(g, x, y, w, h, '#0a8d45', k);
+  g.save();
+  g.translate(x + 150 * k, y + 128 * k);
+  g.strokeStyle = g.fillStyle = '#ffffff';
+  g.lineWidth = 9 * k;
+  g.strokeRect(-110 * k, -92 * k, 74 * k, 184 * k); // door
+  g.lineCap = g.lineJoin = 'round';
+  g.lineWidth = 20 * k;
+  g.beginPath();
+  g.arc(36 * k, -70 * k, 18 * k, 0, Math.PI * 2);
+  g.fill();
+  limb(g, k, 26, -44, 6, 18); // torso
+  limb(g, k, 22, -34, 54, -16, 76, -34); // front arm
+  limb(g, k, 22, -34, -4, -20, -24, -40); // back arm
+  limb(g, k, 6, 18, 46, 38, 52, 84); // front leg
+  limb(g, k, 6, 18, -14, 56, -52, 64); // back leg
+  g.restore();
+  signText(g, 'EXIT', x + 370 * k, y + 132 * k, 112 * k);
+}
+
+/** Emergency phone niche: handset and "SOS". */
+function drawSos(g: Ctx, x: number, y: number, w: number, h: number, k: number): void {
+  signFrame(g, x, y, w, h, '#1c5fd4', k);
+  g.save();
+  g.translate(x + 128 * k, y + 132 * k);
+  g.strokeStyle = g.fillStyle = '#ffffff';
+  g.lineCap = 'round';
+  g.lineWidth = 26 * k;
+  g.beginPath();
+  g.arc(0, 26 * k, 66 * k, Math.PI * 1.08, Math.PI * 1.92);
+  g.stroke();
+  for (const a of [Math.PI * 1.08, Math.PI * 1.92]) {
+    g.beginPath();
+    g.ellipse(Math.cos(a) * 66 * k, 26 * k + Math.sin(a) * 66 * k + 12 * k, 30 * k, 16 * k, a + Math.PI / 2, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.restore();
+  signText(g, 'SOS', x + 356 * k, y + 132 * k, 124 * k);
+}
+
+/** Lane control signal: green down arrow on black (only the centre square is used). */
+function drawLane(g: Ctx, x: number, y: number, w: number, h: number, k: number): void {
+  g.fillStyle = '#040506';
+  g.fillRect(x, y, w, h);
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  g.strokeStyle = '#2a2d31';
+  g.lineWidth = 8 * k;
+  g.strokeRect(cx - 120 * k, cy - 120 * k, 240 * k, 240 * k);
+  g.fillStyle = '#39ff7a';
+  g.fillRect(cx - 24 * k, cy - 92 * k, 48 * k, 100 * k);
+  g.beginPath();
+  g.moveTo(cx - 78 * k, cy);
+  g.lineTo(cx + 78 * k, cy);
+  g.lineTo(cx, cy + 92 * k);
+  g.closePath();
+  g.fill();
+}
+
+/** Fire cabinet: extinguisher and "FIRE". */
+function drawFire(g: Ctx, x: number, y: number, w: number, h: number, k: number): void {
+  signFrame(g, x, y, w, h, '#c7151f', k);
+  g.save();
+  g.translate(x + 130 * k, y + 136 * k);
+  g.fillStyle = g.strokeStyle = '#ffffff';
+  g.beginPath();
+  g.roundRect(-30 * k, -50 * k, 60 * k, 132 * k, 22 * k);
+  g.fill();
+  g.fillRect(-12 * k, -78 * k, 24 * k, 30 * k);
+  g.lineWidth = 12 * k;
+  g.lineCap = 'round';
+  limb(g, k, 8, -70, 58, -84, 70, -40);
+  g.restore();
+  signText(g, 'FIRE', x + 356 * k, y + 132 * k, 112 * k);
+}
+
+/** Atlas of sign boards (2 × 6 cells, 512 × 256 each): destination boards, then tunnel signs. */
 export function makeSignAtlas(anisotropy: number, scale = 1): THREE.CanvasTexture {
   const CW = 512 * scale;
   const CH = 256 * scale;
@@ -207,6 +315,12 @@ export function makeSignAtlas(anisotropy: number, scale = 1): THREE.CanvasTextur
     g.fillText(arrow, x + CW - 76 * k, y + CH / 2);
     g.textAlign = 'start';
   });
+  const cell = (i: number, draw: (g: Ctx, x: number, y: number, w: number, h: number, k: number) => void) =>
+    draw(g, (i % SIGN_COLS) * CW, Math.floor(i / SIGN_COLS) * CH, CW, CH, scale);
+  cell(TUNNEL_SIGN.exit, drawExit);
+  cell(TUNNEL_SIGN.sos, drawSos);
+  cell(TUNNEL_SIGN.lane, drawLane);
+  cell(TUNNEL_SIGN.fire, drawFire);
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = anisotropy;

@@ -1,5 +1,6 @@
 import type { WebGLRenderer } from 'three';
-import { cameraTune, carTune, scoreTune, trafficTune } from '../config';
+import { cameraTune, scoreTune, trafficTune } from '../config';
+import type { DriftTune } from '../sim/vehicleDrift';
 import type { Sim } from '../sim/world';
 
 export interface Debug {
@@ -29,17 +30,35 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   t.addBinding(tele, 'drawCalls', { readonly: true, label: 'draw calls', format: (v: number) => v.toFixed(0) });
   t.addBinding(tele, 'tris', { readonly: true, label: 'triangles', format: (v: number) => v.toFixed(0) });
 
-  const car = pane.addFolder({ title: 'Car' });
+  // Bound to the car picked in the menu (each physics variant has its own tune object).
+  const carTune = sim.player.tune;
+  const v2 = sim.player.physicsId === 2;
+  const car = pane.addFolder({ title: `Car · physics ${sim.player.physicsId}` });
   car.addBinding(carTune, 'powerKW', { min: 100, max: 700, step: 10 });
   car.addBinding(carTune, 'gripFront', { min: 0.6, max: 1.8, step: 0.01 });
   car.addBinding(carTune, 'gripRear', { min: 0.6, max: 1.8, step: 0.01 });
   car.addBinding(carTune, 'steerGripScale', { min: 0.5, max: 2, step: 0.01, label: 'steer lock ×grip' });
-  car.addBinding(carTune, 'steerRate', { min: 1, max: 12, step: 0.1 });
-  car.addBinding(carTune, 'steerReturn', { min: 1, max: 15, step: 0.1 });
-  car.addBinding(carTune, 'yawAssist', { min: 0, max: 1, step: 0.01 });
+  car.addBinding(carTune, 'steerRate', { min: 1, max: 30, step: 0.5 });
+  car.addBinding(carTune, 'steerReturn', { min: 1, max: 40, step: 0.5 });
+  if (!v2) car.addBinding(carTune, 'yawAssist', { min: 0, max: 1, step: 0.01 });
   car.addBinding(carTune, 'tractionControl', { min: 0, max: 1, step: 0.01, label: 'traction ctrl' });
   car.addBinding(carTune, 'aeroDrag', { min: 0.1, max: 1, step: 0.01 });
   car.addBinding(carTune, 'brakeDecel', { min: 4, max: 16, step: 0.1 });
+  if (v2) {
+    // Physics №2 extras (ranges from its author; the lag and ESP range must stay above zero).
+    const rt = carTune as DriftTune;
+    const rwd = pane.addFolder({ title: 'V8 RWD' });
+    rwd.addBinding(rt, 'escAssist', { min: 0, max: 1, step: 0.05, label: 'ESP' });
+    rwd.addBinding(rt, 'escSlip', { min: 0.08, max: 0.35, step: 0.01, label: 'ESP from, rad' });
+    rwd.addBinding(rt, 'tcSlip', { min: 0.05, max: 0.3, step: 0.01, label: 'TC slip' });
+    rwd.addBinding(rt, 'rearStiffness', { min: 0.9, max: 1.4, step: 0.01, label: 'rear stiffness' });
+    rwd.addBinding(rt, 'rollFront', { min: 0.4, max: 0.7, step: 0.01, label: 'roll front' });
+    rwd.addBinding(rt, 'loadSensitivity', { min: 0, max: 0.35, step: 0.01, label: 'load sens.' });
+    rwd.addBinding(rt, 'loadLag', { min: 0.03, max: 0.25, step: 0.01, label: 'load lag, s' });
+    rwd.addBinding(rt, 'torqueNm', { min: 450, max: 900, step: 10, label: 'torque, N·m' });
+    rwd.addBinding(rt, 'brakeFront', { min: 0.55, max: 0.72, step: 0.01, label: 'brake front' });
+    rwd.addBinding(rt, 'steerRateSpeed', { min: 15, max: 60, step: 1, label: 'steer heavy from' });
+  }
 
   const tr = pane.addFolder({ title: 'Traffic', expanded: false });
   tr.addBinding(trafficTune, 'density', { min: 1, max: 15, step: 0.5, label: 'cars/km/lane' });
