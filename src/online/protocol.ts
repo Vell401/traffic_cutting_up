@@ -52,6 +52,8 @@ export type ServerMsg =
   | { t: 'players'; list: PlayerInfo[] }
   | { t: 'ev'; name: string; data: Record<string, unknown> }
   | { t: 'feed'; text: string }
+  /** A message from the admin page: a banner on every screen (menus too). */
+  | { t: 'announce'; text: string }
   | { t: 'mode'; mode: string; label: string }
   | { t: 'pong'; c: number; tick: number };
 

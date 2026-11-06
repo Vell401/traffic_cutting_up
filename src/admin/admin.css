@@ -355,6 +355,17 @@ td.acts button + button {
   color: var(--dim);
   padding: 10px 8px;
 }
+table.dens {
+  margin: 4px 0 10px;
+}
+table.dens input {
+  width: 80px;
+  padding: 4px 8px;
+  text-align: right;
+}
+table.dens tr.cur td {
+  background: rgba(200, 255, 62, 0.06);
+}
 .scroll {
   overflow-x: auto;
 }

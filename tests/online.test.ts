@@ -140,7 +140,9 @@ describe('online world', () => {
     expect(live.traffic.activeCount).toBe(0);
     net.run(2);
     expect(live.traffic.activeCount).toBe(0);
-    net.server.configure({ trafficOn: true, mode: 'auto', maxPlayers: 3 });
+    net.server.configure({ trafficOn: true, mode: 'auto', maxPlayers: 3, modePerKm: { mode: 'normal', perKm: 4 } });
+    const normal = live.trafficState().densities.find((d) => d.mode === 'normal')!;
+    expect(normal.perKm).toBeCloseTo(4, 6);
     net.run(3);
     expect(live.traffic.activeCount).toBeGreaterThan(0);
     expect(live.trafficState().held).toBe(false);

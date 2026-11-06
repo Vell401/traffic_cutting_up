@@ -16,6 +16,8 @@ export class OnlineHud {
   private readonly rows = document.getElementById('boardRows')!;
   private readonly net = document.getElementById('boardNet')!;
   private readonly feed = document.getElementById('feed')!;
+  private readonly announceEl = document.getElementById('announce')!;
+  private announceTimer = 0;
   private readonly status = document.getElementById('netStatus')!;
   private readonly tagLayer = document.getElementById('tags')!;
   private readonly tags = new Map<number, HTMLDivElement>();
@@ -82,6 +84,14 @@ export class OnlineHud {
     el.addEventListener('animationend', () => el.remove());
     this.feed.prepend(el);
     while (this.feed.childElementCount > 4) this.feed.lastElementChild!.remove();
+  }
+
+  /** A message from the server's admin: a banner at the top for a while (over menus too). */
+  announce(text: string): void {
+    this.announceEl.querySelector('.t')!.textContent = text;
+    this.announceEl.classList.add('on');
+    window.clearTimeout(this.announceTimer);
+    this.announceTimer = window.setTimeout(() => this.announceEl.classList.remove('on'), 9000);
   }
 
   /** Connection problems and other session-wide notices; empty text hides the line. */

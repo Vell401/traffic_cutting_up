@@ -2,6 +2,7 @@
  * Persistent server data in one SQLite file (Node's built-in node:sqlite, no native modules):
  *   runs  every finished run worth keeping, solo (reported by the page) and online (the server's own)
  *   log   diagnostics: server warnings and errors, problems reported by players' pages (size-capped)
+ *   settings  small JSON values kept across restarts (the admin page's traffic settings)
  */
 import { DatabaseSync } from 'node:sqlite';
 
@@ -70,6 +71,10 @@ export class Store {
         created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS runs_board ON runs (mode, score DESC);
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS log (
         id INTEGER PRIMARY KEY,
         at INTEGER NOT NULL,
@@ -115,6 +120,21 @@ export class Store {
       ? this.db.prepare('SELECT * FROM log WHERE source = ? ORDER BY id DESC LIMIT ?').all(source, n)
       : this.db.prepare('SELECT * FROM log ORDER BY id DESC LIMIT ?').all(n);
     return rows as unknown as LogRow[];
+  }
+
+  /** A stored setting (parsed JSON), or undefined. */
+  setting<T>(key: string): T | undefined {
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.value) as T;
+    } catch {
+      return undefined;
+    }
+  }
+
+  setSetting(key: string, value: unknown): void {
+    this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, JSON.stringify(value));
   }
 
   /** Delete every run of one player (any letter case) in one mode (admin: a cheated or offensive entry). */

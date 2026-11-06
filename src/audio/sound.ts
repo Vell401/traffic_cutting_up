@@ -759,6 +759,11 @@ export class Sound {
     o.stop(at + 0.3);
   }
 
+  /** A message from the server's admin: a short two-tone call for attention. */
+  notice(): void {
+    this.notes([0, 7, 12], 659, 0.11, 0.13);
+  }
+
   /** Turn signal relay: a click when the lamp lights, a softer one when it goes dark. */
   tick(lit: boolean): void {
     const ctx = this.ready();

@@ -109,6 +109,8 @@ export interface ClientHooks {
   onTeleport?(): void;
   onPlayers?(list: PlayerInfo[]): void;
   onFeed?(text: string): void;
+  /** A message from the server's admin (shown big). */
+  onAnnounce?(text: string): void;
   onWelcome?(msg: Extract<ServerMsg, { t: 'welcome' }>): void;
   onReject?(text: string): void;
   /** Randomness of predicted traffic contacts (a seeded one keeps headless test sessions repeatable). */
@@ -254,6 +256,9 @@ export class ClientCore {
         break;
       case 'feed':
         this.hooks.onFeed?.(msg.text);
+        break;
+      case 'announce':
+        this.hooks.onAnnounce?.(msg.text);
         break;
       case 'mode':
         ev.emit('trafficMode', { mode: msg.mode, label: msg.label });

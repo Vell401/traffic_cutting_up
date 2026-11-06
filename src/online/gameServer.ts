@@ -430,8 +430,10 @@ export class GameServer {
     return name;
   }
 
-  /** A line from the admin in everyone's feed. */
+  /** A message from the admin: a banner on every connected screen (in the menu too) and a feed line. */
   announce(text: string): void {
+    const msg = JSON.stringify({ t: 'announce', text } satisfies ServerMsg);
+    for (const c of this.conns) if (!c.closed) c.peer.send(msg);
     this.feed(`Админ: ${text}`);
   }
 

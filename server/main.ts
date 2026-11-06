@@ -27,8 +27,8 @@ import { dirname, join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { GameServer, type LogLevel } from '../src/online/gameServer';
 import { rulesHash, type OnlineRules } from '../src/online/rules';
-import type { Stimulus } from '../src/online/world';
-import { Admin } from './admin';
+import type { Stimulus, WorldConfig } from '../src/online/world';
+import { Admin, TRAFFIC_SETTINGS } from './admin';
 import { Api, clientIp } from './api';
 import { Store } from './store';
 
@@ -127,6 +127,13 @@ const game = new GameServer({
     }
   },
 });
+
+// Traffic as the admin page left it before the restart (else the defaults: TRAFFIC, INTENSITY).
+const savedTraffic = store.setting<WorldConfig>(TRAFFIC_SETTINGS);
+if (savedTraffic) {
+  game.configure(savedTraffic);
+  log('info', `traffic settings restored: ${JSON.stringify(savedTraffic)}`);
+}
 
 const admin = new Admin({
   password: env.ADMIN_PASSWORD ?? '',

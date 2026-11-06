@@ -11,10 +11,11 @@ export interface PhysicsInfo {
   desc: string;
 }
 
+/** In menu order (the AMG first); the ids are what the network and saved choices use. */
 export const PHYSICS: readonly PhysicsInfo[] = [
+  { id: 3, name: 'AMG 4MATIC+', desc: 'Полный привод, 1605 кг, быстрый 8-ступенчатый автомат, уверенный зацеп и 664 whp' },
   { id: 1, name: 'Grip', desc: 'Аркада: цепко и точно, без заносов' },
   { id: 2, name: 'V8 RWD', desc: 'Тяжёлый заднеприводный седан: перенос веса, лёгкий занос на газу' },
-  { id: 3, name: 'AMG 4MATIC+', desc: 'Полный привод, 1605 кг, быстрый 8-ступенчатый автомат, уверенный зацеп и 664 whp' },
 ];
 
 export function createCar(id: PhysicsId): PlayerCar {

@@ -162,6 +162,12 @@ describe('admin API', () => {
     const r = (await (await req('traffic', { trafficOn: true, traffic: 2, intensity: 0.8, mode: 'trucks' })).json()) as { traffic: object };
     expect(r.traffic).toMatchObject({ on: true, preset: 2, intensity: 0.8, mode: 'trucks', held: true });
     expect((await req('traffic', { mode: 'flying' })).status).toBe(400);
+    // One mode's spawn density in cars per km of lane; kept in the database for the next start.
+    const d = (await (await req('traffic', { modePerKm: { mode: 'dense', perKm: 30 } })).json()) as { traffic: { densities: { mode: string; perKm: number }[] } };
+    expect(d.traffic.densities.find((x) => x.mode === 'dense')!.perKm).toBeCloseTo(30, 6);
+    const saved = store.setting<{ traffic: number; mode: string; modeDensity: Record<string, number> }>('traffic')!;
+    expect(saved).toMatchObject({ traffic: 2, mode: 'trucks' });
+    expect(saved.modeDensity.dense).toBeGreaterThan(1.45);
     expect((await req('players', { maxPlayers: 12 })).status).toBe(200);
     expect(game.world.rules.maxPlayers).toBe(12);
     expect((await req('players', { maxPlayers: 500 })).status).toBe(400);

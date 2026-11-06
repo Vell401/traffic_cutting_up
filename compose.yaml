@@ -17,6 +17,8 @@ services:
       PORT: "8787"
       ORIGINS: https://${SITE_ADDRESS:?set SITE_ADDRESS}
       MAX_PLAYERS: ${MAX_PLAYERS:-50}
+      # Dense traffic by default; the admin page can change it (its choice is kept in the database).
+      TRAFFIC: ${TRAFFIC:-2}
       LOG_EVERY: "60"
       DB_PATH: /data/traffic.db
       # Admin page (/admin.html): from the repository secret ADMIN_PASSWORD via the deploy workflow.

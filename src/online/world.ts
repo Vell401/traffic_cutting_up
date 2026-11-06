@@ -9,7 +9,7 @@ import { createCar, type PhysicsId } from '../sim/physics';
 import { SPAWN_D, SPAWN_GAP, SPAWN_PLACES, ringScript, spawnS } from '../sim/ring';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
-import { MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
+import { AHEAD as TRAFFIC_AHEAD, BEHIND as TRAFFIC_BEHIND, MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
 import type { DriveInput, PlayerCar } from '../sim/vehicle';
 import { VEHICLES } from '../sim/vehicles';
 import {
@@ -52,7 +52,20 @@ export interface WorldConfig {
   intensity?: number;
   /** Hold one traffic mode, or 'auto' to let them change every kilometre or so. */
   mode?: TrafficMode | 'auto';
+  /** Spawn density of modes as a factor of the base (normal = 1). */
+  modeDensity?: Partial<Record<TrafficMode, number>>;
+  /** One mode's density in cars per km of lane at the current preset and difficulty (the admin page edits this). */
+  modePerKm?: { mode: TrafficMode; perKm: number };
   maxPlayers?: number;
+}
+
+/** A traffic mode's spawn density as the admin page shows it. */
+export interface ModeDensity {
+  mode: TrafficMode;
+  /** Cars per km of lane at the current preset and difficulty. */
+  perKm: number;
+  /** Factor of the base density. */
+  scale: number;
 }
 
 /** Traffic as the admin page shows it. */
@@ -64,6 +77,10 @@ export interface TrafficState {
   /** The mode is held by the admin (else it changes by itself). */
   held: boolean;
   cars: number;
+  densities: ModeDensity[];
+  /** Road around each driver kept topped up with traffic, km, and its lanes. */
+  windowKm: number;
+  lanes: number;
 }
 
 export const TRAFFIC_MODES: readonly TrafficMode[] = ['normal', 'sparse', 'dense', 'trucks', 'walls', 'platoons'];
@@ -305,6 +322,18 @@ export class OnlineWorld {
       r.intensity = cfg.intensity;
       this.director.fixedIntensity = this.director.intensity = cfg.intensity;
     }
+    const d = this.director;
+    if (cfg.modeDensity) {
+      for (const m of TRAFFIC_MODES) {
+        const v = cfg.modeDensity[m];
+        if (typeof v === 'number' && v >= 0 && v <= 6) d.modeDensity[m] = v;
+      }
+    }
+    if (cfg.modePerKm && TRAFFIC_MODES.includes(cfg.modePerKm.mode) && cfg.modePerKm.perKm >= 0 && cfg.modePerKm.perKm <= 40) {
+      const m = cfg.modePerKm.mode;
+      const base = d.densityOf(m) / Math.max(d.modeDensity[m], 1e-6);
+      d.modeDensity[m] = Math.min(6, cfg.modePerKm.perKm / Math.max(base, 1e-6));
+    }
     if (cfg.mode === 'auto') {
       this.modeHeld = false;
       this.director.setMode(this.director.mode);
@@ -322,7 +351,17 @@ export class OnlineWorld {
 
   trafficState(): TrafficState {
     const d = this.director;
-    return { on: this.traffic.enabled, preset: d.preset, intensity: d.fixedIntensity ?? d.intensity, mode: d.mode, held: this.modeHeld, cars: this.traffic.activeCount };
+    return {
+      on: this.traffic.enabled,
+      preset: d.preset,
+      intensity: d.fixedIntensity ?? d.intensity,
+      mode: d.mode,
+      held: this.modeHeld,
+      cars: this.traffic.activeCount,
+      densities: TRAFFIC_MODES.map((mode) => ({ mode, perKm: d.densityOf(mode), scale: d.modeDensity[mode] })),
+      windowKm: (TRAFFIC_BEHIND + TRAFFIC_AHEAD) / 1000,
+      lanes: LANES,
+    };
   }
 
   respawn(dr: Driver): void {

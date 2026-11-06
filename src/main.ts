@@ -66,8 +66,11 @@ const canvas = document.getElementById('c') as HTMLCanvasElement;
 const params = new URLSearchParams(location.search);
 /** ?test: short finite showcase tracks picked from a side panel; no records saved. */
 const TEST = params.has('test');
-/** ?online: the shared ring on the game server (its own page lifecycle: leaving reloads the page). */
-const ONLINE = params.has('online') && !TEST;
+/**
+ * Online by default: the shared ring on the game server (its own page lifecycle: leaving reloads the
+ * page). ?solo: single player. (?online still works for old links.)
+ */
+const ONLINE = !TEST && !params.has('solo');
 let showcase = 0;
 const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadPhysics(), online: ONLINE });
 sim.director.preset = loadTraffic();
@@ -198,6 +201,10 @@ function startOnline(): void {
     },
     onPlayers: (list) => ohud.players(list),
     onFeed: (text) => ohud.addFeed(text),
+    onAnnounce: (text) => {
+      ohud.announce(text);
+      sound.notice();
+    },
     onTeleport: () => {
       view.snapCamera();
       if (Math.abs(sim.road.rel(sim.player.s, spawnS(0))) < 3) hud.tag('SPAWN · ВЫ НЕВИДИМЫ, ПОКА НА ПЛОЩАДКЕ', 2.5);
@@ -381,7 +388,8 @@ function choice<T extends number>(
   for (const it of items) {
     const b = document.createElement('button');
     b.dataset.id = String(it.id);
-    b.innerHTML = `<b>${it.id}</b>${it.name}`;
+    // Numbered by place in the list (the ids stay what the network and saved settings use).
+    b.innerHTML = `<b>${seg.childElementCount + 1}</b>${it.name}`;
     b.addEventListener('click', () => {
       show(it.id);
       onPick(it.id);
@@ -434,17 +442,17 @@ document.getElementById('testBtn')!.addEventListener('click', () => {
 document.getElementById('menuBtn')!.addEventListener('click', () => {
   if (ONLINE) {
     session?.leave();
-    location.href = `${location.pathname}?online`;
+    location.href = location.pathname;
     return;
   }
-  location.href = location.pathname;
+  location.href = `${location.pathname}?solo`;
 });
 // Mode: single player and online are separate pages (online keeps its own sim, ring and lifecycle).
 choice('modeSeg', 'modeDesc', [
-  { id: 1, name: 'Одиночный', desc: 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
   { id: 2, name: 'Онлайн', desc: 'Общее кольцо 12 км и общий трафик с другими игроками на сервере' },
+  { id: 1, name: 'Одиночный', desc: 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
 ] as const, ONLINE ? 2 : 1, (id) => {
-  if ((id === 2) !== ONLINE) location.search = id === 2 ? '?online' : '';
+  if ((id === 2) !== ONLINE) location.search = id === 2 ? '' : '?solo';
 });
 // ---------------------------------------------------------------- test panel
 

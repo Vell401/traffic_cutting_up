@@ -133,16 +133,62 @@ const TAIL_GLOW = new THREE.Color(0.9, 0.03, 0.015);
 const TAIL_GLOW_BRAKE = new THREE.Color(3.2, 0.1, 0.04);
 const LED_TAIL = new THREE.Color(1.4, 0.05, 0.02);
 
+/*
+ * Low and high beams of the imported A45: the model ships them dark (and its front LEDs red). Its lamp
+ * parts are alpha-textured glass, which would dim any glow by their transparency, so the LED projectors
+ * and diodes get an opaque self-lit material hot enough to bloom a little, the reflectors behind them
+ * a softer one, like the lamps of the other cars.
+ */
+const A45_HEADLAMP: Record<string, THREE.Color> = {
+  front_refraction_surface_led: new THREE.Color(5.5, 5.4, 5),
+  hi_led: new THREE.Color(4.6, 4.5, 4.2),
+  headlight_chrome_reflector: new THREE.Color(1.5, 1.47, 1.38),
+};
+const headlampMats = new Map<string, THREE.MeshBasicMaterial>();
+let headlampHalo: THREE.SpriteMaterial | null = null;
+
+/** Soft glow over a lit headlamp (one shared additive sprite material). */
+function haloMaterial(): THREE.SpriteMaterial {
+  if (headlampHalo) return headlampHalo;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 64;
+  const g = cv.getContext('2d')!;
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.12, 'rgba(255,252,245,0.7)');
+  grad.addColorStop(0.4, 'rgba(255,248,236,0.12)');
+  grad.addColorStop(1, 'rgba(255,245,230,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  headlampHalo = new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(1.3, 1.28, 1.22), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+  return headlampHalo;
+}
+
 function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
   model.updateMatrixWorld(true);
   const clones = new Map<string, THREE.MeshStandardMaterial>();
   const p = new THREE.Vector3();
+  /** Projector positions per side (model space), for the halos. */
+  const projectors: THREE.Vector3[][] = [[], []];
   model.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh || Array.isArray(mesh.material)) return;
     const mat = mesh.material as THREE.MeshStandardMaterial;
     const signal = mat.name === 'Signals' || A45_SIGNAL_NODES.has(mesh.name);
     const tail = mat.name === 'tailights_red_glass';
+    const head = A45_HEADLAMP[mat.name];
+    if (head && !signal) {
+      // Headlamp parts at the front (the same LED material also sits in the tail lamps).
+      mesh.getWorldPosition(p);
+      if (p.z >= 0) return;
+      if (mat.name === 'front_refraction_surface_led') projectors[p.x < 0 ? 0 : 1].push(p.clone());
+      let m = headlampMats.get(mat.name);
+      if (!m) headlampMats.set(mat.name, (m = new THREE.MeshBasicMaterial({ color: head, name: `${mat.name}_lit` })));
+      mesh.material = m;
+      return;
+    }
     if (!signal && !tail) return;
     // Materials are shared between both sides and every car using the model: one clone per car,
     // per side and per original material.
@@ -160,6 +206,17 @@ function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
     }
     mesh.material = m;
   });
+  // A halo just in front of each headlamp, so the lights read as on from a distance too.
+  const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+  for (const side of projectors) {
+    if (side.length === 0) continue;
+    const c = side.reduce((a, b) => a.add(b), new THREE.Vector3()).divideScalar(side.length);
+    c.z -= 0.06;
+    const halo = new THREE.Sprite(haloMaterial());
+    halo.position.copy(c.applyMatrix4(inv));
+    halo.scale.setScalar(0.3 / model.scale.x);
+    model.add(halo);
+  }
 }
 
 /** Something that turns and rolls a car's wheels. */
@@ -344,6 +401,8 @@ const A45_EYE_DEFAULT = new THREE.Vector3(-0.36, 1.16, 0.18);
 const A45_EYE_FROM_WHEEL = new THREE.Vector3(0, 0.27, 0.62);
 /** Steering wheel turn per road-wheel angle (a quick AMG rack). */
 const A45_STEER_RATIO = 13.5;
+/** Steering wheel turn at full input whatever the speed, rad (about 100°). */
+const A45_MIN_TURN = 1.75;
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 
@@ -380,7 +439,12 @@ class A45Cockpit implements Cockpit {
 
   update(car: PlayerCar, dt: number): void {
     if (!this.wheel) return;
-    this.angle = damp(this.angle, car.steerAngle * A45_STEER_RATIO, 20, dt);
+    // The real wheel angle (road wheels × ratio), but never less than an input-led turn: at speed the
+    // keyboard asks for only a few degrees at the road wheels, the hands still move the wheel visibly.
+    const real = car.steerAngle * A45_STEER_RATIO;
+    const felt = car.steerIn * A45_MIN_TURN;
+    const target = Math.abs(real) >= Math.abs(felt) ? real : felt;
+    this.angle = damp(this.angle, target, 14, dt);
     this.wheel.quaternion.copy(this.wheelRest).multiply(this.q.setFromAxisAngle(Z_AXIS, this.angle));
     // Paddles: the left one pulled on a downshift, the right one on an upshift.
     if (car.gear !== this.gear) {

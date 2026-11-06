@@ -41,6 +41,9 @@ interface Traffic {
   mode: string;
   held: boolean;
   cars: number;
+  densities: { mode: string; perKm: number; scale: number }[];
+  windowKm: number;
+  lanes: number;
 }
 interface State {
   server: { version: string; uptimeS: number; rssMB: number; connections: number; stepAvgMs: number; stepMaxMs: number; tick: number; seed: number; rules: string };
@@ -185,7 +188,7 @@ function showDashboard(): void {
       </div>
       <div class="grow"></div>
       <span class="live" id="live"></span>
-      <a href="/?online"><button>К игре</button></a>
+      <a href="/"><button>К игре</button></a>
       <button id="logout">Выйти</button>
     </header>
     <div class="wrap">
@@ -197,7 +200,9 @@ function showDashboard(): void {
           <div class="row"><label>Плотность</label><div class="seg" id="preset"><button data-v="1">Обычная</button><button data-v="2">Плотная</button></div></div>
           <div class="row"><label>Сложность</label><input type="range" min="0" max="100" step="1" class="grow" id="intensity" /><b id="intensityOut"></b></div>
           <div class="row"><label>Режим</label><select id="mode"></select><span class="note" id="modeNow"></span></div>
-          <div class="note">Сложность — частота и плотность машин, доля «резких» водителей. «Авто» — режимы меняются сами каждые 1–2 км, остальные держатся, пока не смените.</div>
+          <table class="dens" id="densities"></table>
+          <div class="note">Спавн — сколько машин режим держит на 1 км каждой полосы при текущих плотности и сложности; «≈ у игрока» — сколько это машин вокруг одного игрока (на участке дороги вокруг него, где сервер держит трафик: 220 м позади и 850 м впереди). Значение можно поменять: Enter или уход с поля сохраняет.</div>
+          <div class="note">Сложность — частота и плотность машин, доля «резких» водителей. «Авто» — режимы меняются сами каждые 1–2 км, остальные держатся, пока не смените. Настройки трафика сохраняются на сервере и переживают перезапуск.</div>
         </section>
         <section class="panel">
           <h2>Сервер</h2>
@@ -249,6 +254,20 @@ function showDashboard(): void {
   $<HTMLSelectElement>('mode').addEventListener('change', (e) => {
     const v = (e.target as HTMLSelectElement).value;
     void act('traffic', { mode: v }, v === 'auto' ? 'Режимы меняются сами' : `Режим: ${MODE_NAMES[v] ?? v}`);
+  });
+  $('densities').addEventListener('change', (e) => {
+    const input = e.target as HTMLInputElement;
+    if (!input.dataset.mode) return;
+    const perKm = Number(input.value);
+    if (!(perKm >= 0 && perKm <= 40)) {
+      toast('Число от 0 до 40', true);
+      return;
+    }
+    void act('traffic', { modePerKm: { mode: input.dataset.mode, perKm } }, `${MODE_NAMES[input.dataset.mode] ?? input.dataset.mode}: ${perKm} машин на км полосы`);
+    input.blur();
+  });
+  $('densities').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   });
   $('saveMax').addEventListener('click', () => {
     const n = Number($<HTMLInputElement>('maxPlayers').value);
@@ -360,6 +379,7 @@ function render(s: State): void {
   }
   if (document.activeElement !== sel) sel.value = t.held ? t.mode : 'auto';
   $('modeNow')!.textContent = `сейчас: ${MODE_NAMES[t.mode] ?? t.mode}${t.held ? ' (закреплён)' : ''}`;
+  renderDensities(t);
 
   const maxInput = $('maxPlayers') as HTMLInputElement;
   if (document.activeElement !== maxInput) maxInput.value = String(s.rules.maxPlayers);
@@ -389,6 +409,26 @@ function render(s: State): void {
         .join('') +
       '</tbody>'
     : '<tr><td class="empty">На сервере никого нет</td></tr>';
+}
+
+/** Spawn density of each traffic mode; the current one highlighted. Inputs being edited are left alone. */
+function renderDensities(t: Traffic): void {
+  const table = document.getElementById('densities')!;
+  const editing = table.contains(document.activeElement);
+  if (editing) return;
+  const perDriver = (perKm: number) => Math.round(perKm * t.lanes * t.windowKm);
+  table.innerHTML =
+    `<thead><tr><th>Режим</th><th class="num">Спавн, машин/км полосы</th><th class="num">≈ у игрока</th></tr></thead><tbody>` +
+    t.densities
+      .map(
+        (d) => `<tr class="${d.mode === t.mode ? 'cur' : ''}">
+          <td>${esc(MODE_NAMES[d.mode] ?? d.mode)}${d.mode === t.mode ? ' <span class="tag active">сейчас</span>' : ''}</td>
+          <td class="num"><input type="number" min="0" max="40" step="0.5" value="${d.perKm.toFixed(1)}" data-mode="${esc(d.mode)}" /></td>
+          <td class="num">${perDriver(d.perKm)}</td>
+        </tr>`,
+      )
+      .join('') +
+    '</tbody>';
 }
 
 async function loadBoard(): Promise<void> {

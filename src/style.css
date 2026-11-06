@@ -165,19 +165,58 @@ body.menu #hud {
   }
 }
 
+/* At the very top, small and see-through: a reminder, not a warning in the middle of the view. */
 #shoulder {
   position: absolute;
-  top: 46%;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 13px;
+  font-size: 11px;
   letter-spacing: 0.2em;
   color: var(--hot);
   opacity: 0;
   transition: opacity 0.2s;
 }
 #shoulder.on {
-  opacity: 0.9;
+  opacity: 0.5;
+}
+
+/* Admin message: over everything, menus included. */
+#announce {
+  position: fixed;
+  top: 150px;
+  left: 50%;
+  z-index: 20;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 10px 18px 12px;
+  background: rgba(8, 10, 16, 0.86);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -10px);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+#announce.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+#announce .k {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+#announce .t {
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 #modeTag {

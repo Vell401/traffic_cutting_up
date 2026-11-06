@@ -54,11 +54,12 @@ function saveChoice(key: string, v: number): void {
   }
 }
 
-export const loadPhysics = (): 1 | 2 | 3 => loadChoice('tcu.physics', [1, 2, 3] as const, 1);
+// First-time players start in the A45 with the AMG physics (the first choices in the menu).
+export const loadPhysics = (): 1 | 2 | 3 => loadChoice('tcu.physics', [1, 2, 3] as const, 3);
 export const savePhysics = (v: 1 | 2 | 3): void => saveChoice('tcu.physics', v);
 export const loadTraffic = (): 1 | 2 => loadChoice('tcu.traffic', [1, 2] as const, 1);
 export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);
-export const loadCar = (): 1 | 2 | 3 => loadChoice('tcu.car', [1, 2, 3] as const, 1);
+export const loadCar = (): 1 | 2 | 3 => loadChoice('tcu.car', [1, 2, 3] as const, 3);
 export const saveCar = (v: 1 | 2 | 3): void => saveChoice('tcu.car', v);
 
 /** Gearbox: automatic (default) or manual, switched with G. */

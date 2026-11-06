@@ -5,7 +5,8 @@
  *   POST /api/admin/login   {password}            → {token}: a session for 12 h
  *   POST /api/admin/logout
  *   GET  /api/admin/state                         server health, rules, traffic, drivers, bans
- *   POST /api/admin/traffic {trafficOn?, traffic?, intensity?, mode?}
+ *   POST /api/admin/traffic {trafficOn?, traffic?, intensity?, mode?, modePerKm?: {mode, perKm}}
+ *                          (kept in the database: the server starts with them after a restart)
  *   POST /api/admin/players {maxPlayers}
  *   POST /api/admin/kick    {id, banMinutes?}
  *   POST /api/admin/unban   {addr}
@@ -22,10 +23,21 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { GameServer } from '../src/online/gameServer';
 import { TRAFFIC_MODES, type WorldConfig } from '../src/online/world';
+import type { TrafficMode } from '../src/sim/director';
 import { Limiter, clientIp, ownJson, readJson, send } from './api';
 import type { RunMode, Store } from './store';
 
 const SESSION_MS = 12 * 3600_000;
+/** Settings key of the traffic configuration the admin page set last. */
+export const TRAFFIC_SETTINGS = 'traffic';
+
+/** The traffic settings to keep: everything the admin page can change about traffic, as it is now. */
+export function trafficSettings(game: GameServer): WorldConfig {
+  const t = game.trafficState();
+  const modeDensity: Partial<Record<TrafficMode, number>> = {};
+  for (const d of t.densities) modeDensity[d.mode] = d.scale;
+  return { trafficOn: t.on, traffic: t.preset, intensity: t.intensity, mode: t.held ? t.mode : 'auto', modeDensity };
+}
 const MAX_SESSIONS = 50;
 
 export interface AdminOptions {
@@ -162,8 +174,13 @@ export class Admin {
         if (b.traffic === 1 || b.traffic === 2) cfg.traffic = b.traffic;
         if (typeof b.intensity === 'number' && b.intensity >= 0 && b.intensity <= 1) cfg.intensity = b.intensity;
         if (b.mode === 'auto' || TRAFFIC_MODES.includes(b.mode as never)) cfg.mode = b.mode as WorldConfig['mode'];
+        const pk = b.modePerKm as { mode?: unknown; perKm?: unknown } | undefined;
+        if (pk && TRAFFIC_MODES.includes(pk.mode as never) && typeof pk.perKm === 'number' && pk.perKm >= 0 && pk.perKm <= 40) {
+          cfg.modePerKm = { mode: pk.mode as TrafficMode, perKm: pk.perKm };
+        }
         if (Object.keys(cfg).length === 0) return send(res, 400, { ok: false });
         g.configure(cfg);
+        this.o.store.setSetting(TRAFFIC_SETTINGS, trafficSettings(g));
         audit(`traffic ${JSON.stringify(cfg)}`);
         return send(res, 200, { ok: true, traffic: g.trafficState() });
       }

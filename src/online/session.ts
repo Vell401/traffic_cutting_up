@@ -30,6 +30,7 @@ export interface SessionHooks {
   onState(state: OnlineState, text: string): void;
   onPlayers(list: PlayerInfo[]): void;
   onFeed(text: string): void;
+  onAnnounce(text: string): void;
   onTeleport(): void;
 }
 
@@ -60,6 +61,7 @@ export class OnlineSession {
       onTeleport: () => hooks.onTeleport(),
       onPlayers: (list) => hooks.onPlayers(list),
       onFeed: (text) => hooks.onFeed(text),
+      onAnnounce: (text) => hooks.onAnnounce(text),
       onWelcome: (msg) => {
         saveToken(msg.token);
         this.attempts = 0;

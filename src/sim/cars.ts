@@ -11,10 +11,11 @@ export interface CarInfo {
   desc: string;
 }
 
+/** In menu order (the A45 first); the ids are what the network and saved choices use. */
 export const CARS: readonly CarInfo[] = [
+  { id: 3, name: 'Mercedes-AMG A45 S', desc: 'Компактный AMG-хэтчбек 4MATIC+: 1605 кг, усиленная тормозная система, спортивное сцепление, салон с живым рулём (V)' },
   { id: 1, name: 'Coupe', desc: 'Простое синее купе' },
-  { id: 2, name: 'R34', desc: 'Японское купе 90-х: серебро с синими полосами, проработанный салон, вид из кабины (C)' },
-  { id: 3, name: 'Mercedes-AMG A45 S', desc: 'Компактный AMG-хэтчбек 4MATIC+: 1605 кг, усиленная тормозная система, спортивное сцепление' },
+  { id: 2, name: 'R34', desc: 'Японское купе 90-х: серебро с синими полосами, проработанный салон, вид из кабины (V)' },
 ];
 
 export const carId = (v: unknown): CarId => (v === 2 || v === 3 ? v : 1);

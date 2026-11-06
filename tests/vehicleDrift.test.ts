@@ -444,7 +444,8 @@ describe('lifting off mid-corner (physics №2 and №3)', () => {
       r.run({ steer: 0.55, throttle: 0, brake: 0 }, 0.3);
       r.run({ steer: -0.55, throttle: 0, brake: 0 }, 0.3);
       r.run({ steer: 0, throttle: 0, brake: 0 }, 1.6);
-      expect(Math.abs(r.car.psi)).toBeLessThan(0.4 * DEG);
+      // Before the rear tyre retune: up to 0.9°. (The AMG has the most lock at speed: the same input is a sharper move.)
+      expect(Math.abs(r.car.psi)).toBeLessThan(0.5 * DEG);
     });
   }
 });

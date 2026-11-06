@@ -58,7 +58,8 @@ export const mercedesTune: DriftTune = {
   escLead: 0.1,
   escMoment: 5200,
   escCut: 0.72,
-  steerGripScale: 1.55,
+  // More lock at speed than the others (keyboard): the AMG turns in hard.
+  steerGripScale: 1.8,
   lockUnder: 0.00055,
   steerRateSpeed: 25,
   counterSteer: 0.8,
