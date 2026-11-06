@@ -7,15 +7,21 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
-# A commit that does not typecheck or fails a test stops here and never reaches the server.
+# A commit that does not typecheck or fails a test stops here and never reaches the server
+# (the workflow's test job runs the same checks first; this guards a deploy by hand too).
 RUN npm run typecheck && npx vitest run && npm run build && npm run build:server
+# The commit goes in last: an unchanged tree still reuses every layer above.
+ARG GIT_SHA=dev
+RUN printf '{"version":"%s"}' "$GIT_SHA" > dist/version.json
 
 FROM node:22-alpine AS server
 WORKDIR /app
 ENV NODE_ENV=production
-# The server bundle needs only `ws` at run time (no dependencies of its own).
+# The server bundle (and the smoke-test client next to it) needs only `ws` at run time.
 COPY --from=build /app/node_modules/ws ./node_modules/ws
 COPY --from=build /app/dist-server ./dist-server
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \

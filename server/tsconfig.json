@@ -15,7 +15,9 @@
     "../src/core/math.ts",
     "../src/core/rng.ts",
     "../src/core/events.ts",
-    "../src/config.ts"
+    "../src/config.ts",
+    "../scripts/smoke.ts",
+    "../tests/netsim.ts"
   ],
   "exclude": [
     "../src/online/link.ts",

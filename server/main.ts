@@ -10,6 +10,7 @@
  * Environment:
  *   PORT (8787), HOST (0.0.0.0)
  *   ORIGINS        comma-separated allowed page origins (empty = any; set it in production)
+ *   GIT_SHA        build version reported by /health (the deploy checks it)
  *   MAX_PLAYERS    (5)          TRAFFIC  1 normal | 2 dense (1)     INTENSITY 0..1 (0.45)
  *   SEED           world seed (random)
  *   JOURNAL_DIR    write a replayable session journal there (off by default)
@@ -88,6 +89,8 @@ function health(reset: boolean) {
   const mem = process.memoryUsage();
   return {
     ok: true,
+    /** Commit the running build came from (set by the Docker build; checked after every deploy). */
+    version: env.GIT_SHA ?? 'dev',
     rules: rulesHash(),
     seed,
     uptimeS: Math.round(process.uptime()),

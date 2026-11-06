@@ -1,0 +1,43 @@
+# Checks every change: typecheck, unit tests, both builds, a smoke test with real clients against
+# the built server, and the network ride-quality report. Runs on GitHub's own runners, never on the
+# VPS: for pull requests directly, and as the first job of Deploy (no deploy unless it passes).
+name: Tests
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Typecheck, tests, build, smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck (site and server)
+        run: npm run typecheck
+      - name: Unit tests
+        run: npx vitest run --reporter=default --reporter=github-actions
+      - name: Build site and server
+        run: npm run build && npm run build:server
+      - name: Smoke test (real clients against the built server)
+        run: |
+          GIT_SHA=ci node dist-server/main.js > server.log 2>&1 &
+          for i in $(seq 1 40); do curl -fs http://127.0.0.1:8787/health >/dev/null && break; sleep 0.25; done
+          node dist-server/smoke.js --url ws://127.0.0.1:8787/ws --clients 3 --seconds 10 --version ci
+      - name: Server log
+        if: always()
+        run: cat server.log 2>/dev/null || true
+      - name: Ride quality report (latency, jitter, low FPS, crashes)
+        run: |
+          npm run --silent netcheck | tee netcheck.txt
+          { echo '### Ride quality (npm run netcheck)'; echo '```'; cat netcheck.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
