@@ -47,6 +47,7 @@ export class OnlineSession {
   private name = '';
   private physics: PhysicsId = 1;
   private car: CarId = 1;
+  private color: number | undefined;
   private retryTimer = 0;
   private rejected = false;
 
@@ -74,10 +75,11 @@ export class OnlineSession {
     });
   }
 
-  start(name: string, physics: PhysicsId, car: CarId): void {
+  start(name: string, physics: PhysicsId, car: CarId, color?: number): void {
     this.name = name;
     this.physics = physics;
     this.car = car;
+    this.color = color;
     this.rejected = false;
     this.connect();
   }
@@ -97,7 +99,7 @@ export class OnlineSession {
       return;
     }
     this.link = link;
-    link.onOpen = () => this.core.hello(this.name, this.physics, this.car, this.core.token || loadToken());
+    link.onOpen = () => this.core.hello(this.name, this.physics, this.car, this.core.token || loadToken(), this.color);
     link.onMessage = (d) => this.core.receive(d, performance.now());
     link.onClose = () => this.lost();
   }

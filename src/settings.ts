@@ -130,7 +130,7 @@ export function saveSky(id: string): void {
   }
 }
 
-/** Steering: keyboard (and gamepad) or the mouse, Assetto Corsa style; mouse sensitivity 0.3..3. */
+/** Steering: keyboard (and gamepad) or the mouse; sensitivity 0.05..3. */
 export function loadSteerMode(): 'keys' | 'mouse' {
   try {
     return localStorage.getItem('tcu.steer') === 'mouse' ? 'mouse' : 'keys';
@@ -150,9 +150,9 @@ export function saveSteerMode(mode: 'keys' | 'mouse'): void {
 export function loadMouseSens(): number {
   try {
     const v = Number(localStorage.getItem('tcu.mouseSens'));
-    return v >= 0.3 && v <= 3 ? v : 1;
+    return v >= 0.05 && v <= 3 ? v : 0.3;
   } catch {
-    return 1;
+    return 0.3;
   }
 }
 
@@ -162,4 +162,16 @@ export function saveMouseSens(v: number): void {
   } catch {
     /* storage unavailable */
   }
+}
+
+/** Body paint, persisted separately from the chosen car. */
+export function loadPaint(): number {
+  try {
+    const value = localStorage.getItem('tcu.paint');
+    return value && /^#[0-9a-f]{6}$/i.test(value) ? parseInt(value.slice(1), 16) : 0x1f4fd8;
+  } catch { return 0x1f4fd8; }
+}
+
+export function savePaint(value: number): void {
+  try { localStorage.setItem('tcu.paint', `#${value.toString(16).padStart(6, '0')}`); } catch { /* optional storage */ }
 }

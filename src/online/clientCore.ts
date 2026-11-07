@@ -190,10 +190,10 @@ export class ClientCore {
     sim.traffic.activeCount = 0;
   }
 
-  hello(name: string, physics: PhysicsId, car: CarId, token?: string): void {
+  hello(name: string, physics: PhysicsId, car: CarId, token?: string, color?: number): void {
     // Inputs made while offline never reach the server: the next ones follow `seq`.
     this.sentSeq = this.seq;
-    this.send({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(), name, physics, car, seq: this.seq, token });
+    this.send({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(), name, physics, car, seq: this.seq, token, color });
   }
 
   requestRespawn(): void {

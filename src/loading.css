@@ -1,0 +1,21 @@
+body{margin:0}html:has(#loading:not([hidden])){overflow:hidden}
+#loading{position:fixed;inset:0;z-index:1000;background:#070913;color:#f7f5ff;font-family:'Exo 2',sans-serif;overflow:hidden;transition:opacity .65s ease,visibility .65s}
+#loading[hidden]{display:none}
+#loading.leaving{opacity:0;visibility:hidden;pointer-events:none}
+.loading-shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:loading-drift 18s ease-in-out infinite alternate}
+.loading-shot.second{animation:loading-crossfade 16s ease-in-out infinite;opacity:0}
+.loading-shade{position:absolute;inset:0;background:linear-gradient(180deg,#080b1860,transparent 35%,#070812c9 70%,#070812 100%),linear-gradient(90deg,#080b1844,transparent)}
+.loading-top{position:absolute;top:40px;left:5vw;right:5vw;display:flex;justify-content:space-between;align-items:center;font-size:12px;letter-spacing:.22em;text-transform:uppercase}
+.loading-top b{font-size:16px;letter-spacing:.05em}.loading-top span{color:#d0cbdf}
+.loading-copy{position:absolute;bottom:7vh;left:8vw;right:8vw;max-width:940px}
+.loading-eyebrow{color:#c5a2ff;font-size:12px;letter-spacing:.24em;text-transform:uppercase}
+#loadingTitle{font-size:clamp(30px,4.5vw,66px);line-height:1.05;max-width:720px;font-weight:800;letter-spacing:-.03em;margin:18px 0 35px}
+.loading-progress-row{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:14px}
+#loadingLabel{color:#d2ccdf;font-size:14px}#loadingPercent{font:500 36px 'Chakra Petch',monospace;font-variant-numeric:tabular-nums}
+.loading-track{height:3px;background:#ffffff26;overflow:hidden}#loadingBar{height:100%;width:0;background:linear-gradient(90deg,#9862ed,#c8adff);box-shadow:0 0 22px #a969ff;transition:width .25s ease}
+.loading-note{margin-top:22px;color:#a49bb8;font-size:12px;line-height:1.6}#loadingAction{margin-top:20px;padding:13px 22px;background:#b68dff;border:0;border-radius:8px;color:#160c28;font:700 14px inherit;cursor:pointer}
+#loading.failed .loading-track{background:#e6818138}
+@keyframes loading-drift{from{transform:scale(1)}to{transform:scale(1.045)}}
+@keyframes loading-crossfade{0%,35%,100%{opacity:0}50%,85%{opacity:1}}
+@media(max-width:600px){.loading-top{top:24px}.loading-top span{display:none}.loading-copy{left:7vw;right:7vw;bottom:8vh}.loading-note{max-width:270px}#loadingTitle{margin-bottom:24px}}
+@media(prefers-reduced-motion:reduce){.loading-shot,.loading-shot.second{animation:none}#loading,.loading-track i{transition:none}}

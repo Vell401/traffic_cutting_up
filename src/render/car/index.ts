@@ -294,6 +294,7 @@ class SwappableWheels implements Wheels {
 }
 
 export interface CarParts {
+  setPaint(color: number): void;
   /** Pitches and rolls with the suspension. */
   body: THREE.Group;
   /** Wheels (on the root, not on the body). */
@@ -370,6 +371,19 @@ function emitLoad(s: ModelLoad): void {
 /** Start downloading a car's heavy model (on choosing it in the menu, before the run starts). */
 export function preloadCar(id: CarId): void {
   if (id === 3) loadMercedesModel(() => {});
+}
+
+/** Resolves only after the model is parsed and attached; failed downloads remain retryable. */
+export function waitForCar(id: CarId, progress: (fraction: number, unpacking: boolean) => void = () => {}): Promise<void> {
+  if (id !== 3 || mercedesModel) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const unsubscribe = onModelLoad(s => {
+      progress(s.done ? 1 : Math.min(.99, s.loaded / Math.max(1, s.total)), s.unpacking);
+      if (s.failed) { unsubscribe(); reject(new Error(`Cannot load ${s.name}`)); }
+      else if (s.done) { unsubscribe(); resolve(); }
+    });
+    preloadCar(id);
+  });
 }
 
 function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
@@ -485,8 +499,8 @@ const R34_REAR_OFF = new THREE.Color(0.75, 0.03, 0.02);
 const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 
 /**
- * Build a car body. `paint` is the body colour of the coupe, the stripe colour of the R34 (its body
- * stays silver). `own`: our car (gets the cockpit when the model has one). `full`: load the heavy
+ * Build a car body. `paint` is the driver's chosen body colour. R34 livery keeps its contrasting
+ * stripes. `own`: our car (gets the cockpit when the model has one). `full`: load the heavy
  * imported model where there is one (every real car, ours or another driver's; not the hidden
  * spares a session builds up front for shader warm-up).
  */
@@ -580,15 +594,22 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   // Last: with the model already cached this runs at once and swaps the placeholders out.
   if (importedModel) loadMercedesModel((model) => {
     const imported = model.clone(true);
-    // Our own car gets its own materials (it fades as a ghost on the spawn pad); the others share the model's.
-    if (own) {
+    // Paint belongs to each driver; other drivers can still share glass, trim and interiors.
+    {
       const copies = new Map<THREE.Material, THREE.Material>();
       imported.traverse((o) => {
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+        const painted = mesh.material.name === 'EXT_Carpaint' || mesh.material.name === 'INT_Carpaint';
+        if (!own && !painted) return;
         let c = copies.get(mesh.material);
         if (!c) copies.set(mesh.material, (c = perCar(mesh.material)));
         mesh.material = c;
+        if (painted) {
+          const finish = c as THREE.MeshStandardMaterial;
+          finish.color.setHex(paint);
+          finish.userData.bodyPaint = true;
+        }
       });
     }
     imported.updateMatrixWorld(true);
@@ -615,7 +636,16 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
     }
   });
   // Beams from the projectors (±0.61 m, 0.66 m up), just ahead of the lamp glass.
-  return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.66, -2.16), lampX: 0.61, cockpit, indicators };
+  return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.66, -2.16), lampX: 0.61, cockpit, indicators,
+    setPaint(color) {
+      paint = color; paintMat.color.setHex(color);
+      body.traverse(o => {
+        const material = (o as THREE.Mesh).material;
+        for (const m of Array.isArray(material) ? material : material ? [material] : [])
+          if (m.userData.bodyPaint) (m as THREE.MeshStandardMaterial).color.setHex(color);
+      });
+    },
+  };
 }
 
 function buildCoupeParts(paint: number, L: number, W: number): CarParts {
@@ -666,10 +696,10 @@ function buildCoupeParts(paint: number, L: number, W: number): CarParts {
     [-0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
     [0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
   ]);
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.6, -L / 2 - 0.08), lampX: 0.62, cockpit: null, indicators };
+  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.6, -L / 2 - 0.08), lampX: 0.62, cockpit: null, indicators, setPaint: color => { paintMat.color.setHex(color); } };
 }
 
-function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts {
+function buildR34(paint: number, L: number, W: number, own: boolean): CarParts {
   const geo = r34Geometry();
   const body = new THREE.Group();
   // Real proportions fitted to the hitbox (≈ +6 % width: a wide-body stance).
@@ -680,7 +710,7 @@ function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts 
 
   const tail = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 0.06, 0.035), vertexColors: true });
   const mats: (THREE.Material | null)[] = [];
-  mats[PAINT] = liveryPaint(0xc4c9d0, stripe);
+  mats[PAINT] = liveryPaint(paint, 0x172238);
   mats[TRIM] = new THREE.MeshStandardMaterial({ color: 0x0d0e10, roughness: 0.62 });
   mats[CHROME] = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 1, roughness: 0.16 });
   mats[EMIT] = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
@@ -733,6 +763,7 @@ function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts 
   }
   return {
     body,
+    setPaint: color => { (mats[PAINT] as THREE.MeshStandardMaterial).color.setHex(color); },
     wheels,
     wheelRoot,
     tail,

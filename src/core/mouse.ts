@@ -24,7 +24,7 @@ export interface MouseHooks {
  */
 export class MouseControl {
   mode: SteerMode;
-  /** Steering speed multiplier, 0.3..3. */
+  /** Steering speed multiplier, 0.05..3; default 0.3. */
   sens: number;
   /** Mouse-mode wheel position, -1..1, and pedals 0/1. */
   steer = 0;

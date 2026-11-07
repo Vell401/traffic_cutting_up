@@ -86,7 +86,8 @@ export interface TrafficState {
 export const TRAFFIC_MODES: readonly TrafficMode[] = ['normal', 'sparse', 'dense', 'trucks', 'walls', 'platoons'];
 
 export type Stimulus =
-  | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId }
+  | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId; color?: number }
+  | { k: 'paint'; t: number; id: number; color: number }
   | { k: 'config'; t: number; cfg: WorldConfig }
   | { k: 'leave'; t: number; id: number }
   | { k: 'in'; t: number; id: number; seq: number; q: number[] }
@@ -135,7 +136,7 @@ export class Driver {
     readonly id: number,
     readonly name: string,
     readonly physics: PhysicsId,
-    readonly color: number,
+    public color: number,
     /** Spawn place this driver owns (joins and respawns there). */
     readonly slot: number,
     capacity: number,
@@ -255,16 +256,17 @@ export class OnlineWorld {
   }
 
   /** Add a driver; null when the server is full. */
-  join(name: string, physics: PhysicsId, car: CarId = 1): Driver | null {
+  join(name: string, physics: PhysicsId, car: CarId = 1, color?: number): Driver | null {
     if (this.drivers.length >= this.rules.maxPlayers) return null;
     let id = this.nextId;
     while (this.byId(id)) id = (id % 250) + 1;
     this.nextId = (id % 250) + 1;
     const clean = cleanName(name, id);
-    this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics, car });
+    const paint = Number.isInteger(color) && color! >= 0 && color! <= 0xffffff ? color! : DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length];
+    this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics, car, color: paint });
     let slot = 0;
     while (this.drivers.some((d) => d.slot === slot)) slot++;
-    const dr = new Driver(id, clean, physics === 2 || physics === 3 ? physics : 1, DRIVER_COLORS[(id - 1) % DRIVER_COLORS.length], slot, this.rules.inputMax, this.ringLen);
+    const dr = new Driver(id, clean, physics === 2 || physics === 3 ? physics : 1, paint, slot, this.rules.inputMax, this.ringLen);
     let at = 0;
     while (at < this.drivers.length && this.drivers[at].id < id) at++;
     dr.body = car;
@@ -279,6 +281,12 @@ export class OnlineWorld {
     this.journal?.({ k: 'leave', t: this.tick, id });
     this.drivers.splice(i, 1);
     for (const key of this.pairContact.keys()) if (key >> 8 === id || (key & 255) === id) this.pairContact.delete(key);
+  }
+
+  paint(dr: Driver, color: number | undefined): void {
+    if (!Number.isInteger(color) || color! < 0 || color! > 0xffffff || dr.color === color) return;
+    dr.color = color!;
+    this.journal?.({ k: 'paint', t: this.tick, id: dr.id, color: color! });
   }
 
   /** Queue inputs [firstSeq, firstSeq + count). Old or repeated seqs are ignored; a gap is skipped over. */
@@ -657,7 +665,7 @@ export function replay(seed: number, rules: Partial<OnlineRules>, journal: reado
   for (const rec of journal) {
     while (w.tick < rec.t) w.step();
     if (rec.k === 'join') {
-      const dr = w.join(rec.name, rec.physics, rec.car ?? 1);
+      const dr = w.join(rec.name, rec.physics, rec.car ?? 1, rec.color);
       if (!dr || dr.id !== rec.id) throw new Error(`replay: join gave ${dr?.id} instead of ${rec.id}`);
     } else if (rec.k === 'leave') {
       w.leave(rec.id);
@@ -666,7 +674,9 @@ export function replay(seed: number, rules: Partial<OnlineRules>, journal: reado
     } else {
       const dr = w.byId(rec.id);
       if (!dr) continue;
-      if (rec.k === 'respawn') {
+      if (rec.k === 'paint') {
+        w.paint(dr, rec.color);
+      } else if (rec.k === 'respawn') {
         w.respawn(dr);
       } else if (rec.k === 'resync') {
         w.resync(dr, rec.seq);

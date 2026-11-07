@@ -5,12 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>Traffic Cutting Up</title>
+    <link rel="stylesheet" href="/src/loading.css" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600;1,700;1,800;1,900&family=Unbounded:wght@700;900&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <section id="loading" aria-label="Загрузка игры" aria-busy="true">
+      <img class="loading-shot" src="/loading/highway.jpg" alt="" fetchpriority="high" />
+      <img class="loading-shot second" src="/loading/dawn.jpg" alt="" />
+      <div class="loading-shade"></div>
+      <div class="loading-top"><b>Traffic / Cutting Up</b><span>Кадры из игры</span></div>
+      <div class="loading-copy"><div class="loading-eyebrow">Следующий заезд</div><h2 id="loadingTitle">Ночь принадлежит дороге</h2>
+        <div class="loading-progress-row"><span id="loadingLabel" role="status">Подготовка</span><span id="loadingPercent">0%</span></div>
+        <div class="loading-track" role="progressbar" aria-label="Готовность игры" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="loadingBar"></div></div>
+        <p class="loading-note">V — сменить ракурс · L — дальний свет<br />Держи дистанцию. Лови момент.</p>
+        <button id="loadingAction" hidden>Повторить загрузку</button>
+      </div>
+    </section>
     <canvas id="c"></canvas>
 
     <div id="hud">
@@ -35,6 +48,7 @@
       <div id="feed"></div>
       <div id="mouseWheel" hidden><i></i></div>
       <div id="mouseHint" hidden>Клик — руль мышью · Esc — отпустить</div>
+      <div id="highBeam" hidden aria-label="Дальний свет включён">◉ ≡ ДАЛЬНИЙ</div>
       <div class="speedo">
         <div class="blinkers"><i id="blinkL">◀</i><i id="blinkR">▶</i></div>
         <div class="rpm"><i id="rpmBar"></i></div>
@@ -67,6 +81,7 @@
             <span><kbd>C</kbd> держать — назад</span>
             <span><kbd>Пробел</kbd> ручник</span>
             <span><kbd>H</kbd> сигнал</span>
+            <span><kbd>L</kbd> дальний свет</span>
             <span><kbd>G</kbd> автомат · ручная</span>
             <span><kbd>Z</kbd><kbd>X</kbd> передача ↓ ↑</span>
             <span><kbd>Q</kbd><kbd>E</kbd> поворотники</span>
@@ -96,6 +111,8 @@
             <div id="carDesc" class="odesc"></div>
             <div id="carLoad" class="load" hidden><div class="lbar"><i></i></div><span></span></div>
           </div>
+          <label class="ol" for="paintInput">Цвет</label>
+          <div class="paint-row"><div id="paintSwatches" class="paint-swatches" aria-label="Цвет кузова"></div><label class="custom-paint">Свой <input id="paintInput" type="color" value="#1f4fd8" aria-label="Свой цвет кузова" /></label></div>
           <span class="ol">Физика</span>
           <div>
             <div id="physicsSeg" class="seg"></div>
@@ -105,7 +122,7 @@
           <div>
             <div id="steerSeg" class="seg"></div>
             <div id="steerDesc" class="odesc"></div>
-            <label id="sensRow" class="sens">Чувствительность <input id="sensInput" type="range" min="0.3" max="3" step="0.05" /><b id="sensOut" class="num"></b></label>
+            <label id="sensRow" class="sens">Чувствительность <input id="sensInput" type="range" min="0.05" max="3" step="0.05" value="0.3" /><b id="sensOut" class="num"></b></label>
           </div>
           <span class="ol solo-only">Трафик</span>
           <div class="solo-only">
@@ -165,10 +182,11 @@
       <div class="card small">
         <h2><span class="solo-only">Пауза</span><span class="online-only">Меню</span></h2>
         <p class="tag"><span class="solo-only">P или Esc — продолжить</span><span class="online-only">Мир не останавливается: машина катится без газа. P или Esc — назад</span></p>
-        <button id="menuBtn" class="ghost-btn"><span class="solo-only">Выйти в меню</span><span class="online-only">Выйти из онлайна</span></button>
+        <button id="resumeBtn">Продолжить <span>Esc</span></button>
+        <button id="menuBtn" class="ghost-btn">Выйти из игры</button>
       </div>
     </div>
 
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/boot.ts"></script>
   </body>
 </html>

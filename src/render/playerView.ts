@@ -105,6 +105,19 @@ export class PlayerView {
     return this.parts.cockpit !== null;
   }
 
+  setPaint(color: number): void { this.parts.setPaint(color); }
+
+  setHighBeam(on: boolean): void {
+    for (const beam of this.headlights) {
+      const side = Math.sign(beam.position.x);
+      beam.intensity = on ? 1500 : 520;
+      beam.distance = on ? 240 : 120;
+      beam.angle = on ? .32 : .46;
+      beam.penumbra = on ? .65 : .8;
+      beam.target.position.set(side * (this.parts.lampX + (on ? .6 : 1.4)), on ? .65 : 0, this.parts.lamp.z - (on ? 110 : 40));
+    }
+  }
+
   /** First-person view: draw the interior, skip the wheels (never seen from inside). */
   setCockpit(on: boolean): void {
     this.cockpitOn = on && this.parts.cockpit !== null;

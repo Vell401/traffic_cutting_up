@@ -7,6 +7,8 @@ import { MouseControl } from './core/mouse';
 import { clamp } from './core/math';
 import type { CameraMode } from './render/camera';
 import { View } from './render/view';
+import { waitForCar } from './render/car';
+import { loading } from './ui/loading';
 import { SKY_PRESETS, skyPreset, skySwatch } from './render/sky';
 import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
@@ -29,6 +31,7 @@ import {
   loadManual,
   loadMouseSens,
   loadName,
+  loadPaint,
   loadPhysics,
   loadQuality,
   loadSky,
@@ -39,6 +42,7 @@ import {
   saveManual,
   saveMouseSens,
   saveName,
+  savePaint,
   savePhysics,
   saveQuality,
   saveSky,
@@ -76,15 +80,19 @@ const TEST = params.has('test');
  */
 const ONLINE = !TEST && !params.has('solo');
 let showcase = 0;
+await loading.stage(18, 'Подготовка трассы и трафика');
 const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadPhysics(), online: ONLINE });
 sim.director.preset = loadTraffic();
 sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
 const quality = loadQuality();
 let car: CarId = loadCar();
+let paint = loadPaint();
 // Before the view: building the chosen car may start a model download right away.
 initModelLoad();
-const view = new View(canvas, sim, QUALITY[quality], car);
+await loading.stage(28, 'Создание сцены');
+const view = new View(canvas, sim, QUALITY[quality], car, paint);
+await loading.stage(40, 'Подготовка управления и интерфейса');
 // Each car remembers its own camera.
 view.setCar(car, loadCameraMode(car) as CameraMode);
 view.setSky(skyPreset(loadSky()).id);
@@ -118,6 +126,7 @@ sim.events.on('runEnd', (e) => {
 });
 
 function start(): void {
+  if (loading.active && !TEST) return;
   if (state !== 'menu') return;
   if (ONLINE) {
     startOnline();
@@ -167,6 +176,8 @@ function menuMessage(text: string, bad = false): void {
 
 function startOnline(): void {
   if (session && session.state !== 'failed') return;
+  loading.begin('online', 'Выходим на общее кольцо');
+  loading.set(20, 'Соединение с сервером');
   const name = nameInput.value.trim().slice(0, 16) || 'Driver';
   saveName(name);
   nameInput.blur();
@@ -179,6 +190,7 @@ function startOnline(): void {
   session = new OnlineSession(sim, serverUrl(params), conditionsFromUrl(params), {
     onState: (st, text) => {
       if (st === 'joined') {
+        if (loading.context === 'online') loading.set(75, 'Получение состояния трассы');
         ohud.setMe(session!.core.id);
         ohud.setStatus('');
         menuMessage('');
@@ -189,6 +201,7 @@ function startOnline(): void {
         ohud.setStatus(text, true);
         report('warn', 'online: connection lost, reconnecting');
       } else if (st === 'failed') {
+        if (loading.active && loading.context === 'online') loading.fail(text, () => {}, 'Вернуться в меню');
         report('warn', `online failed: ${text}`);
         ohud.setStatus('');
         menuMessage(text, true);
@@ -215,7 +228,7 @@ function startOnline(): void {
       if (Math.abs(sim.road.rel(sim.player.s, spawnS(0))) < 3) hud.tag('SPAWN · ВЫ НЕВИДИМЫ, ПОКА НА ПЛОЩАДКЕ', 2.5);
     },
   });
-  session.start(name, sim.player.physicsId as PhysicsId, car);
+  session.start(name, sim.player.physicsId as PhysicsId, car, paint);
   if (import.meta.env.DEV) Object.assign((window as unknown as { __game: object }).__game, { session });
 }
 
@@ -309,6 +322,7 @@ let pendingShift = 0;
 let blinker = 0;
 let blinkFromD = 0;
 let blinkWasLit = false;
+let highBeam = false;
 
 function setBlinker(side: number): void {
   blinker = blinker === side ? 0 : side;
@@ -338,12 +352,19 @@ function updateBlinker(): void {
 }
 
 input.onPress = (code) => {
+  if (loading.active) return;
   if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
   else if (code === 'KeyV') {
     const mode = view.cycleCamera();
     saveCameraMode(car, mode);
     hud.tag(`CAMERA · ${mode.toUpperCase()}`);
+  }
+  else if (code === 'KeyL' && state === 'play' && !onlineMenu) {
+    highBeam = !highBeam;
+    view.setHighBeam(highBeam);
+    document.getElementById('highBeam')!.hidden = !highBeam;
+    hud.tag(highBeam ? 'ДАЛЬНИЙ СВЕТ' : 'БЛИЖНИЙ СВЕТ', 1.5);
   }
   else if (code === 'KeyM') {
     hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');
@@ -410,8 +431,38 @@ function choice<T extends number>(
 choice('carSeg', 'carDesc', CARS, car, (id) => {
   car = id;
   saveCar(id);
-  view.setCar(id, loadCameraMode(id) as CameraMode);
+  void (async () => {
+    loading.begin('car', 'Готовим твою машину');
+    await loading.stage(10, 'Подготовка модели');
+    try {
+      await waitForCar(id, (fraction, unpacking) => loading.set(15 + fraction * 70, unpacking ? 'Подготовка материалов' : 'Загрузка автомобиля'));
+      view.setCar(id, loadCameraMode(id) as CameraMode);
+      await loading.stage(92, 'Подготовка первого кадра');
+      view.render(1, 0);
+      await view.renderer.compileAsync(view.scene, view.camera);
+      loading.finish();
+    } catch { loading.fail('Не удалось загрузить автомобиль. Попробуйте ещё раз.'); }
+  })();
 });
+
+const paintInput = document.getElementById('paintInput') as HTMLInputElement;
+const swatches = document.getElementById('paintSwatches')!;
+const paints: [string, number][] = [['Синий',0x1f4fd8],['Красный',0xc83235],['Белый',0xe6e8ed],['Графит',0x24262d],['Фиолетовый',0x8953bd],['Зелёный',0x28664d],['Оранжевый',0xf08a28]];
+function showPaint(): void {
+  paintInput.value = `#${paint.toString(16).padStart(6, '0')}`;
+  for (const button of swatches.children) button.setAttribute('aria-pressed', String(Number((button as HTMLElement).dataset.color) === paint));
+}
+function choosePaint(color: number): void { paint = color; savePaint(color); view.setPaint(color); showPaint(); }
+for (const [name, color] of paints) {
+  const button = document.createElement('button');
+  button.dataset.color = String(color); button.setAttribute('aria-label', name); button.title = name;
+  button.style.setProperty('--paint', `#${color.toString(16).padStart(6, '0')}`);
+  button.onclick = () => { choosePaint(color); button.blur(); };
+  swatches.appendChild(button);
+}
+paintInput.addEventListener('input', () => choosePaint(parseInt(paintInput.value.slice(1),16)));
+for (const type of ['keydown','keyup'] as const) paintInput.addEventListener(type, e => e.stopPropagation());
+showPaint();
 choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, (id) => {
   savePhysics(id);
   sim.setPhysics(id);
@@ -513,6 +564,11 @@ document.getElementById('menuBtn')!.addEventListener('click', () => {
     return;
   }
   location.href = `${location.pathname}?solo`;
+});
+document.getElementById('resumeBtn')!.addEventListener('click', () => {
+  setPaused(false);
+  if (mouse.mode === 'mouse') void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
+  document.getElementById('resumeBtn')!.blur();
 });
 // Mode: single player and online are separate pages (online keeps its own sim, ring and lifecycle).
 choice('modeSeg', 'modeDesc', [
@@ -661,6 +717,10 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuBegin();
   // Paused: effects (sparks, camera shake, blinkers) freeze along with the sim.
   view.render(state === 'pause' ? 1 : acc / STEP, state === 'pause' ? 0 : dt);
+  if (session?.core.ready && loading.active && loading.context === 'online') {
+    loading.context = 'ready';
+    loading.finish();
+  }
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);
@@ -676,3 +736,9 @@ view.renderer.setAnimationLoop((now: number) => {
   if (TEST && state === 'play') announceSection();
   if (debugOn) debug?.update();
 });
+
+await loading.stage(45, 'Загрузка выбранного автомобиля');
+await waitForCar(car, (fraction, unpacking) => loading.set(45 + fraction * 45, unpacking ? 'Подготовка материалов автомобиля' : 'Загрузка автомобиля'));
+await loading.stage(95, 'Подготовка первого кадра');
+view.render(1, 0);
+await view.renderer.compileAsync(view.scene, view.camera);

@@ -42,7 +42,7 @@ export interface PlayerInfo {
 
 export type ClientMsg =
   /** seq: the client's last input number (0 for a fresh page): its next inputs follow it. */
-  | { t: 'hello'; v: number; rules: string; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string }
+  | { t: 'hello'; v: number; rules: string; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string; color?: number }
   | { t: 'respawn' }
   | { t: 'ping'; c: number };
 

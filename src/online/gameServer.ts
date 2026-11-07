@@ -231,9 +231,10 @@ export class GameServer {
       conn.slot = slot;
       // The body is cosmetic: a reload may come back in another car.
       slot.driver.body = car;
+      this.world.paint(slot.driver, msg.color);
       this.log('info', `reconnect #${slot.driver.id} ${slot.driver.name}`);
     } else {
-      const dr = this.world.join(typeof msg.name === 'string' ? msg.name : '', physics, car);
+      const dr = this.world.join(typeof msg.name === 'string' ? msg.name : '', physics, car, msg.color);
       if (!dr) return this.reject(conn, 'full', `Сервер заполнен (${this.world.rules.maxPlayers} игроков)`);
       slot = { driver: dr, token: this.token(), conn, offlineAt: 0 };
       this.slots.set(dr.id, slot);

@@ -21,10 +21,10 @@ import { TrafficView } from './trafficView';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
-/** Our car's colour: the coupe's paint, the R34's stripes. */
-const OWN_PAINT = 0x1f4fd8;
 
 export class View {
+  private paint: number;
+  private highBeam = false;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
@@ -64,7 +64,9 @@ export class View {
     private readonly sim: Sim,
     quality: QualityPreset,
     car: CarId,
+    paint = 0x1f4fd8,
   ) {
+    this.paint = paint;
     // MSAA, tone mapping and output encoding happen in the post chain, not on the default framebuffer.
     const r = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     r.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
@@ -93,7 +95,7 @@ export class View {
     const shadowTex = makeRadialTexture(64, 1.2);
     this.shadowTex = shadowTex;
     this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy());
-    this.playerView = new PlayerView(car, OWN_PAINT, shadowTex, sim.player.tune.length, sim.player.tune.width);
+    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.chase.setRig(CAMERA_RIGS[car]);
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
     this.trafficView = new TrafficView(shadowTex);
@@ -300,7 +302,8 @@ export class View {
       return this.chase.mode;
     }
     const old = this.playerView;
-    const next = new PlayerView(car, OWN_PAINT, this.shadowTex, this.sim.player.tune.length, this.sim.player.tune.width);
+    const next = new PlayerView(car, this.paint, this.shadowTex, this.sim.player.tune.length, this.sim.player.tune.width);
+    next.setHighBeam(this.highBeam);
     old.dispose();
     this.playerView = next;
     // Compile before adding: the scene's lights plus the new car's own spot, as they will be drawn.
@@ -316,6 +319,9 @@ export class View {
     this.playerView.root.visible = mode !== 'bumper';
     this.playerView.setCockpit(mode === 'cockpit');
   }
+
+  setPaint(color: number): void { this.paint = color; this.playerView.setPaint(color); }
+  setHighBeam(on: boolean): void { this.highBeam = on; this.playerView.setHighBeam(on); }
 
   /** Sparks where the car's flank rubs the barrier; they trail behind at part of the car's speed. */
   private sparkAtWall(count: number, spread: number): void {

@@ -1,0 +1,14 @@
+<!doctype html><html><meta charset="utf-8"><title>Кадры игры</title><style>html,body{margin:0;overflow:hidden;background:#090a14}canvas{display:block;width:100vw;height:calc(100vh - 42px)}header{height:42px;display:flex;align-items:center;gap:12px;color:white;font:14px sans-serif}button{padding:7px 16px}</style><header><button id="night">Ночная трасса</button><button id="dawn">На рассвете</button><button id="pause">Замереть</button><span id="status">Подготовка кадра</span></header><canvas id="c"></canvas><script type="module">
+import { View } from '/src/render/view.ts';
+import { Sim } from '/src/sim/world.ts';
+import { QUALITY } from '/src/settings.ts';
+import { mulberry32 } from '/src/core/rng.ts';
+import { waitForCar } from '/src/render/car/index.ts';
+import { SKY_PRESETS } from '/src/render/sky.ts';
+const clean=new URLSearchParams(location.search).has('clean');if(clean){document.querySelector('header').style.display='none';document.querySelector('canvas').style.height='100vh';}const cut=clean?0:42; const sim=new Sim(mulberry32(817),{physics:3});sim.director.preset=2;sim.traffic.reset(sim.player);
+const view=new View(document.querySelector('#c'),sim,QUALITY.high,3,0x8953bd);view.renderer.setSize(innerWidth,innerHeight-cut);view.camera.aspect=innerWidth/(innerHeight-cut);view.camera.updateProjectionMatrix();
+await waitForCar(3);view.setCar(3,'far');view.setSky(new URLSearchParams(location.search).get('sky')??'night');
+let paused=false;document.querySelector('#night').onclick=()=>view.setSky('night');document.querySelector('#dawn').onclick=()=>view.setSky(SKY_PRESETS.find(p=>/sunrise|dawn|morning/.test(p.id))?.id??SKY_PRESETS[1].id);
+document.querySelector('#pause').onclick=()=>paused=!paused;
+let last=performance.now();function frame(now){let dt=Math.min(.03,(now-last)/1000);last=now;if(!paused){const p=sim.player,steer=Math.max(-1,Math.min(1,(2-p.d)*.25-p.psi*12));sim.step(1/120,{steer,throttle:p.vAlong<28?.5:0,brake:p.vAlong>30?.3:0});}view.render(1,paused?0:dt);document.querySelector('#status').textContent='Реальная игровая сцена · '+Math.round(sim.player.s)+' м';requestAnimationFrame(frame);}requestAnimationFrame(frame);
+</script></html>
