@@ -15,7 +15,8 @@ const BLINK_LIT = 0.38;
  */
 export class PlayerView {
   readonly root = new THREE.Group();
-  readonly headlight: THREE.SpotLight;
+  /** Our car's two headlight beams (left, right). */
+  readonly headlights: THREE.SpotLight[] = [];
   private readonly parts: CarParts;
   private pitch = 0;
   private roll = 0;
@@ -52,12 +53,19 @@ export class PlayerView {
     shadow.renderOrder = 1;
     this.root.add(shadow);
 
-    // Physical falloff (decay 2): with 1.4 cars 30-60 m ahead were lit almost as hard as up close and bloomed.
-    // A wide, soft-edged beam (penumbra 0.85): the light spreads over the road instead of a hard oval.
-    this.headlight = new THREE.SpotLight(0xfff0d8, 780, 120, 0.5, 0.85, 2);
-    this.headlight.position.copy(p.lamp);
-    this.headlight.target.position.set(0, 0, p.lamp.z - 40);
-    if (own) this.root.add(this.headlight, this.headlight.target);
+    // One beam from each headlamp, just ahead of its glass (a light inside the bumper lit the grille up
+    // like a torch), each aimed a little outward. Physical falloff (decay 2): with 1.4 cars 30-60 m ahead
+    // were lit almost as hard as up close and bloomed. Wide, soft edges (penumbra 0.8): the light
+    // spreads over the road instead of hard ovals.
+    if (own) {
+      for (const side of [-1, 1]) {
+        const beam = new THREE.SpotLight(0xfff0d8, 520, 120, 0.46, 0.8, 2);
+        beam.position.set(side * p.lampX, p.lamp.y, p.lamp.z);
+        beam.target.position.set(side * (p.lampX + 1.4), 0, p.lamp.z - 40);
+        this.headlights.push(beam);
+        this.root.add(beam, beam.target);
+      }
+    }
 
     this.root.add(p.body, p.wheelRoot);
     // Ghosting fades the outside of the car; the cockpit stays solid (from inside the outside is not seen anyway).

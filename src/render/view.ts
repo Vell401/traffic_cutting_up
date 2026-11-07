@@ -15,7 +15,7 @@ import { Blimp, FarGround } from './scenery';
 import { SpawnPad } from './spawnPad';
 import { SPAWN_PLACES } from '../sim/ring';
 import { Sparks } from './sparks';
-import { HORIZON, MOON_DIR, makeSky } from './sky';
+import { HORIZON, MOON_DIR, applySky, makeSky, skyPreset, type SkyId } from './sky';
 import { makeRadialTexture } from './textures';
 import { TrafficView } from './trafficView';
 
@@ -36,6 +36,8 @@ export class View {
   private readonly sky: THREE.Group;
   private readonly chase = new ChaseCamera();
   private readonly post: Post;
+  private readonly hemi: THREE.HemisphereLight;
+  private readonly moon: THREE.DirectionalLight;
   private readonly sparks = new Sparks();
   private readonly farGround = new FarGround();
   private readonly blimp = new Blimp();
@@ -75,11 +77,13 @@ export class View {
     this.scene.background = HORIZON;
     this.scene.fog = new THREE.Fog(HORIZON, 70, 950);
 
-    // A little more sky fill: softer, more even night light (shadow sides less black).
-    this.scene.add(new THREE.HemisphereLight(0x5d6c9c, 0x1d1813, 1.1));
-    const moon = new THREE.DirectionalLight(0xa9bcff, 0.55);
-    moon.position.copy(MOON_DIR).multiplyScalar(100);
-    this.scene.add(moon);
+    // A little more sky fill: softer, more even night light (shadow sides less black). The sky preset
+    // sets both lights (setSky).
+    this.hemi = new THREE.HemisphereLight(0x5d6c9c, 0x1d1813, 1.1);
+    this.scene.add(this.hemi);
+    this.moon = new THREE.DirectionalLight(0xa9bcff, 0.55);
+    this.moon.position.copy(MOON_DIR).multiplyScalar(100);
+    this.scene.add(this.moon);
 
     const pmrem = new THREE.PMREMGenerator(r);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -254,6 +258,21 @@ export class View {
   }
 
   /** Mouse drag with the left button: look around (see ChaseCamera.mouseLook). */
+  /** Switch the sky: dome, stars, fog, background and the ambient light all follow. */
+  setSky(id: SkyId): void {
+    const p = skyPreset(id);
+    applySky(this.sky, p);
+    const fog = this.scene.fog as THREE.Fog;
+    fog.color.copy(HORIZON);
+    fog.near = p.fogNear;
+    fog.far = p.fogFar;
+    this.hemi.color.setHex(p.hemiSky);
+    this.hemi.groundColor.setHex(p.hemiGround);
+    this.hemi.intensity = p.hemi;
+    this.moon.color.setHex(p.moon);
+    this.moon.intensity = p.moonLight;
+  }
+
   /** C held: rear view. */
   setLookBack(on: boolean): void {
     this.chase.lookBack = on;

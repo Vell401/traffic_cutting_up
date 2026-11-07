@@ -1,7 +1,67 @@
 import * as THREE from 'three';
 
+/** Horizon colour of the current sky (also the background and the fog); changed in place by applySky. */
 export const HORIZON = new THREE.Color(0x1c1a2c);
 export const MOON_DIR = new THREE.Vector3(-0.45, 0.32, -1).normalize();
+
+export type SkyId = 'night' | 'dusk' | 'midnight' | 'neon' | 'violet';
+
+/** A sky look: the dome, the fog it fades into, and the ambient light it casts. */
+export interface SkyPreset {
+  id: SkyId;
+  name: string;
+  desc: string;
+  top: number;
+  horizon: number;
+  /** City glow along the horizon. */
+  glow: number;
+  fogNear: number;
+  fogFar: number;
+  /** Hemisphere light: sky and ground colours, intensity. */
+  hemiSky: number;
+  hemiGround: number;
+  hemi: number;
+  moon: number;
+  moonLight: number;
+  /** Star brightness, 0..1.5. */
+  stars: number;
+}
+
+export const SKY_PRESETS: readonly SkyPreset[] = [
+  {
+    id: 'night', name: 'Ночь', desc: 'Как было: тёмно-синее небо, лунный свет, тёплое зарево города',
+    top: 0x020309, horizon: 0x1c1a2c, glow: 0x4a3240, fogNear: 70, fogFar: 950,
+    hemiSky: 0x5d6c9c, hemiGround: 0x1d1813, hemi: 1.1, moon: 0xa9bcff, moonLight: 0.55, stars: 1,
+  },
+  {
+    id: 'dusk', name: 'Сумерки', desc: 'Светлее: поздний вечер, синее небо, дальше видно',
+    top: 0x0d1a3a, horizon: 0x44486c, glow: 0x9a6070, fogNear: 100, fogFar: 1200,
+    hemiSky: 0x8394c4, hemiGround: 0x2c2620, hemi: 1.6, moon: 0xc4d0ff, moonLight: 0.8, stars: 0.35,
+  },
+  {
+    id: 'midnight', name: 'Полночь', desc: 'Темнее: почти чёрное небо, яркие звёзды, свет только от фонарей и фар',
+    top: 0x000103, horizon: 0x0a0a12, glow: 0x1e1620, fogNear: 50, fogFar: 760,
+    hemiSky: 0x36425f, hemiGround: 0x0e0b09, hemi: 0.7, moon: 0x8aa0ff, moonLight: 0.3, stars: 1.4,
+  },
+  {
+    id: 'neon', name: 'Неон', desc: 'Розоватая дымка: город подсвечивает небо малиновым',
+    top: 0x0b0318, horizon: 0x3c1840, glow: 0xb83070, fogNear: 70, fogFar: 950,
+    hemiSky: 0x8c5c9e, hemiGround: 0x26101c, hemi: 1.25, moon: 0xffb4e4, moonLight: 0.5, stars: 0.75,
+  },
+  {
+    id: 'violet', name: 'Фиолет', desc: 'Глубокий фиолетовый, в цвет интерфейса',
+    top: 0x06021a, horizon: 0x2a1452, glow: 0x6c2cb0, fogNear: 70, fogFar: 950,
+    hemiSky: 0x6c5cb0, hemiGround: 0x170f26, hemi: 1.15, moon: 0xc6aaff, moonLight: 0.5, stars: 1,
+  },
+];
+
+export const skyPreset = (id: string): SkyPreset => SKY_PRESETS.find((p) => p.id === id) ?? SKY_PRESETS[0];
+
+/** CSS gradient of a sky (the picker's swatch): zenith to horizon with the glow at the bottom. */
+export function skySwatch(p: SkyPreset): string {
+  const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
+  return `linear-gradient(180deg, ${hex(p.top)} 0%, ${hex(p.horizon)} 72%, ${hex(p.glow)} 100%)`;
+}
 
 /** Gradient dome with city glow at the horizon, a moon disc and a star field. Follows the camera. */
 export function makeSky(): THREE.Group {
@@ -48,6 +108,7 @@ export function makeSky(): THREE.Group {
   );
   dome.frustumCulled = false;
   dome.renderOrder = -2;
+  dome.name = 'sky/dome';
   group.add(dome);
 
   const N = 900;
@@ -70,6 +131,17 @@ export function makeSky(): THREE.Group {
   );
   stars.frustumCulled = false;
   stars.renderOrder = -1;
+  stars.name = 'sky/stars';
   group.add(stars);
   return group;
+}
+
+/** Repaint a sky made by makeSky (the dome, the stars) and the horizon colour the scene shares. */
+export function applySky(group: THREE.Group, p: SkyPreset): void {
+  HORIZON.setHex(p.horizon);
+  const dome = group.getObjectByName('sky/dome') as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  dome.material.uniforms.top.value.setHex(p.top);
+  dome.material.uniforms.glow.value.setHex(p.glow);
+  const stars = group.getObjectByName('sky/stars') as THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  stars.material.color.setScalar(p.stars);
 }

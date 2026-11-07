@@ -3,7 +3,7 @@ import { RING_LEN, SPAWN_D, spawnS } from '../sim/ring';
 import type { Road, RoadPoint } from '../sim/road';
 
 const FREE = new THREE.Color(0.55, 0.58, 0.62);
-const MINE = new THREE.Color(0xc8ff3e).multiplyScalar(1.7);
+const MINE = new THREE.Color(0xa259ff).multiplyScalar(1.9);
 /** Box painted around a place: a bit bigger than a car. */
 const BOX_W = 2.3;
 const BOX_L = 5.6;

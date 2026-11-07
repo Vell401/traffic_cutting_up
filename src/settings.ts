@@ -113,6 +113,23 @@ export function saveName(name: string): void {
   }
 }
 
+/** Sky preset (render/sky.ts SKY_PRESETS id). */
+export function loadSky(): string {
+  try {
+    return localStorage.getItem('tcu.sky') ?? 'night';
+  } catch {
+    return 'night';
+  }
+}
+
+export function saveSky(id: string): void {
+  try {
+    localStorage.setItem('tcu.sky', id);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 /** Steering: keyboard (and gamepad) or the mouse, Assetto Corsa style; mouse sensitivity 0.3..3. */
 export function loadSteerMode(): 'keys' | 'mouse' {
   try {

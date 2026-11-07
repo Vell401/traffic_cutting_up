@@ -6,6 +6,7 @@ import { MouseControl } from './core/mouse';
 import { clamp } from './core/math';
 import type { CameraMode } from './render/camera';
 import { View } from './render/view';
+import { SKY_PRESETS, skyPreset, skySwatch } from './render/sky';
 import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
@@ -29,6 +30,7 @@ import {
   loadName,
   loadPhysics,
   loadQuality,
+  loadSky,
   loadSteerMode,
   loadTraffic,
   saveCameraMode,
@@ -38,6 +40,7 @@ import {
   saveName,
   savePhysics,
   saveQuality,
+  saveSky,
   saveSteerMode,
   saveTraffic,
   type Quality,
@@ -83,6 +86,7 @@ initModelLoad();
 const view = new View(canvas, sim, QUALITY[quality], car);
 // Each car remembers its own camera.
 view.setCar(car, loadCameraMode(car) as CameraMode);
+view.setSky(skyPreset(loadSky()).id);
 const hud = new Hud(sim);
 const API = apiBase(serverUrl(params));
 initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.renderer.getContext());
@@ -408,6 +412,41 @@ choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, 
   savePhysics(id);
   sim.setPhysics(id);
 });
+// The key list unfolds by itself where there is room for it.
+const keysBox = document.getElementById('keysBox') as HTMLDetailsElement;
+keysBox.open = innerHeight >= 1000;
+// Space / Enter after a click must start the run, not fold the list again.
+keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur());
+
+// Sky: each button shows its gradient; a click repaints the scene behind the menu at once (the preview).
+{
+  const seg = document.getElementById('skySeg')!;
+  const desc = document.getElementById('skyDesc')!;
+  let current = skyPreset(loadSky()).id;
+  const show = () => {
+    for (const b of seg.children) b.classList.toggle('on', (b as HTMLElement).dataset.id === current);
+    desc.textContent = skyPreset(current).desc;
+  };
+  for (const p of SKY_PRESETS) {
+    const b = document.createElement('button');
+    b.dataset.id = p.id;
+    b.title = p.desc;
+    b.innerHTML = `<i class="sw" style="background:${skySwatch(p)}"></i>${p.name}`;
+    b.addEventListener('click', () => {
+      current = p.id;
+      view.setSky(p.id);
+      saveSky(p.id);
+      show();
+      b.blur();
+    });
+    // Hovering previews it too; leaving puts the chosen one back.
+    b.addEventListener('pointerenter', () => view.setSky(p.id));
+    b.addEventListener('pointerleave', () => view.setSky(current));
+    seg.appendChild(b);
+  }
+  show();
+}
+
 // Steering: keyboard (or gamepad) or the mouse, with its sensitivity.
 const sensRow = document.getElementById('sensRow')!;
 const sensInput = document.getElementById('sensInput') as HTMLInputElement;

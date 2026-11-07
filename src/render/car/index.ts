@@ -214,7 +214,7 @@ function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
     c.z -= 0.06;
     const halo = new THREE.Sprite(haloMaterial());
     halo.position.copy(c.applyMatrix4(inv));
-    halo.scale.setScalar(0.3 / model.scale.x);
+    halo.scale.setScalar(0.26 / model.scale.x);
     model.add(halo);
   }
 }
@@ -283,8 +283,9 @@ export interface CarParts {
   tail: THREE.MeshBasicMaterial;
   tailIdle: THREE.Color;
   tailBrake: THREE.Color;
-  /** Headlight spot position, car space. */
+  /** Headlight beams: height and front (z) of the lamps, car space, and their distance from the centre line. */
   lamp: THREE.Vector3;
+  lampX: number;
   indicators: Indicators;
   /** Interior and eye (own R34 only). */
   cockpit: Cockpit | null;
@@ -582,7 +583,8 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
       wheelDrive.target = own;
     }
   });
-  return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.7, -2.05), cockpit, indicators };
+  // Beams from the projectors (±0.61 m, 0.66 m up), just ahead of the lamp glass.
+  return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.66, -2.16), lampX: 0.61, cockpit, indicators };
 }
 
 function buildCoupeParts(paint: number, L: number, W: number): CarParts {
@@ -633,7 +635,7 @@ function buildCoupeParts(paint: number, L: number, W: number): CarParts {
     [-0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
     [0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
   ]);
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.65, -L / 2), cockpit: null, indicators };
+  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.6, -L / 2 - 0.08), lampX: 0.62, cockpit: null, indicators };
 }
 
 function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts {
@@ -705,7 +707,8 @@ function buildR34(stripe: number, L: number, W: number, own: boolean): CarParts 
     tail,
     tailIdle: new THREE.Color(1.4, 0.06, 0.035),
     tailBrake: new THREE.Color(3.4, 0.1, 0.05),
-    lamp: geo.lamp.clone().multiply(scale),
+    lamp: geo.lamp.clone().multiply(scale).setZ(geo.lamp.z * scale.z - 0.06),
+    lampX: 0.6 * scale.x,
     cockpit,
     indicators,
   };

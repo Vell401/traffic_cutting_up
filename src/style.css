@@ -1,12 +1,15 @@
 :root {
-  --bg: #05060a;
-  --ink: #f2f3f5;
-  --ink-dim: rgba(242, 243, 245, 0.55);
-  --accent: #c8ff3e;
+  --bg: #07050c;
+  --ink: #f4f1fa;
+  --ink-dim: rgba(240, 234, 252, 0.58);
+  /* Night-run purple (the No Hesi look); text on it is white. */
+  --accent: #a259ff;
+  --accent-hi: #c39bff;
+  --on-accent: #ffffff;
   --hot: #ffd23e;
   --bad: #ff4d6a;
-  --panel: rgba(8, 10, 16, 0.55);
-  --line: rgba(255, 255, 255, 0.12);
+  --panel: rgba(14, 9, 26, 0.58);
+  --line: rgba(220, 200, 255, 0.14);
   --font: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -189,7 +192,7 @@ body.menu #hud {
   z-index: 20;
   max-width: min(720px, calc(100vw - 32px));
   padding: 10px 18px 12px;
-  background: rgba(8, 10, 16, 0.86);
+  background: rgba(13, 8, 24, 0.86);
   border: 1px solid var(--accent);
   border-radius: 10px;
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
@@ -379,7 +382,7 @@ body.menu #hud {
   transform: translateX(-50%);
   width: 330px;
   padding: 16px 18px 12px;
-  background: rgba(8, 10, 16, 0.72);
+  background: rgba(13, 8, 24, 0.72);
   border: 1px solid var(--line);
   border-radius: 10px;
   backdrop-filter: blur(6px);
@@ -459,7 +462,7 @@ body.test .leaders {
   bottom: 150px;
   width: 236px;
   padding: 12px 14px 8px;
-  background: rgba(8, 10, 16, 0.72);
+  background: rgba(13, 8, 24, 0.72);
   border: 1px solid var(--line);
   border-radius: 10px;
   backdrop-filter: blur(6px);
@@ -561,7 +564,7 @@ body:not(.menu):not(.paused) .mixer {
   transform: translateX(-50%);
   margin: 0;
   padding: 8px 14px;
-  background: rgba(8, 10, 16, 0.78);
+  background: rgba(13, 8, 24, 0.78);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
@@ -631,7 +634,7 @@ body.menu .load.toast {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink);
-  background: rgba(8, 10, 16, 0.6);
+  background: rgba(13, 8, 24, 0.6);
   border: 1px solid var(--line);
   border-radius: 6px;
 }
@@ -644,7 +647,7 @@ body.menu .load.toast {
   align-items: flex-end;
   justify-content: flex-start;
   padding: 0 clamp(16px, 7vw, 120px) clamp(32px, 12vh, 140px);
-  background: linear-gradient(90deg, rgba(3, 4, 8, 0.82) 0%, rgba(3, 4, 8, 0.35) 55%, rgba(3, 4, 8, 0) 100%);
+  background: linear-gradient(90deg, rgba(8, 4, 16, 0.82) 0%, rgba(8, 4, 16, 0.35) 55%, rgba(8, 4, 16, 0) 100%);
   transition: opacity 0.35s;
 }
 .overlay.hidden {
@@ -655,7 +658,7 @@ body.menu .load.toast {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(3, 4, 8, 0.6);
+  background: rgba(8, 4, 16, 0.6);
 }
 .card {
   max-width: 520px;
@@ -757,16 +760,20 @@ kbd {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #0b0d06;
+  color: var(--on-accent);
   background: var(--accent);
   border: 0;
   border-radius: 8px;
   padding: 14px 26px;
   cursor: pointer;
-  transition: transform 0.15s;
+  box-shadow: 0 0 22px rgba(162, 89, 255, 0.45);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
 }
 #startBtn:hover {
   transform: translateY(-1px);
+  box-shadow: 0 0 30px rgba(162, 89, 255, 0.7);
 }
 #startBtn span {
   margin-left: 10px;
@@ -819,8 +826,46 @@ kbd {
   border-left: 1px solid var(--line);
 }
 .seg button.on {
-  color: #0b0d06;
+  color: var(--on-accent);
   background: var(--accent);
+}
+/* Sky picker: a gradient chip before each name. */
+.seg.sky button {
+  padding-left: 9px;
+  padding-right: 9px;
+}
+/* Key list: folded on laptop-height screens (main.ts opens it on tall ones). */
+.keysbox {
+  margin: 4px 0 18px;
+}
+.keysbox summary {
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent-hi);
+  list-style: none;
+}
+.keysbox summary::-webkit-details-marker {
+  display: none;
+}
+.keysbox summary::before {
+  content: '▸ ';
+}
+.keysbox[open] summary::before {
+  content: '▾ ';
+}
+.keysbox .keys {
+  margin: 10px 0 0;
+}
+.seg.sky .sw {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .corner-btn {
@@ -860,8 +905,27 @@ kbd {
 .ghost-btn:hover {
   color: var(--ink);
 }
+/* Leaving the session: set apart below the text and lit up, so it is found at once. */
 #menuBtn {
-  margin-top: 8px;
+  display: block;
+  margin: 56px auto 0;
+  padding: 13px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(162, 89, 255, 0.55);
+  transition:
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+#menuBtn:hover {
+  color: var(--on-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 0 34px rgba(162, 89, 255, 0.8);
 }
 body.test .best {
   visibility: hidden;
@@ -917,7 +981,7 @@ body.test .best {
   background: rgba(255, 255, 255, 0.08);
 }
 #testPanel button.on {
-  color: #0b0d06;
+  color: var(--on-accent);
   background: var(--accent);
 }
 #testPanel .pnote {
@@ -1146,7 +1210,7 @@ body.online .solo-only {
   gap: 6px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: rgba(5, 6, 10, 0.6);
+  background: rgba(10, 6, 18, 0.6);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
