@@ -241,8 +241,11 @@ nameInput.addEventListener('keydown', (e) => {
   e.stopPropagation(); // typing a name must not drive, pause or switch cameras
 });
 nameInput.addEventListener('keyup', (e) => e.stopPropagation());
-nameInput.addEventListener('change', () => saveName(playerName()));
-const leaders = TEST ? null : new Leaderboard(API, ONLINE ? 'online' : 'solo', playerName);
+nameInput.addEventListener('change', () => {
+  saveName(playerName());
+  void leaders?.refresh(); // our place is looked up by name
+});
+const leaders = TEST ? null : new Leaderboard(API, playerName);
 if (ONLINE) {
   document.body.classList.add('online');
   void probeServer();
@@ -413,9 +416,31 @@ choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, 
   savePhysics(id);
   sim.setPhysics(id);
 });
-// The key list unfolds by itself where there is room for it.
+// The menu card always fits the window: when its content is taller than the room, the whole card is
+// scaled down (CSS zoom keeps the layout and the clicks right). Re-fitted on resize, once the fonts
+// are in, and whenever something in it shows, hides or unfolds.
+const menuCard = startEl.querySelector<HTMLElement>('.card')!;
+let fitQueued = false;
+function fitMenu(): void {
+  fitQueued = false;
+  menuCard.style.zoom = '';
+  const cs = getComputedStyle(startEl);
+  const room = startEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const need = menuCard.scrollHeight;
+  if (need > room && room > 0) menuCard.style.zoom = String(Math.max(0.5, Math.floor((room / need) * 1000) / 1000));
+}
+const queueFit = () => {
+  if (fitQueued) return;
+  fitQueued = true;
+  requestAnimationFrame(fitMenu);
+};
+window.addEventListener('resize', queueFit);
+void document.fonts?.ready.then(fitMenu);
+new MutationObserver(queueFit).observe(menuCard, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'open'] });
+fitMenu();
+
+// The key list starts folded (unfolded, the card scales down to keep fitting).
 const keysBox = document.getElementById('keysBox') as HTMLDetailsElement;
-keysBox.open = innerHeight >= 1000;
 // Space / Enter after a click must start the run, not fold the list again.
 keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur());
 

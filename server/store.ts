@@ -50,6 +50,8 @@ export class Store {
   private readonly db: DatabaseSync;
   private readonly insertRun;
   private readonly topRuns;
+  private readonly placeOf;
+  private readonly players;
   private readonly insertLog;
   private logs = 0;
 
@@ -94,6 +96,18 @@ export class Store {
         FROM runs WHERE mode = ?
       ) WHERE rn = 1 ORDER BY score DESC, at ASC LIMIT ?
     `);
+    // One player's place among everyone's best runs (same order as the board).
+    this.placeOf = this.db.prepare(`
+      SELECT place, name, score, car, physics, near, topKmh, seconds, at FROM (
+        SELECT name, score, car, physics, near, top_kmh AS topKmh, seconds, created_at AS at,
+          ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS place
+        FROM (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY score DESC, created_at ASC) AS rn
+          FROM runs WHERE mode = ?
+        ) WHERE rn = 1
+      ) WHERE lower(name) = lower(?)
+    `);
+    this.players = this.db.prepare('SELECT COUNT(DISTINCT lower(name)) AS n FROM runs WHERE mode = ?');
     this.insertLog = this.db.prepare('INSERT INTO log (at, source, level, message, detail) VALUES (?, ?, ?, ?, ?)');
   }
 
@@ -107,6 +121,19 @@ export class Store {
   leaderboard(mode: RunMode, limit = 10): LeaderEntry[] {
     const rows = this.topRuns.all(mode, Math.max(1, Math.min(100, limit))) as unknown as Omit<LeaderEntry, 'rank'>[];
     return rows.map((r, i) => ({ rank: i + 1, ...r }));
+  }
+
+  /** A player's best run and place on a board (any letter case), or null without a run there. */
+  placeOn(mode: RunMode, name: string): LeaderEntry | null {
+    const row = this.placeOf.get(mode, name) as (Omit<LeaderEntry, 'rank'> & { place: number }) | undefined;
+    if (!row) return null;
+    const { place, ...rest } = row;
+    return { rank: place, ...rest };
+  }
+
+  /** How many players have a run on a board. */
+  playerCount(mode: RunMode): number {
+    return Number((this.players.get(mode) as { n: number }).n);
   }
 
   log(source: 'server' | 'client', level: string, message: string, detail?: string, at = Date.now()): void {

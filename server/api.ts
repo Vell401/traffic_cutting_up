@@ -1,7 +1,8 @@
 /*
  * HTTP API next to the game socket (all under /api, same origin as the site behind the proxy):
  *
- *   GET  /api/leaderboard?mode=solo|online&limit=10   each player's best run, best first
+ *   GET  /api/leaderboard?mode=solo|online&limit=10&name=   each player's best run, best first; how many
+ *        players there are; with a name, that player's own place among all of them (me, or null)
  *   POST /api/runs   {name, score, car, physics, near, topKmh, seconds}   a finished solo run
  *   POST /api/log    {page, ua, gpu, quality, items: [{level, msg, detail?, count?}]}   page problems
  *
@@ -138,7 +139,8 @@ export class Api {
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
       const mode: RunMode = url.searchParams.get('mode') === 'online' ? 'online' : 'solo';
       const limit = Number(url.searchParams.get('limit') ?? 10) || 10;
-      send(res, 200, { mode, entries: this.store.leaderboard(mode, limit) });
+      const name = (url.searchParams.get('name') ?? '').slice(0, 32);
+      send(res, 200, { mode, entries: this.store.leaderboard(mode, limit), total: this.store.playerCount(mode), me: name ? this.store.placeOn(mode, name) : null });
       return true;
     }
     if (req.method === 'POST' && (url.pathname === '/api/runs' || url.pathname === '/api/log')) {

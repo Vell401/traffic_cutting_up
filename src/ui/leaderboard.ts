@@ -11,6 +11,14 @@ interface Entry {
   at: number;
 }
 
+interface Board {
+  entries: Entry[];
+  /** Players with a run on this board. */
+  total: number;
+  /** Our own best run and place among everyone (null: no run here yet). */
+  me: Entry | null;
+}
+
 export interface SoloRun {
   name: string;
   score: number;
@@ -21,42 +29,51 @@ export interface SoloRun {
   seconds: number;
 }
 
+type Mode = 'solo' | 'online';
+const MODES: readonly Mode[] = ['solo', 'online'];
+
 const fmt = new Intl.NumberFormat('ru-RU');
 const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 const carName = (id: number) => CARS.find((c) => c.id === id)?.name ?? '';
+/** "1 игрок", "3 игрока", "12 игроков". */
+const players = (n: number) => {
+  const d = n % 10;
+  const dd = n % 100;
+  return `${fmt.format(n)} ${d === 1 && dd !== 11 ? 'игрок' : d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? 'игрока' : 'игроков'}`;
+};
 
 /**
- * Leaderboard panel of the start menu: each player's best run, solo and online kept apart (tabs).
+ * Leaderboard of the start menu: the single-player board on the left, the online one on the right,
+ * each player's best run, the top ten of each, and under them our own place among everyone there.
  * Solo runs are sent here when they end; online ones the game server records itself.
  */
 export class Leaderboard {
-  private readonly list = document.getElementById('leadersList')!;
-  private readonly note = document.getElementById('leadersNote')!;
-  private mode: 'solo' | 'online';
+  private readonly cols = new Map<Mode, { list: HTMLElement; me: HTMLElement; count: HTMLElement }>();
 
   constructor(
     private readonly base: string,
-    initial: 'solo' | 'online',
     private readonly myName: () => string,
   ) {
-    this.mode = initial;
-    for (const b of document.querySelectorAll<HTMLButtonElement>('#leadersTabs button')) {
-      b.addEventListener('click', () => {
-        this.mode = b.dataset.mode === 'online' ? 'online' : 'solo';
-        b.blur();
-        void this.refresh();
-      });
+    for (const mode of MODES) {
+      const col = document.querySelector<HTMLElement>(`#leaders .lcol[data-mode="${mode}"]`)!;
+      this.cols.set(mode, { list: col.querySelector('ol')!, me: col.querySelector('.lme')!, count: col.querySelector('.lcount')! });
     }
     void this.refresh();
   }
 
+  /** Both boards, with our place on each. */
   async refresh(): Promise<void> {
-    for (const b of document.querySelectorAll<HTMLButtonElement>('#leadersTabs button')) b.classList.toggle('on', b.dataset.mode === this.mode);
+    await Promise.all(MODES.map((m) => this.load(m)));
+  }
+
+  private async load(mode: Mode): Promise<void> {
+    const col = this.cols.get(mode)!;
+    const name = this.myName().trim();
     try {
-      const res = await fetch(`${this.base}/leaderboard?mode=${this.mode}&limit=10`, { cache: 'no-store' });
-      const data = (await res.json()) as { entries: Entry[] };
-      const me = this.myName().trim().toLowerCase();
-      this.list.innerHTML = data.entries.length
+      const res = await fetch(`${this.base}/leaderboard?mode=${mode}&limit=10&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
+      const data = (await res.json()) as Board;
+      const me = name.toLowerCase();
+      col.list.innerHTML = data.entries.length
         ? data.entries
             .map(
               (e) =>
@@ -64,9 +81,14 @@ export class Leaderboard {
             )
             .join('')
         : '<li class="empty">Пока пусто — станьте первым</li>';
-      this.note.textContent = this.mode === 'solo' ? 'Одиночный режим · лучший заезд каждого · от 1 000 очков' : 'Онлайн · заезды засчитывает сервер · от 1 000 очков';
+      col.count.textContent = data.total ? players(data.total) : '';
+      col.me.innerHTML = data.me
+        ? `<span>Ваше место</span><b class="num">${data.me.rank}</b><span class="of">из ${fmt.format(data.total)}</span><span class="s num">${fmt.format(data.me.score)}</span>`
+        : `<span class="none">${mode === 'solo' ? 'Нет вашего заезда: нужно от 1 000 очков' : 'Нет вашего онлайн-заезда от 1 000 очков'}</span>`;
     } catch {
-      this.list.innerHTML = '<li class="empty">Сервер недоступен</li>';
+      col.list.innerHTML = '<li class="empty">Сервер недоступен</li>';
+      col.me.textContent = '';
+      col.count.textContent = '';
     }
   }
 
@@ -75,7 +97,7 @@ export class Leaderboard {
     try {
       const res = await fetch(`${this.base}/runs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(run) });
       const data = (await res.json()) as { rank?: number };
-      if (this.mode === 'solo') void this.refresh();
+      void this.load('solo');
       return data.rank;
     } catch {
       return undefined;

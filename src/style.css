@@ -372,20 +372,13 @@ body.menu #hud {
   text-shadow: 0 0 10px rgba(76, 255, 122, 0.8);
 }
 
-/* ---------- Leaderboard (start menu) ---------- */
+/* ---------- Leaderboard (start menu): single player on the left, online on the right ---------- */
 .leaders {
   position: fixed;
-  /* Centred in the upper half; on narrower screens it stays clear of the menu card
-     (its left padding + 520 px card + a gap + half this panel). */
-  top: clamp(72px, 11vh, 130px);
-  left: max(50%, calc(clamp(16px, 7vw, 120px) + 709px));
-  transform: translateX(-50%);
-  width: 330px;
-  padding: 16px 18px 12px;
-  background: rgba(13, 8, 24, 0.72);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  backdrop-filter: blur(6px);
+  top: clamp(60px, 9vh, 110px);
+  right: clamp(16px, 3vw, 48px);
+  width: 560px;
+  padding: 14px 18px 14px;
   transition: opacity 0.35s;
 }
 body:not(.menu) .leaders,
@@ -395,47 +388,77 @@ body.test .leaders {
 }
 .leaders .lh {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
   font-size: 12px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--accent);
 }
-.seg.small button {
-  padding: 4px 8px;
-  font-size: 11px;
+.leaders .lh em {
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--ink-dim);
+}
+.leaders .lcols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.leaders h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 4px;
+  padding-bottom: 6px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--line);
+}
+.leaders h3 .lcount {
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ink-dim);
 }
 .leaders ol {
   list-style: none;
-  margin: 0 0 8px;
+  margin: 0;
   padding: 0;
   min-height: 60px;
 }
 .leaders li {
   display: grid;
   grid-template-columns: 26px 1fr auto;
-  align-items: baseline;
-  gap: 8px;
-  padding: 5px 0;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.15;
 }
 .leaders li b {
   color: var(--ink-dim);
   font-weight: 600;
 }
 .leaders li .n {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .leaders li .n em {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-style: normal;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--ink-dim);
 }
 .leaders li .s {
@@ -446,10 +469,40 @@ body.test .leaders {
 }
 .leaders li.empty {
   display: block;
+  padding: 8px 0;
   color: var(--ink-dim);
   border: 0;
 }
-@media (max-width: 980px) {
+/* Our own place among everyone on that board. */
+.leaders .lme {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 30px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  background: rgba(162, 89, 255, 0.1);
+}
+.leaders .lme b {
+  font-size: 16px;
+  color: var(--ink);
+}
+.leaders .lme .s {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--ink);
+}
+.leaders .lme .none {
+  font-size: 11.5px;
+}
+@media (max-width: 1320px) {
+  .leaders {
+    zoom: 0.86;
+  }
+}
+@media (max-width: 1160px) {
   .leaders {
     display: none;
   }
@@ -467,6 +520,10 @@ body.test .leaders {
   border-radius: 10px;
   backdrop-filter: blur(6px);
   transition: opacity 0.35s;
+}
+/* In the menu the HUD (and its speedometer) is hidden: the mixer goes down to the corner. */
+body.menu .mixer {
+  bottom: clamp(16px, 3vh, 32px);
 }
 body:not(.menu):not(.paused) .mixer {
   opacity: 0;
@@ -665,12 +722,11 @@ body.menu .load.toast {
 }
 #start {
   padding-top: 16px;
+  padding-bottom: clamp(20px, 5vh, 56px);
 }
+/* Never a scrollbar: main.ts scales the whole card down (zoom) when the window is too short for it. */
 #start .card {
-  max-height: 100%;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  overflow: hidden;
 }
 /* Laptop-height windows: a tighter card so the start button stays on screen without scrolling. */
 @media (max-height: 960px) {
@@ -834,7 +890,7 @@ kbd {
   padding-left: 9px;
   padding-right: 9px;
 }
-/* Key list: folded on laptop-height screens (main.ts opens it on tall ones). */
+/* Key list: folded until clicked. */
 .keysbox {
   margin: 4px 0 18px;
 }

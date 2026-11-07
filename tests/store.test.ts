@@ -25,6 +25,12 @@ describe('leaderboard store', () => {
       [3, 'Lena', 20000],
     ]);
     expect(s.leaderboard('online').map((e) => e.name)).toEqual(['Online']);
+    // A player's own place among everyone (any letter case), and how many players a board has.
+    expect(s.placeOn('solo', 'LENA')).toMatchObject({ rank: 3, name: 'Lena', score: 20000 });
+    expect(s.placeOn('solo', 'kira')?.rank).toBe(1);
+    expect(s.placeOn('online', 'Kira')).toBeNull();
+    expect(s.playerCount('solo')).toBe(3);
+    expect(s.playerCount('online')).toBe(1);
     s.close();
   });
 
@@ -69,6 +75,10 @@ describe('HTTP API', () => {
     expect(board.entries[0]).toMatchObject({ name: 'Vell b', score: 42000 });
     const online = (await (await fetch(`${base}/api/leaderboard?mode=online`)).json()) as { entries: unknown[] };
     expect(online.entries).toEqual([]);
+    const mine = (await (await fetch(`${base}/api/leaderboard?mode=solo&name=vell%20b`)).json()) as { total: number; me: { rank: number } | null };
+    expect(mine).toMatchObject({ total: 1, me: { rank: 1 } });
+    const nobody = (await (await fetch(`${base}/api/leaderboard?mode=online&name=Vell`)).json()) as { total: number; me: unknown };
+    expect(nobody).toMatchObject({ total: 0, me: null });
   });
 
   it('turns away bad runs and non-JSON posts', async () => {
