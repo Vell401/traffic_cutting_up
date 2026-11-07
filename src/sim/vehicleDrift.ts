@@ -73,6 +73,12 @@ export type DriftTune = CarTune & {
   /** Cornering brake control: share of ebdSlip taken away in a turn (a rear-drive saloon keeps a little rotation). */
   cbcCut: number;
   /**
+   * Brake assist, m/s² at full pedal: extra deceleration put straight on the body, past the tyres (the
+   * tyres alone stop the car no harder than their grip). Outside the load transfer, so turning,
+   * throttle and balance are just what they were.
+   */
+  brakeAssist: number;
+  /**
    * Engine drag control (MSR): off the throttle and off the brakes, engine braking may pull a wheel
    * only this far into braking slip. Without it lifting mid-corner took enough rear grip to make the
    * car swing out and wander.
@@ -180,6 +186,8 @@ export const driftTune: DriftTune = {
   // Brakes ~30 % stronger than at first (was 9.6 / 0.035): more pedal and the rear axle let work in a straight line.
   ebdSlip: 0.06,
   cbcCut: 0.45,
+  // The brakes once more ~25 % stronger (100 → 0: 34 → 27 m) without touching the tyres.
+  brakeAssist: 2.9,
   dragSlip: 0.01,
   tcSlip: 0.13,
   escAssist: 1,
@@ -428,7 +436,7 @@ export class DriftCar extends PlayerCar {
       const driveGrip = (hb ? 0 : gripRx) + (t.frontDrive > 0 ? gripF : 0);
       const fx = Math.min((this.driveTq * (hb ? t.frontDrive : 1)) / R, 0.95 * driveGrip) - resist + this.boostF;
       this.vx += (fx / m) * h;
-      this.vx = Math.max(0, this.vx - (this.brake * t.brakeDecel + (hb ? HANDBRAKE_DECEL : 0)) * h);
+      this.vx = Math.max(0, this.vx - (this.brake * (t.brakeDecel + t.brakeAssist) + (hb ? HANDBRAKE_DECEL : 0)) * h);
       this.vy = 0;
       this.r = (this.vx * this.sinD) / (this.cosD * L);
       this.omegaR = this.omegaF = this.vx / R;
@@ -478,6 +486,8 @@ export class DriftCar extends PlayerCar {
       fx -= Math.abs(mEsp) / t.trackWidth;
 
       this.vx += (fx / m + this.vy * this.r) * h;
+      // Brake assist: straight on the body (see the tune), never past a standstill.
+      this.vx = Math.max(0, this.vx - this.brake * t.brakeAssist * h);
       this.vy += (fy / m - vx * this.r) * h;
       this.r += (mz / Iz) * h;
 
@@ -513,7 +523,7 @@ export class DriftCar extends PlayerCar {
 
       this.axLag += (fx / m - this.axLag) * lagK;
       this.ayLag += (fy / m - this.ayLag) * lagK;
-      this.accLong = fx / m;
+      this.accLong = fx / m - this.brake * t.brakeAssist;
       this.accLat = fy / m;
       this.slipRear = kapR;
       this.slipAngleRear = alphaR;

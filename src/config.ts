@@ -34,7 +34,8 @@ export const carTune = {
   /** N per m/s. */
   rollingRes: 14,
   /** Full-brake deceleration, m/s² (still capped by tire grip). */
-  brakeDecel: 14.3,
+  // Strengthened twice (11 → 14.3 → 17.9): 100 → 0 km/h in about 21 m.
+  brakeDecel: 17.9,
   /** Wheel angle at a standstill, rad. Above ~20 km/h grip-limited steering takes over. */
   maxSteerLow: 0.55,
   /** Full steering lock asks for this fraction of the grip limit, so the input feels the same at any speed. */

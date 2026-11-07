@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
 import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
-import { buildCar, type CarParts } from './car';
+import { buildCar, isShared, type CarParts } from './car';
 
 /** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
 const BLINK_PERIOD = 0.7;
@@ -26,8 +26,8 @@ export class PlayerView {
   private blinkT = 0;
   /** A turn signal lamp is lit right now (the HUD arrow and the relay click follow it). */
   blinkLit = false;
-  private readonly mats: THREE.Material[] = [];
-  private readonly inside: THREE.Material[];
+  /** The cockpit's materials (they stay solid when the car is a ghost). */
+  private readonly inside = new Set<THREE.Material>();
 
   /** own: the player's own car (real spot light, cockpit); others get just the lamps. */
   constructor(
@@ -69,16 +69,26 @@ export class PlayerView {
 
     this.root.add(p.body, p.wheelRoot);
     // Ghosting fades the outside of the car; the cockpit stays solid (from inside the outside is not seen anyway).
-    const inside = new Set<THREE.Material>();
     p.cockpit?.group.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
-      if (m) inside.add(m);
+      if (m) this.inside.add(m);
     });
+  }
+
+  /**
+   * This car's own materials, looked up when needed (an imported model arrives after construction).
+   * Materials shared by every car of a model are never touched: fading or disposing them would hit
+   * all the other cars too.
+   */
+  private ownMaterials(withInside: boolean): Set<THREE.Material> {
+    const out = new Set<THREE.Material>();
     this.root.traverse((o) => {
-      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
-      if (m && !inside.has(m) && !this.mats.includes(m)) this.mats.push(m);
+      const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      if (!mat) return;
+      for (const m of Array.isArray(mat) ? mat : [mat]) if (!isShared(m) && (withInside || !this.inside.has(m))) out.add(m);
     });
-    this.inside = [...inside];
+    if (withInside) for (const m of this.inside) out.add(m);
+    return out;
   }
 
   /** Driver's eye anchor (cars with a cockpit). */
@@ -106,7 +116,7 @@ export class PlayerView {
   setGhost(on: boolean): void {
     if (on === this.ghost) return;
     this.ghost = on;
-    for (const m of this.mats) {
+    for (const m of this.ownMaterials(false)) {
       const base = (m.userData.baseOpacity ??= m.opacity) as number;
       const baseTransparent = (m.userData.baseTransparent ??= m.transparent) as boolean;
       const baseDepthWrite = (m.userData.baseDepthWrite ??= m.depthWrite) as boolean;
@@ -140,6 +150,6 @@ export class PlayerView {
   /** Take it out of the scene and free its materials (geometry is shared between cars of a model). */
   dispose(): void {
     this.root.removeFromParent();
-    for (const m of [...this.mats, ...this.inside]) m.dispose();
+    for (const m of this.ownMaterials(true)) m.dispose();
   }
 }

@@ -8,7 +8,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Exo+2:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600;1,700;1,800;1,900&family=Unbounded:wght@700;900&display=swap" rel="stylesheet" />
   </head>
   <body>
     <canvas id="c"></canvas>
@@ -51,10 +51,11 @@
     <div id="announce"><span class="k">Сообщение сервера</span><span class="t"></span></div>
 
     <div id="start" class="overlay">
+      <div class="menu-fx" aria-hidden="true"><i class="streaks"></i><i class="glow"></i><i class="grain"></i></div>
       <button id="testBtn" class="corner-btn solo-only" title="Короткая трасса со всеми участками и режимами трафика">Test</button>
       <div class="card">
-        <div class="kicker">Night highway · cut up</div>
-        <h1>Traffic<br />Cutting Up</h1>
+        <div class="kicker"><i class="live"></i>Night highway · cut up</div>
+        <h1><span class="l1">Traffic</span><span class="l2">Cutting Up</span></h1>
         <p class="tag">Проезжай впритирку к машинам, держи комбо. Удар о машину обнуляет заезд, лучший результат сохраняется.</p>
         <details id="keysBox" class="keysbox">
           <summary>Клавиши</summary>
@@ -111,8 +112,6 @@
             <div id="trafficSeg" class="seg"></div>
             <div id="trafficDesc" class="odesc"></div>
           </div>
-          <span class="ol online-only">Трафик</span>
-          <div class="online-only"><div class="odesc flat">Общий для всех на сервере: плотность и режимы задаёт сервер</div></div>
           <span class="ol">Небо</span>
           <div>
             <div id="skySeg" class="seg sky"></div>
@@ -127,7 +126,7 @@
           </div>
         </div>
         <div id="onlineMsg" class="online-only"></div>
-        <button id="startBtn"><em class="solo-only">Поехали</em><em class="online-only">Подключиться</em> <span>Enter</span></button>
+        <button id="startBtn"><em class="solo-only">Поехали</em><em class="online-only">Подключиться</em><i class="chev" aria-hidden="true"><b>›</b><b>›</b><b>›</b></i><span>Enter</span></button>
       </div>
     </div>
 

@@ -50,6 +50,8 @@ export const mercedesTune: DriftTune = {
   ebdSlip: 0.06,
   // Braking into a turn the AMG's light tail would step out: the rear is held back harder.
   cbcCut: 0.7,
+  // Brakes ~25 % stronger again (100 → 0: 30 → 24 m), past the tyres.
+  brakeAssist: 3.2,
   tcSlip: 0.1,
   escAssist: 0.9,
   escSlip: 0.2,

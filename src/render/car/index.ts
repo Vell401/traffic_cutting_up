@@ -68,6 +68,20 @@ export const CAMERA_RIGS: Record<CarId, CameraRig> = {
   },
 };
 
+/**
+ * Materials every car of a model draws with (the imported A45's, the lit headlamps, the halo) carry this
+ * flag: a car must never dispose or fade them. Disposing them when one driver left made every client
+ * recompile the shaders of all the others' A45s at once (a freeze for everyone).
+ */
+export const isShared = (m: THREE.Material): boolean => m.userData.shared === true;
+
+/** A car's own copy of a (possibly shared) material. */
+function perCar<T extends THREE.Material>(m: T): T {
+  const c = m.clone() as T;
+  delete c.userData.shared;
+  return c;
+}
+
 /** Amber lens unlit, and lit (bright enough to bloom). */
 export const INDICATOR_OFF = new THREE.Color(0.11, 0.045, 0.004);
 export const INDICATOR_ON = new THREE.Color(4.2, 1.75, 0.08);
@@ -163,6 +177,7 @@ function haloMaterial(): THREE.SpriteMaterial {
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   headlampHalo = new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(1.3, 1.28, 1.22), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+  headlampHalo.userData.shared = true;
   return headlampHalo;
 }
 
@@ -185,7 +200,11 @@ function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
       if (p.z >= 0) return;
       if (mat.name === 'front_refraction_surface_led') projectors[p.x < 0 ? 0 : 1].push(p.clone());
       let m = headlampMats.get(mat.name);
-      if (!m) headlampMats.set(mat.name, (m = new THREE.MeshBasicMaterial({ color: head, name: `${mat.name}_lit` })));
+      if (!m) {
+        m = new THREE.MeshBasicMaterial({ color: head, name: `${mat.name}_lit` });
+        m.userData.shared = true;
+        headlampMats.set(mat.name, m);
+      }
       mesh.material = m;
       return;
     }
@@ -197,7 +216,7 @@ function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
     const key = `${mat.uuid}/${side}`;
     let m = clones.get(key);
     if (!m) {
-      m = mat.clone();
+      m = perCar(mat);
       clones.set(key, m);
       const front = mesh.name.startsWith('SM_Light_F');
       const rearLed = mesh.name.startsWith('SK_Trunk') || mesh.name.startsWith('SM_Light_B');
@@ -372,6 +391,7 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) m.userData.shared = true;
     });
     mercedesModel = scene;
     for (const waiter of mercedesWaiters) waiter(scene);
@@ -560,6 +580,17 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   // Last: with the model already cached this runs at once and swaps the placeholders out.
   if (importedModel) loadMercedesModel((model) => {
     const imported = model.clone(true);
+    // Our own car gets its own materials (it fades as a ghost on the spawn pad); the others share the model's.
+    if (own) {
+      const copies = new Map<THREE.Material, THREE.Material>();
+      imported.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+        let c = copies.get(mesh.material);
+        if (!c) copies.set(mesh.material, (c = perCar(mesh.material)));
+        mesh.material = c;
+      });
+    }
     imported.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(imported);
     const size = bounds.getSize(new THREE.Vector3());
@@ -577,10 +608,10 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
     body.add(imported);
     cockpit?.attach(imported, body);
     // The model brings its own wheels: drive those and drop the procedural set.
-    const own = new ImportedWheels(imported);
-    if (own.found) {
+    const modelWheels = new ImportedWheels(imported);
+    if (modelWheels.found) {
       wheelRoot.remove(wheels.group);
-      wheelDrive.target = own;
+      wheelDrive.target = modelWheels;
     }
   });
   // Beams from the projectors (±0.61 m, 0.66 m up), just ahead of the lamp glass.

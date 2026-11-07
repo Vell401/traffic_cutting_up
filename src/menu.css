@@ -1,0 +1,608 @@
+/*
+ * Main menu skin: "night run" — a race broadcast board over the live highway. Slanted plates, a violet →
+ * magenta charge, wide display type for the name, sporty italics for everything you press, numbered
+ * rows like a telemetry sheet. Loaded after style.css and scoped to the start card, the leaderboard,
+ * the mixer and the corner button; the in-game HUD keeps its own look.
+ */
+:root {
+  --nr-violet: #a259ff;
+  --nr-magenta: #ff3df2;
+  --nr-lilac: #d9c6ff;
+  --nr-deep: #0b0616;
+  --nr-glass: rgba(16, 9, 30, 0.74);
+  --nr-edge: rgba(190, 150, 255, 0.22);
+  --nr-charge: linear-gradient(100deg, #8a3dff 0%, #a259ff 38%, #e63cf5 82%, #ff3df2 100%);
+  --nr-display: 'Unbounded', 'Exo 2', system-ui, sans-serif;
+  --nr-ui: 'Exo 2', 'Segoe UI', system-ui, sans-serif;
+  --nr-slant: 14px;
+}
+
+/* ------------------------------------------------------------------ backdrop */
+
+#start {
+  background:
+    radial-gradient(120% 90% at 0% 100%, rgba(98, 30, 170, 0.42) 0%, rgba(98, 30, 170, 0) 55%),
+    linear-gradient(90deg, rgba(8, 4, 16, 0.9) 0%, rgba(8, 4, 16, 0.55) 40%, rgba(8, 4, 16, 0.12) 72%, rgba(8, 4, 16, 0) 100%);
+}
+.menu-fx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.menu-fx i {
+  position: absolute;
+  display: block;
+}
+/* Speed streaks: thin slanted lines drifting left, densest behind the card. */
+.menu-fx .streaks {
+  inset: -20% -10% -20% -30%;
+  background: repeating-linear-gradient(
+    -76deg,
+    rgba(170, 120, 255, 0.07) 0 1px,
+    transparent 1px 34px,
+    rgba(255, 61, 242, 0.05) 34px 35px,
+    transparent 35px 90px
+  );
+  mask-image: linear-gradient(90deg, #000 0%, rgba(0, 0, 0, 0.6) 35%, transparent 62%);
+  animation: nr-streaks 9s linear infinite;
+}
+@keyframes nr-streaks {
+  to {
+    transform: translateX(-180px);
+  }
+}
+/* A low violet bloom where the card sits, and a neon horizon line under it. */
+.menu-fx .glow {
+  left: -10%;
+  bottom: -30%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(closest-side, rgba(162, 89, 255, 0.28), rgba(255, 61, 242, 0.08) 60%, transparent);
+  filter: blur(10px);
+}
+.menu-fx .grain {
+  inset: 0;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------------ the plate */
+
+#start .card {
+  position: relative;
+  max-width: 580px;
+  padding: 26px 40px 26px 30px;
+  font-family: var(--nr-ui);
+  background:
+    linear-gradient(180deg, rgba(162, 89, 255, 0.1), rgba(162, 89, 255, 0) 30%),
+    var(--nr-glass);
+  backdrop-filter: blur(10px) saturate(1.2);
+  /* The slanted right edge of a broadcast plate. */
+  clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%);
+  scrollbar-color: rgba(162, 89, 255, 0.5) transparent;
+}
+/* Charge bar down the left edge and a hairline along the top. */
+#start .card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--nr-magenta), var(--nr-violet) 45%, rgba(162, 89, 255, 0.15));
+  box-shadow: 0 0 18px rgba(200, 80, 255, 0.7);
+}
+#start .card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 61, 242, 0.8), rgba(162, 89, 255, 0.4) 50%, transparent);
+}
+
+/* Staggered entrance: each block slides in from the left. */
+/* `translate` (not `transform`), so the title keeps its own skew. */
+@keyframes nr-in {
+  from {
+    opacity: 0;
+    translate: -18px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+#start .card > * {
+  animation: nr-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+#start .card > :nth-child(1) {
+  animation-delay: 0.05s;
+}
+#start .card > :nth-child(2) {
+  animation-delay: 0.12s;
+}
+#start .card > :nth-child(3),
+#start .card > :nth-child(4) {
+  animation-delay: 0.2s;
+}
+#start .card > :nth-child(5) {
+  animation-delay: 0.28s;
+}
+#start .card > :nth-child(n + 6) {
+  animation-delay: 0.36s;
+}
+
+/* ------------------------------------------------------------------ heading */
+
+#start .kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.34em;
+  color: var(--nr-lilac);
+}
+#start .kicker::after {
+  content: '';
+  flex: 1;
+  max-width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--nr-violet), transparent);
+}
+#start .kicker .live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--nr-magenta);
+  box-shadow: 0 0 10px var(--nr-magenta);
+  animation: nr-live 1.6s ease-in-out infinite;
+}
+@keyframes nr-live {
+  50% {
+    opacity: 0.35;
+    box-shadow: 0 0 2px var(--nr-magenta);
+  }
+}
+#start h1 {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--nr-display);
+  font-weight: 900;
+  font-size: clamp(38px, 5.4vw, 66px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  transform: skewX(-8deg);
+  transform-origin: left bottom;
+}
+#start h1 .l1 {
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(162, 89, 255, 0.35);
+}
+#start h1 .l2 {
+  width: fit-content;
+  background: var(--nr-charge);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgba(220, 70, 255, 0.45));
+}
+#start .tag {
+  max-width: 440px;
+  margin: 14px 0 16px;
+  font-size: 15px;
+  color: rgba(232, 222, 255, 0.66);
+}
+
+/* ------------------------------------------------------------------ keys */
+
+#start .keysbox {
+  margin: 10px 0 14px;
+}
+#start .keysbox summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 10px;
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: var(--nr-lilac);
+  border: 1px solid var(--nr-edge);
+  transform: skewX(-12deg);
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+#start .keysbox summary:hover {
+  color: #fff;
+  border-color: var(--nr-violet);
+}
+#start .keys {
+  font-size: 12.5px;
+  color: rgba(232, 222, 255, 0.62);
+}
+#start kbd {
+  font-family: var(--nr-ui);
+  font-weight: 700;
+  color: #fff;
+  background: rgba(162, 89, 255, 0.14);
+  border-color: rgba(190, 150, 255, 0.35);
+  border-radius: 3px;
+  transform: skewX(-10deg);
+}
+
+/* ------------------------------------------------------------------ option rows */
+
+#start .opts {
+  counter-reset: row;
+  gap: 0 18px;
+  margin-bottom: 16px;
+}
+#start .opts > * {
+  padding: 8px 0;
+  border-top: 1px solid rgba(190, 150, 255, 0.08);
+}
+#start .ol {
+  counter-increment: row;
+  padding-top: 15px;
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--nr-lilac);
+  white-space: nowrap;
+}
+#start .ol::before {
+  content: counter(row, decimal-leading-zero);
+  margin-right: 8px;
+  font-family: var(--nr-display);
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0;
+  color: var(--nr-violet);
+}
+#start .odesc {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(232, 222, 255, 0.55);
+}
+
+/* Chips: slanted plates; the chosen one charged violet → magenta. */
+#start .seg,
+.leaders .seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 4px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+#start .seg button,
+.leaders .seg button {
+  position: relative;
+  padding: 7px 14px;
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: rgba(232, 222, 255, 0.72);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--nr-edge);
+  transform: skewX(-12deg);
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.2s,
+    transform 0.15s;
+}
+#start .seg button + button,
+.leaders .seg button + button {
+  border-left: 1px solid var(--nr-edge);
+}
+#start .seg button:hover,
+.leaders .seg button:hover {
+  color: #fff;
+  border-color: rgba(200, 160, 255, 0.6);
+  background: rgba(162, 89, 255, 0.12);
+  transform: skewX(-12deg) translateY(-1px);
+}
+#start .seg button.on,
+.leaders .seg button.on {
+  color: #fff;
+  background: var(--nr-charge);
+  border-color: transparent;
+  box-shadow:
+    0 0 18px rgba(200, 70, 255, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+#start .seg button b {
+  margin-right: 7px;
+  font-family: var(--nr-display);
+  font-size: 10px;
+  font-style: normal;
+  opacity: 0.6;
+}
+#start .seg button.on b {
+  opacity: 0.9;
+}
+/* Sky: colour plates only (the chosen name is in the line under them). */
+#start .seg.sky button {
+  padding: 4px;
+}
+#start .seg.sky .sw {
+  display: block;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+#start .seg.sky button.on {
+  padding: 3px;
+  box-shadow:
+    0 0 0 1px #fff,
+    0 0 18px rgba(200, 70, 255, 0.55);
+}
+
+#start #nameInput {
+  width: 240px;
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--nr-edge);
+  border-radius: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  padding: 8px 18px;
+}
+#start #nameInput:focus {
+  border-color: var(--nr-violet);
+  background: rgba(162, 89, 255, 0.12);
+}
+#start .sens input[type='range'],
+.mixer input[type='range'] {
+  accent-color: var(--nr-magenta);
+}
+#start .load .lbar i {
+  background: var(--nr-charge);
+}
+
+/* ------------------------------------------------------------------ start */
+
+#start #startBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 30px 15px 28px;
+  font-family: var(--nr-display);
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: var(--nr-charge);
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  box-shadow: none;
+  filter: drop-shadow(0 0 16px rgba(200, 70, 255, 0.5));
+  transition:
+    filter 0.2s,
+    transform 0.15s;
+}
+#start #startBtn:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 0 26px rgba(220, 80, 255, 0.85));
+}
+/* A sheen sweeping across on hover. */
+#start #startBtn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 30%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.5s ease;
+}
+#start #startBtn:hover::after {
+  left: 115%;
+}
+#start #startBtn .chev {
+  display: inline-flex;
+  font-style: normal;
+  font-family: var(--nr-ui);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1;
+}
+#start #startBtn .chev b {
+  animation: nr-chev 1.2s ease-in-out infinite;
+}
+#start #startBtn .chev b:nth-child(2) {
+  animation-delay: 0.15s;
+}
+#start #startBtn .chev b:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes nr-chev {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  45% {
+    opacity: 1;
+  }
+}
+#start #startBtn span {
+  margin-left: 2px;
+  padding: 3px 7px;
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  opacity: 1;
+  background: rgba(10, 4, 20, 0.35);
+}
+#start #onlineMsg {
+  font-family: var(--nr-ui);
+}
+
+/* ------------------------------------------------------------------ corner button, leaderboard, mixer */
+
+/* Beside the wider plate: its left padding + 580 px + a gap + half the panel. */
+.leaders {
+  left: max(50%, calc(clamp(16px, 7vw, 120px) + 769px));
+}
+
+#start .corner-btn {
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  border-radius: 0;
+  border-color: var(--nr-edge);
+  background: var(--nr-glass);
+  transform: skewX(-12deg);
+}
+#start .corner-btn:hover {
+  color: #fff;
+  border-color: var(--nr-violet);
+  box-shadow: 0 0 16px rgba(162, 89, 255, 0.4);
+}
+
+.leaders,
+.mixer {
+  font-family: var(--nr-ui);
+  background:
+    linear-gradient(180deg, rgba(162, 89, 255, 0.12), rgba(162, 89, 255, 0) 40%),
+    var(--nr-glass);
+  border: 0;
+  border-radius: 0;
+  backdrop-filter: blur(10px) saturate(1.2);
+  clip-path: polygon(18px 0, 100% 0, 100% 100%, 0 100%, 0 18px);
+  box-shadow: inset 0 0 0 1px var(--nr-edge);
+}
+.leaders .lh,
+.mixer .mh {
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  color: var(--nr-lilac);
+}
+.leaders .lh > span::before,
+.mixer .mh > span::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: 8px;
+  vertical-align: middle;
+  background: var(--nr-charge);
+  transform: skewX(-30deg);
+}
+.leaders .seg.small button {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+.leaders li {
+  grid-template-columns: 34px 1fr auto;
+  padding: 7px 0;
+  border-bottom-color: rgba(190, 150, 255, 0.08);
+}
+.leaders li b {
+  font-family: var(--nr-display);
+  font-size: 13px;
+  color: rgba(217, 198, 255, 0.55);
+}
+.leaders li:nth-child(1) b {
+  color: var(--nr-magenta);
+  text-shadow: 0 0 10px rgba(255, 61, 242, 0.6);
+}
+.leaders li:nth-child(2) b,
+.leaders li:nth-child(3) b {
+  color: var(--nr-violet);
+}
+.leaders li .n {
+  font-weight: 700;
+}
+.leaders li .s {
+  font-family: var(--nr-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+.leaders li.me {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(162, 89, 255, 0.22), transparent 80%);
+}
+.mixer .mute {
+  font-family: var(--nr-ui);
+  font-style: italic;
+  font-weight: 700;
+  border-radius: 0;
+  transform: skewX(-12deg);
+}
+.mixer .mrow {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ small screens */
+
+@media (max-height: 960px) {
+  #start .card {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+  #start h1 {
+    font-size: clamp(34px, 4.6vw, 52px);
+  }
+  #start .opts > * {
+    padding: 5px 0;
+  }
+  #start .ol {
+    padding-top: 12px;
+  }
+  #start .odesc {
+    margin-top: 5px;
+  }
+  #start .seg button {
+    padding: 6px 12px;
+  }
+}
+@media (max-width: 640px) {
+  #start .card {
+    padding: 20px 22px 20px 20px;
+    clip-path: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-fx .streaks,
+  #start .card > *,
+  #start .kicker .live,
+  #start #startBtn .chev b {
+    animation: none;
+  }
+}

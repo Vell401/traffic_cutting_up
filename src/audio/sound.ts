@@ -702,7 +702,8 @@ export class Sound {
     const g = this.gainNode(0, this.bus.world.dry);
     this.gainNode(0.7, this.bus.world.send, g);
     src.connect(bp).connect(pan).connect(g);
-    this.env(g, at, 0.28 * strength * (truck ? 1.4 : 1), 0.05, 0.5);
+    // Half as loud as at first (0.28): it was louder than the near-miss chime it goes with.
+    this.env(g, at, 0.14 * strength * (truck ? 1.4 : 1), 0.05, 0.5);
     src.start(at, Math.random() * 1.4, 0.6);
   }
 

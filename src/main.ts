@@ -1,4 +1,5 @@
 import './style.css';
+import './menu.css';
 import { LANES, SIM_HZ, laneCenter } from './config';
 import { Sound } from './audio/sound';
 import { Input } from './core/input';
@@ -425,13 +426,15 @@ keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur(
   let current = skyPreset(loadSky()).id;
   const show = () => {
     for (const b of seg.children) b.classList.toggle('on', (b as HTMLElement).dataset.id === current);
-    desc.textContent = skyPreset(current).desc;
+    const p = skyPreset(current);
+    desc.textContent = `${p.name} — ${p.desc}`;
   };
   for (const p of SKY_PRESETS) {
     const b = document.createElement('button');
     b.dataset.id = p.id;
-    b.title = p.desc;
-    b.innerHTML = `<i class="sw" style="background:${skySwatch(p)}"></i>${p.name}`;
+    b.title = `${p.name}: ${p.desc}`;
+    b.setAttribute('aria-label', p.name);
+    b.innerHTML = `<i class="sw" style="background:${skySwatch(p)}"></i>`;
     b.addEventListener('click', () => {
       current = p.id;
       view.setSky(p.id);
