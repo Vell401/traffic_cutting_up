@@ -12,6 +12,7 @@ import {
 } from './protocol';
 import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from './rules';
 import { OnlineWorld, type Driver, type Stimulus, type TrafficState, type WorldConfig } from './world';
+import { currentTuning, validateTuning, type GlobalTuning } from '../sim/tuning';
 
 /** A connected socket, as the game server sees it (the Node entry point wraps `ws`). */
 export interface Peer {
@@ -149,6 +150,7 @@ export class GameServer {
   private readonly onRun: ServerOptions['onRun'] | null;
   /** Addresses the admin turned away, until (ms since epoch). */
   readonly bans = new Map<string, number>();
+  tuning: GlobalTuning = currentTuning();
 
   constructor(opts: ServerOptions) {
     this.world = new OnlineWorld(opts.seed, opts.rules);
@@ -258,6 +260,7 @@ export class GameServer {
       tick: this.world.tick,
       ringLen: this.world.ringLen,
       players: this.playerList(),
+      tuning: this.tuning,
     });
     this.pushPlayers(true);
   }
@@ -419,6 +422,13 @@ export class GameServer {
   /** Traffic or the player limit, from the admin page. */
   configure(cfg: WorldConfig): void {
     this.world.configure(cfg);
+  }
+
+  setTuning(value: GlobalTuning): void {
+    this.tuning = validateTuning(value);
+    // New epochs fence off prediction made using the old physical parameters.
+    this.world.setTuning(this.tuning);
+    this.broadcast({ t: 'tuning', tuning: this.tuning });
   }
 
   /**

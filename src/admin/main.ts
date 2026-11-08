@@ -1,5 +1,7 @@
 import './admin.css';
 import { CARS } from '../sim/cars';
+import { TUNE_CARS, TUNE_FIELDS, type GlobalTuning, type TuneKey } from '../sim/tuning';
+import { RADIO_MAX_TRACK_BYTES, type RadioLibrary } from '../audio/radioTypes';
 
 /*
  * Admin page of the online server (/admin.html): status, traffic, players (kick, ban), announcements,
@@ -54,6 +56,9 @@ interface State {
   modes: string[];
   drivers: Driver[];
   bans: { addr: string; until: number }[];
+  tuning: GlobalTuning;
+  defaults: GlobalTuning;
+  radio: RadioLibrary;
 }
 interface BoardEntry {
   rank: number;
@@ -177,8 +182,18 @@ function showLogin(message = ''): void {
 let state: State | null = null;
 let boardMode: 'solo' | 'online' = 'solo';
 let logSource: '' | 'server' | 'client' = '';
+let tuneCar = '3';
+let tuneDirty = false;
+let speedDirty = false;
+let radioSelected = '';
+let radioSignature = '';
+let uploading = false;
+let uploadRequest: XMLHttpRequest | null = null;
+let refreshRevision = 0;
+let dashboardVersion = '';
 
 function showDashboard(): void {
+  dashboardVersion = '';
   app.innerHTML = `
     <header class="top">
       <img src="/favicon.svg" alt="" />
@@ -188,6 +203,7 @@ function showDashboard(): void {
       </div>
       <div class="grow"></div>
       <span class="live" id="live"></span>
+      <button id="adminUpdate" hidden>Админка обновлена · Перезагрузить</button>
       <a href="/"><button>К игре</button></a>
       <button id="logout">Выйти</button>
     </header>
@@ -210,6 +226,28 @@ function showDashboard(): void {
           <div class="note" id="srvNote"></div>
         </section>
       </div>
+      <div class="cols">
+        <section class="panel">
+          <h2>Машины · глобальная физика</h2>
+          <div class="row"><label for="tuneCar">Машина</label><select id="tuneCar">${TUNE_CARS.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+          <form id="carTuneForm"><div class="tune-fields" id="carTuneFields"></div><div class="row"><button class="primary" type="submit">Применить для всех</button><button type="button" id="resetCarTune">Сбросить машину к дефолту</button></div></form>
+          <div class="note">Эталон — исходные настройки текущей версии. Изменения сохраняются на сервере, применяются к подключённым игрокам и новым заездам. В одиночном режиме обновление — до 15 секунд.</div>
+        </section>
+        <section class="panel">
+          <h2>Скорость трафика</h2>
+          <form id="trafficSpeedForm"><div id="trafficSpeedFields"></div><div class="row"><button class="primary" type="submit">Применить скорости</button><button type="button" id="resetTrafficSpeed">Сбросить к дефолту</button></div></form>
+          <div class="note">Диапазоны желаемой скорости, км/ч. Первая полоса — левая. Грузовики ограничены отдельно. Уже едущие машины плавно меняют скорость; в пробках скорость может быть ниже. Начальные значения сохранены как эталон.</div>
+        </section>
+      </div>
+      <section class="panel" id="radioAdmin">
+        <h2>Радио · плейлисты</h2>
+        <div class="row"><input id="playlistName" maxlength="100" placeholder="Название плейлиста" /><button id="createPlaylist">Создать плейлист</button><button id="renamePlaylist">Переименовать выбранный</button></div>
+        <fieldset id="radioEdit"><div class="row"><label for="radioPlaylist">Плейлист</label><select id="radioPlaylist"></select><button id="deletePlaylist">Удалить плейлист</button></div>
+        <div class="row"><label for="radioFiles">Добавить треки</label><input type="file" id="radioFiles" multiple accept=".mp3,.ogg,.wav,.m4a,.flac,audio/*" /></div>
+        <div class="scroll"><table id="radioTracks"></table></div></fieldset>
+        <div class="row"><span id="radioProgress" role="status"></span><button id="cancelRadioUpload" hidden>Отменить загрузку</button></div>
+        <div class="note">MP3, OGG, WAV, M4A, FLAC — до 40 МБ на трек, 200 треков в плейлисте, 1 ГБ на библиотеку. Декодирование формата зависит от браузера. Загружайте только записи, которые разрешено использовать. Файлы и плейлисты переживают перезапуск и деплой.</div>
+      </section>
       <section class="panel">
         <h2>Игроки <span class="grow"></span><span class="note" id="playersNote"></span></h2>
         <div class="scroll"><table id="players"></table></div>
@@ -227,6 +265,7 @@ function showDashboard(): void {
     </div>`;
 
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+  $('adminUpdate').addEventListener('click', () => location.reload());
   $('logout').addEventListener('click', () => {
     void call('logout', {}).catch(() => {});
     setToken('');
@@ -304,6 +343,8 @@ function showDashboard(): void {
     });
   }
   $('logRefresh').addEventListener('click', () => void loadLogs());
+  initTuningControls();
+  initRadioControls();
 
   void refresh();
   void loadBoard();
@@ -318,9 +359,12 @@ function showDashboard(): void {
 }
 
 async function refresh(): Promise<void> {
+  const revision = ++refreshRevision;
   const live = document.getElementById('live');
   try {
-    state = await call<State>('state');
+    const next = await call<State>('state');
+    if (revision !== refreshRevision || !document.getElementById('tiles')) return;
+    state = next;
     render(state);
     if (live) {
       live.textContent = `обновлено ${new Date().toLocaleTimeString('ru-RU')}`;
@@ -338,6 +382,8 @@ async function refresh(): Promise<void> {
 function render(s: State): void {
   const $ = (id: string) => document.getElementById(id);
   const srv = s.server;
+  if (!dashboardVersion) dashboardVersion = srv.version;
+  $('adminUpdate')!.hidden = !srv.version || srv.version === 'dev' || srv.version === dashboardVersion;
   const online = s.drivers.filter((d) => d.state !== 'offline').length;
   $('meta')!.textContent = `версия ${srv.version} · правила ${srv.rules} · кольцо ${s.rules.ringKm} км · ${s.rules.tickHz} Гц`;
   $('tiles')!.innerHTML = [
@@ -362,6 +408,8 @@ function render(s: State): void {
   if (document.activeElement !== sel) sel.value = t.held ? t.mode : 'auto';
   $('modeNow')!.textContent = `сейчас: ${MODE_NAMES[t.mode] ?? t.mode}${t.held ? ' (закреплён)' : ''}`;
   renderDensities(t);
+  renderTuning(s);
+  renderRadio(s.radio);
 
   const maxInput = $('maxPlayers') as HTMLInputElement;
   if (document.activeElement !== maxInput) maxInput.value = String(s.rules.maxPlayers);
@@ -455,3 +503,112 @@ async function loadLogs(): Promise<void> {
 
 if (token) showDashboard();
 else showLogin();
+
+function renderTuning(s: State): void {
+  (document.getElementById('tuneCar') as HTMLSelectElement).value = tuneCar;
+  if (!tuneDirty && !document.getElementById('carTuneFields')!.contains(document.activeElement)) {
+    const fields = s.tuning.cars[tuneCar];
+    document.getElementById('carTuneFields')!.innerHTML = TUNE_FIELDS.filter(f => fields[f.key] !== undefined).map(f =>
+      `<label>${esc(f.label)}<input type="number" name="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${fields[f.key]}" required /><span class="note">Дефолт: ${s.defaults.cars[tuneCar][f.key]}</span></label>`).join('');
+  }
+  if (!speedDirty && !document.getElementById('trafficSpeedFields')!.contains(document.activeElement)) {
+    const t = s.tuning.traffic;
+    document.getElementById('trafficSpeedFields')!.innerHTML = `<table><thead><tr><th>Полоса</th><th>От, км/ч</th><th>До, км/ч</th><th>Дефолт</th></tr></thead><tbody>` +
+      [...t.lanes, [t.truckMin, t.truckMax], [t.wallMin, t.wallMax]].map((p, i) => `<tr><td>${i === 4 ? 'Грузовики' : i === 5 ? 'Стенки' : i + 1}</td><td><input name="speed-${i}-0" type="number" min="10" max="${i >= 4 ? 180 : 250}" value="${p[0]}" required /></td><td><input name="speed-${i}-1" type="number" min="10" max="${i >= 4 ? 180 : 250}" value="${p[1]}" required /></td><td class="note">${i === 4 ? `${s.defaults.traffic.truckMin}–${s.defaults.traffic.truckMax}` : i === 5 ? `${s.defaults.traffic.wallMin}–${s.defaults.traffic.wallMax}` : s.defaults.traffic.lanes[i].join('–')}</td></tr>`).join('') + '</tbody></table>';
+  }
+}
+async function saveTuning(body: object, done: string): Promise<void> {
+  try {
+    await call('tuning', body);
+    if ('traffic' in body || 'resetTraffic' in body) speedDirty = false; else tuneDirty = false;
+    toast(done); await refresh();
+  } catch (e) { if (!(e instanceof LoginNeeded)) toast((e as Error).message, true); }
+}
+function initTuningControls(): void {
+  const carForm = document.getElementById('carTuneForm') as HTMLFormElement;
+  const speedForm = document.getElementById('trafficSpeedForm') as HTMLFormElement;
+  carForm.addEventListener('input', () => { tuneDirty = true; });
+  speedForm.addEventListener('input', () => { speedDirty = true; });
+  document.getElementById('tuneCar')!.addEventListener('change', e => {
+    tuneCar = (e.target as HTMLSelectElement).value; tuneDirty = false; if (state) renderTuning(state);
+  });
+  carForm.addEventListener('submit', e => {
+    e.preventDefault(); if (!carForm.reportValidity()) return;
+    const values = Object.fromEntries([...new FormData(carForm)].map(([key, value]) => [key as TuneKey, Number(value)]));
+    void saveTuning({ car: tuneCar, values }, 'Настройки машины применены для всех');
+  });
+  speedForm.addEventListener('submit', e => {
+    e.preventDefault(); if (!speedForm.reportValidity()) return;
+    const data = new FormData(speedForm), lanes = Array.from({ length: 4 }, (_, i) => [Number(data.get(`speed-${i}-0`)), Number(data.get(`speed-${i}-1`))]);
+    void saveTuning({ traffic: { lanes, truckMin: Number(data.get('speed-4-0')), truckMax: Number(data.get('speed-4-1')), wallMin: Number(data.get('speed-5-0')), wallMax: Number(data.get('speed-5-1')) } }, 'Скорости трафика применены');
+  });
+  document.getElementById('resetCarTune')!.addEventListener('click', () => { if (confirm('Вернуть исходные настройки выбранной машины для всех игроков?')) void saveTuning({ resetCar: tuneCar }, 'Машина сброшена к эталону'); });
+  document.getElementById('resetTrafficSpeed')!.addEventListener('click', () => { if (confirm('Вернуть исходные скорости трафика?')) void saveTuning({ resetTraffic: true }, 'Скорости сброшены к эталону'); });
+}
+
+function renderRadio(library: RadioLibrary): void {
+  if (uploading) return;
+  const signature = JSON.stringify([library, radioSelected]);
+  if (signature === radioSignature) return;
+  radioSignature = signature;
+  const select = document.getElementById('radioPlaylist') as HTMLSelectElement;
+  if (!library.playlists.some(p => p.id === radioSelected)) radioSelected = library.playlists[0]?.id ?? '';
+  select.innerHTML = library.playlists.map(p => `<option value="${esc(p.id)}">${esc(p.name)} (${p.tracks.length})</option>`).join('') || '<option value="">Нет плейлистов</option>';
+  select.value = radioSelected;
+  const p = library.playlists.find(p => p.id === radioSelected);
+  (document.getElementById('radioFiles') as HTMLInputElement).disabled = !p;
+  (document.getElementById('deletePlaylist') as HTMLButtonElement).disabled = !p;
+  document.getElementById('radioTracks')!.innerHTML = '<thead><tr><th>#</th><th>Трек</th><th>МБ</th><th></th></tr></thead><tbody>' + (p?.tracks.map((t, i) => `<tr><td>${i + 1}</td><td>${esc(t.title)}</td><td>${(t.bytes / 1048576).toFixed(1)}</td><td class="acts"><button data-radio-action="move" data-id="${esc(t.id)}" data-direction="-1" ${i === 0 ? 'disabled' : ''}>↑</button><button data-radio-action="move" data-id="${esc(t.id)}" data-direction="1" ${i === p.tracks.length - 1 ? 'disabled' : ''}>↓</button><button data-radio-action="deleteTrack" data-id="${esc(t.id)}">Удалить</button></td></tr>`).join('') || '<tr><td colspan="4" class="note">Добавьте треки в плейлист</td></tr>') + '</tbody>';
+}
+async function radioAction(body: object): Promise<void> {
+  try {
+    const result = await call<{ radio: RadioLibrary }>('radio', body);
+    if ('action' in body && body.action === 'create') radioSelected = result.radio.playlists.at(-1)?.id ?? '';
+    radioSignature = ''; if (state) state.radio = result.radio;
+    renderRadio(result.radio); toast('Плейлисты обновлены');
+  } catch (e) { if (!(e instanceof LoginNeeded)) toast((e as Error).message, true); }
+}
+function initRadioControls(): void {
+  document.getElementById('createPlaylist')!.addEventListener('click', () => {
+    const input = document.getElementById('playlistName') as HTMLInputElement;
+    if (!input.value.trim()) return; void radioAction({ action: 'create', name: input.value }); input.value = '';
+  });
+  document.getElementById('renamePlaylist')!.addEventListener('click', () => {
+    const input = document.getElementById('playlistName') as HTMLInputElement;
+    if (radioSelected && input.value.trim()) void radioAction({ action: 'rename', playlist: radioSelected, name: input.value });
+  });
+  document.getElementById('radioPlaylist')!.addEventListener('change', e => { radioSelected = (e.target as HTMLSelectElement).value; radioSignature = ''; if (state) renderRadio(state.radio); });
+  document.getElementById('deletePlaylist')!.addEventListener('click', () => { if (radioSelected && confirm('Удалить плейлист и все его аудиофайлы?')) void radioAction({ action: 'deletePlaylist', playlist: radioSelected }); });
+  document.getElementById('radioTracks')!.addEventListener('click', e => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-radio-action]'); if (!b) return;
+    if (b.dataset.radioAction === 'deleteTrack' && !confirm('Удалить аудиофайл?')) return;
+    void radioAction({ action: b.dataset.radioAction, playlist: radioSelected, track: b.dataset.id, direction: Number(b.dataset.direction) });
+  });
+  document.getElementById('cancelRadioUpload')!.addEventListener('click', () => uploadRequest?.abort());
+  document.getElementById('radioFiles')!.addEventListener('change', e => void uploadRadio(e.target as HTMLInputElement));
+}
+async function uploadRadio(input: HTMLInputElement): Promise<void> {
+  const files = [...input.files ?? []]; if (!files.length || !radioSelected || uploading) return;
+  if (files.some(f => f.size > RADIO_MAX_TRACK_BYTES)) { toast('Максимум 40 МБ на трек', true); input.value = ''; return; }
+  uploading = true;
+  const fieldset = document.getElementById('radioEdit') as HTMLFieldSetElement, progress = document.getElementById('radioProgress')!, cancel = document.getElementById('cancelRadioUpload')!;
+  fieldset.disabled = true; cancel.hidden = false;
+  try {
+    for (const [i, file] of files.entries()) {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+      const type = ({ mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', flac: 'audio/flac' } as Record<string, string>)[ext];
+      if (!type) throw new Error(`Неподдерживаемый файл: ${file.name}`);
+      await new Promise<void>((resolve, reject) => {
+        const xhr = uploadRequest = new XMLHttpRequest();
+        xhr.open('POST', `${API}/radio/upload?${new URLSearchParams({ playlist: radioSelected, title: file.name.replace(/\.[^.]+$/, '') })}`);
+        xhr.setRequestHeader('authorization', `Bearer ${token}`); xhr.setRequestHeader('content-type', type); xhr.timeout = 180000;
+        xhr.upload.onprogress = event => { progress.textContent = `${i + 1}/${files.length} · ${file.name} · ${event.lengthComputable ? Math.round(event.loaded / event.total * 100) : 0}%`; };
+        xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) resolve(); else { let message = `Ошибка загрузки ${xhr.status}`; try { message = JSON.parse(xhr.responseText).error ?? message; } catch { /* non JSON */ } reject(new Error(message)); } };
+        xhr.onerror = () => reject(new Error('Не удалось загрузить трек')); xhr.onabort = () => reject(new Error('Загрузка отменена')); xhr.ontimeout = () => reject(new Error('Загрузка заняла слишком много времени'));
+        xhr.send(file);
+      });
+    }
+    toast('Треки загружены'); progress.textContent = 'Загрузка завершена';
+  } catch (e) { toast((e as Error).message, true); progress.textContent = (e as Error).message; }
+  finally { uploading = false; uploadRequest = null; fieldset.disabled = false; cancel.hidden = true; input.value = ''; radioSignature = ''; await refresh(); }
+}

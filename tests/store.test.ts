@@ -6,6 +6,7 @@ import { Api } from '../server/api';
 import { GameServer } from '../src/online/gameServer';
 import { PROTOCOL_VERSION, rulesHash } from '../src/online/rules';
 import { MIN_SCORE, Store, type RunRecord } from '../server/store';
+import { defaultTuning, applyTuning } from '../src/sim/tuning';
 
 const run = (over: Partial<RunRecord>): RunRecord => ({ mode: 'solo', name: 'A', score: 5000, car: 1, physics: 1, near: 10, topKmh: 250, seconds: 60, ...over });
 
@@ -169,14 +170,15 @@ describe('admin API', () => {
     for (let i = 0; i < 240; i++) game.tick();
     expect((await req('traffic', { trafficOn: false })).status).toBe(200);
     expect(game.trafficState()).toMatchObject({ on: false, cars: 0 });
-    const r = (await (await req('traffic', { trafficOn: true, traffic: 2, intensity: 0.8, mode: 'trucks' })).json()) as { traffic: object };
-    expect(r.traffic).toMatchObject({ on: true, preset: 2, intensity: 0.8, mode: 'trucks', held: true });
+    const r = (await (await req('traffic', { trafficOn: true, mode: 'trucks' })).json()) as { traffic: object };
+    expect(r.traffic).toMatchObject({ on: true, mode: 'trucks', held: true });
+    expect((await req('traffic', { traffic: 2, intensity: .8 })).status).toBe(400);
     expect((await req('traffic', { mode: 'flying' })).status).toBe(400);
     // One mode's spawn density in cars per km of lane; kept in the database for the next start.
     const d = (await (await req('traffic', { modePerKm: { mode: 'dense', perKm: 30 } })).json()) as { traffic: { densities: { mode: string; perKm: number }[] } };
     expect(d.traffic.densities.find((x) => x.mode === 'dense')!.perKm).toBeCloseTo(30, 6);
     const saved = store.setting<{ traffic: number; mode: string; densities: Record<string, number> }>('traffic')!;
-    expect(saved).toMatchObject({ traffic: 2, mode: 'trucks' });
+    expect(saved).toMatchObject({ mode: 'trucks' });
     expect(saved.densities.dense).toBe(30);
     expect((await req('players', { maxPlayers: 12 })).status).toBe(200);
     expect(game.world.rules.maxPlayers).toBe(12);
@@ -200,6 +202,25 @@ describe('admin API', () => {
     expect(restored.trafficState().densities).toEqual(game.trafficState().densities);
     restored.configure({ mode: 'sparse' });
     expect(restored.world.traffic.targetCount()).toBeGreaterThan(106);
+  });
+
+  it('persists global car/speed settings and resets only the selected group to shipped defaults', async () => {
+    const defaults = defaultTuning();
+    try {
+      expect((await req('tuning', { car: '3', values: { ...defaults.cars['3'], powerKW: 600, brakeDecel: 20 } })).status).toBe(200);
+      expect((await req('tuning', { car: '4', values: { ...defaults.cars['4'], powerKW: 500 } })).status).toBe(200);
+      expect(game.tuning.cars['3'].powerKW).toBe(600);
+      expect(store.setting<{ cars: Record<string, { powerKW: number }> }>('tuning')!.cars['3'].powerKW).toBe(600);
+      expect((await req('tuning', { resetCar: '3' })).status).toBe(200);
+      expect(game.tuning.cars['3']).toEqual(defaults.cars['3']); expect(game.tuning.cars['4'].powerKW).toBe(500);
+      expect((await req('tuning', { car: '__proto__', values: {} })).status).toBe(400);
+      expect((await req('tuning', { car: '3', values: { ...defaults.cars['3'], powerKW: -100 } })).status).toBe(400);
+      expect((await req('tuning', { traffic: { ...defaults.traffic, lanes: [[50,60],[40,50],[30,40],[20,30]] } })).status).toBe(200);
+      expect(game.tuning.traffic.lanes[0]).toEqual([50,60]);
+      expect((await req('tuning', { resetTraffic: true })).status).toBe(200);
+      expect(game.tuning.traffic).toEqual(defaults.traffic);
+      expect((await req('tuning', { resetCar: '4' })).status).toBe(200);
+    } finally { applyTuning(defaults); game.setTuning(defaults); }
   });
 
   it('kicks a driver, keeps the address out while banned, lets it back after unban', async () => {

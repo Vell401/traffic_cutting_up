@@ -22,7 +22,8 @@ export class Input {
       if (!e.repeat) this.onPress?.(e.code);
       this.keys.add(e.code);
     });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    // UI sliders stop keydown propagation; releases must still clear keys held before opening a menu.
+    window.addEventListener('keyup', (e) => this.keys.delete(e.code), { capture: true });
     window.addEventListener('blur', () => this.keys.clear());
   }
 

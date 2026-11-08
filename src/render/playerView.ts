@@ -26,7 +26,7 @@ export class PlayerView {
   private blinkT = 0;
   /** A turn signal lamp is lit right now (the HUD arrow and the relay click follow it). */
   blinkLit = false;
-  /** The cockpit's materials (they stay solid when the car is a ghost). */
+  /** The cockpit's materials, including hidden instrument surfaces. */
   private readonly inside = new Set<THREE.Material>();
   get ready(): Promise<void> { return this.parts.ready ?? Promise.resolve(); }
 
@@ -69,11 +69,12 @@ export class PlayerView {
     }
 
     this.root.add(p.body, p.wheelRoot);
-    // Ghosting fades the outside of the car; the cockpit stays solid (from inside the outside is not seen anyway).
+    // Keep the generated instruments in the same ghost/material lifecycle as the imported body.
     p.cockpit?.group.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (m) this.inside.add(m);
     });
+    void this.ready.then(() => { if (this.ghost) this.applyGhost(); });
   }
 
   /**
@@ -125,20 +126,29 @@ export class PlayerView {
     if (this.parts.cockpit) this.parts.cockpit.group.visible = this.cockpitOn;
     this.parts.wheelRoot.visible = !this.cockpitOn;
     this.parts.setCockpit?.(this.cockpitOn);
+    this.applyGhost();
   }
 
   /** Online spawn protection: the car is drawn see-through while traffic passes through it. */
   setGhost(on: boolean): void {
     if (on === this.ghost) return;
     this.ghost = on;
-    for (const m of this.ownMaterials(false)) {
+    this.applyGhost();
+  }
+
+  private applyGhost(): void {
+    const on = this.ghost;
+    // The generated Porsche cluster and the alternate cockpit surfaces must fade with the body too.
+    for (const m of this.ownMaterials(true)) {
       const base = (m.userData.baseOpacity ??= m.opacity) as number;
       const baseTransparent = (m.userData.baseTransparent ??= m.transparent) as boolean;
       const baseDepthWrite = (m.userData.baseDepthWrite ??= m.depthWrite) as boolean;
-      m.transparent = on || baseTransparent;
+      const transparent = on || baseTransparent;
+      const changed = m.transparent !== transparent;
+      m.transparent = transparent;
       m.opacity = on ? base * 0.35 : base;
       m.depthWrite = on ? false : baseDepthWrite;
-      m.needsUpdate = true;
+      if (changed) m.needsUpdate = true;
     }
   }
 

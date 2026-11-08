@@ -30,6 +30,7 @@ import {
   type Writer,
 } from './protocol';
 import { DEFAULT_RULES, type OnlineRules } from './rules';
+import { applyTuning, defaultTuning, validateTuning, type GlobalTuning } from '../sim/tuning';
 
 /** Paint per driver slot. */
 export const DRIVER_COLORS = [0x1f4fd8, 0xd8321f, 0x16a35a, 0xe0a812, 0x9b30d9, 0x14b8c4, 0xd9d9de, 0xff6a13];
@@ -90,6 +91,7 @@ export interface TrafficState {
 export const TRAFFIC_MODES: readonly TrafficMode[] = ['normal', 'sparse', 'dense', 'trucks', 'walls', 'platoons'];
 
 export type Stimulus =
+  | { k: 'tuning'; t: number; value: GlobalTuning }
   | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId; color?: number }
   | { k: 'paint'; t: number; id: number; color: number }
   | { k: 'config'; t: number; cfg: WorldConfig }
@@ -311,8 +313,8 @@ export class OnlineWorld {
    * A client (re)attached to this driver and numbers its inputs from `seq` on: drop what is queued,
    * count `seq` as applied, and have the client take the car's state as is (epoch).
    */
-  resync(dr: Driver, seq: number): void {
-    this.journal?.({ k: 'resync', t: this.tick, id: dr.id, seq });
+  resync(dr: Driver, seq: number, record = true): void {
+    if (record) this.journal?.({ k: 'resync', t: this.tick, id: dr.id, seq });
     dr.clearQueue();
     dr.lastQueued = seq;
     dr.ack = seq;
@@ -385,6 +387,22 @@ export class OnlineWorld {
       maxPerKm: MAX_PER_KM,
       capacity: this.traffic.cars.length,
     };
+  }
+
+  setTuning(value: GlobalTuning): void {
+    const tuning = validateTuning(value);
+    this.journal?.({ k: 'tuning', t: this.tick, value: tuning });
+    applyTuning(tuning);
+    for (const dr of this.drivers) this.resync(dr, dr.lastQueued, false);
+    const speed = tuning.traffic;
+    for (const c of this.traffic.cars) {
+      if (!c.active || c.crashed) continue;
+      const unit = (((c.formation || c.id) * 2654435761) >>> 0) / 0xffffffff;
+      if (c.wall) { c.v0 = (speed.wallMin + (speed.wallMax - speed.wallMin) * unit) / 3.6; continue; }
+      const range = speed.lanes[c.lane];
+      c.v0 = (range[0] + (range[1] - range[0]) * unit) / 3.6;
+      if (c.spec.truck) c.v0 = Math.min(c.v0, (speed.truckMin + (speed.truckMax - speed.truckMin) * unit) / 3.6);
+    }
   }
 
   respawn(dr: Driver): void {
@@ -672,12 +690,15 @@ const u32 = new Uint32Array(f64.buffer);
  * to the live world before its first tick (tests switch traffic off, say).
  */
 export function replay(seed: number, rules: Partial<OnlineRules>, journal: readonly Stimulus[], endTick: number, prepare?: (w: OnlineWorld) => void): OnlineWorld {
+  applyTuning(defaultTuning());
   const w = new OnlineWorld(seed, rules);
   prepare?.(w);
   const q: InputQ[] = [];
   for (const rec of journal) {
     while (w.tick < rec.t) w.step();
-    if (rec.k === 'join') {
+    if (rec.k === 'tuning') {
+      w.setTuning(rec.value);
+    } else if (rec.k === 'join') {
       const dr = w.join(rec.name, rec.physics, rec.car ?? 1, rec.color);
       if (!dr || dr.id !== rec.id) throw new Error(`replay: join gave ${dr?.id} instead of ${rec.id}`);
     } else if (rec.k === 'leave') {

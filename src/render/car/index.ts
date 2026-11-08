@@ -360,7 +360,7 @@ export interface ModelLoad {
 }
 
 /** Size of mercedes-a45s.glb, for progress when the response has no length. */
-const A45_BYTES = 36_172_120;
+const A45_BYTES = 36_109_040;
 const modelLoadListeners = new Set<(s: ModelLoad) => void>();
 
 /** Follow heavy model downloads; returns an unsubscribe function. */
@@ -411,7 +411,7 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
   emitLoad(state);
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
-  loader.load('/models/mercedes-a45s.glb', ({ scene }) => {
+  loader.load('/models/mercedes-a45s.glb?v=lossless-textures-1', ({ scene }) => {
     scene.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;

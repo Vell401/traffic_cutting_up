@@ -35,7 +35,13 @@ function scale(g: CanvasRenderingContext2D, x: number, y: number, r: number, max
 }
 /** Drawn once. Only the tiny readout atlas and a few needle vertices change afterwards. */
 export function drawPorscheClusterBase(g: CanvasRenderingContext2D): void {
-  g.fillStyle='#050808';g.fillRect(0,0,2048,576);
+  // Only the five pods are solid: a rectangular black canvas protruded beyond the real binnacle.
+  g.clearRect(0,0,2048,576);
+  // A shaped dark backing covers the stock mounting recess without rectangular protruding corners.
+  g.fillStyle='#050808';
+  for(const [x,y,r] of [[167,282,166],[532,286,221],[1024,282,279],[1516,286,221],[1881,282,166]]){
+    g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fill();
+  }
   // Outer temperature/fuel pods, inner digital pods, oversized central tachometer.
   dial(g,167,282,157);dial(g,532,286,201);dial(g,1024,282,259);dial(g,1516,286,201);dial(g,1881,282,157);
   scale(g,1024,282,248,10,1,.2,9);
@@ -95,7 +101,7 @@ export class PorscheInstruments {
     this.cluster=c.t;this.pcm=p.t;this.readouts=d.t;this.context=d.g;this.pcm.flipY=false;
     c.g.scale(.5,.5);drawPorscheClusterBase(c.g);p.g.scale(.5,.5);drawPorschePCM(p.g);
     const face=new THREE.Group();face.position.set(-.3445,.820,-.416);face.rotation.x=-.10;this.group.add(face);
-    const panel=new THREE.Mesh(new THREE.PlaneGeometry(.441,.124),new THREE.MeshBasicMaterial({map:this.cluster,toneMapped:false}));
+    const panel=new THREE.Mesh(new THREE.PlaneGeometry(.441,.124),new THREE.MeshBasicMaterial({map:this.cluster,toneMapped:false,transparent:true,alphaTest:.02}));
     panel.name='Porsche_Cached_Instrument_Cluster';face.add(panel);
     const positions:number[]=[],colors:number[]=[],uv:number[]=[];
     const vertex=(x:number,y:number,z:number,color:string)=>{positions.push((x/2048-.5)*.441,(.5-y/576)*.124,z);this.color.set(color);colors.push(this.color.r,this.color.g,this.color.b);};

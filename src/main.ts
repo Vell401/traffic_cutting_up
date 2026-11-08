@@ -21,8 +21,10 @@ import { apiBase, conditionsFromUrl, healthUrl, serverUrl } from './online/link'
 import { diagFrame, initDiag, report } from './diag';
 import { Leaderboard } from './ui/leaderboard';
 import { Mixer } from './ui/mixer';
+import { Radio } from './ui/radio';
 import { initModelLoad } from './ui/modelLoad';
 import { OnlineSession } from './online/session';
+import { applyTuning } from './sim/tuning';
 import type { Debug } from './ui/debug';
 import {
   QUALITY,
@@ -77,6 +79,15 @@ const TEST = params.has('test');
  * page). ?solo: single player. (?online still works for old links.)
  */
 const ONLINE = !TEST && !params.has('solo');
+const API = apiBase(serverUrl(params));
+async function syncGlobalTuning(): Promise<void> {
+  try {
+    const response = await fetch(`${API}/tuning`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    if (response.ok) applyTuning(await response.json());
+  } catch { /* An offline solo run keeps the shipped defaults. Online also syncs in welcome. */ }
+}
+await syncGlobalTuning();
+if (!ONLINE && !TEST) window.setInterval(() => void syncGlobalTuning(), 15000);
 let showcase = 0;
 await loading.stage(18, 'Подготовка трассы и трафика');
 const initialCar = loadCar();
@@ -96,12 +107,12 @@ await loading.stage(40, 'Подготовка управления и интер
 view.setCar(car, loadCameraMode(car) as CameraMode);
 view.setSky(skyPreset(loadSky()).id);
 const hud = new Hud(sim);
-const API = apiBase(serverUrl(params));
 initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.renderer.getContext());
 const input = new Input();
 const sound = new Sound(sim);
 sound.setCar(car);
 const mixer = new Mixer(sound);
+const radio = new Radio(API, sound);
 const metrics = new Metrics(view.renderer, sim, () => `quality ${quality}  audio ${sound.state}`);
 // Audio may only start after a user gesture.
 window.addEventListener('keydown', () => sound.unlock());
@@ -285,7 +296,7 @@ async function toggleDebug(): Promise<void> {
   debug?.setVisible(debugOn);
 }
 if (new URLSearchParams(location.search).has('debug')) void toggleDebug();
-if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics, sound } });
+if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud, metrics, sound, radio } });
 
 // ---------------------------------------------------------------- mouse
 

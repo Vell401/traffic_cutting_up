@@ -107,7 +107,10 @@ export function buildPorsche(paint: number, own: boolean, full: boolean, report:
           let cheap=simpleMaterials.get(mat);
           if(!cheap){
             const original=mat as THREE.MeshStandardMaterial;
-            cheap=new THREE.MeshLambertMaterial({name:mat.name+'_cockpit',color:original.color,map:original.map,side:original.side,transparent:original.transparent,opacity:original.opacity,depthWrite:original.depthWrite});
+             cheap=new THREE.MeshLambertMaterial({name:mat.name+'_cockpit',color:original.color,map:original.map,side:original.side,transparent:original.transparent,opacity:original.opacity,depthWrite:original.depthWrite});
+             // The source rubber uses a grey PBR base. Without its PBR maps it became a bright,
+             // protruding-looking instrument surround; keep the cockpit's recess matte black.
+             if(/rubbertrim/i.test(mat.name))cheap.color.setRGB(.016,.017,.018);
             cheap.emissive.setRGB(.004,.0045,.005);
             simpleMaterials.set(mat,cheap);
           }
