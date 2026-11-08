@@ -18,6 +18,9 @@ const HANDBRAKE_DECEL = 6;
  * steerGripScale/maxSteerLow/steerRate/steerReturn the keyboard steering. yawAssist is not used here.
  */
 export type DriftTune = CarTune & {
+  /** Aero axle loads, N per (m/s)². Absent on the existing road-car presets. */
+  downforceFront?: number;
+  downforceRear?: number;
   /** Peak engine torque, N·m (twin-turbo plateau). */
   torqueNm: number;
   /** Torque plateau starts here, rpm (turbo spooled). */
@@ -421,8 +424,8 @@ export class DriftCar extends PlayerCar {
 
     // Axle loads from the lagged accelerations, peak forces with load sensitivity.
     const dLong = (m * this.axLag * t.cgHeight) / L;
-    const fzF = Math.max(0.1 * mg, (mg * b) / L - dLong);
-    const fzR = Math.max(0.1 * mg, (mg * a) / L + dLong);
+    const fzF = Math.max(0.1 * mg, (mg * b) / L - dLong) + (t.downforceFront ?? 0) * v * v;
+    const fzR = Math.max(0.1 * mg, (mg * a) / L + dLong) + (t.downforceRear ?? 0) * v * v;
     const dLat = (m * this.ayLag * t.cgHeight) / t.trackWidth;
     const gripF = this.axleGrip(fzF, dLat * t.rollFront, t.gripFront, (mg * b) / L / 2);
     const gripR = this.axleGrip(fzR, dLat * (1 - t.rollFront), t.gripRear, (mg * a) / L / 2);

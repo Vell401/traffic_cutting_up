@@ -34,7 +34,7 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
 
   // Bound to the car picked in the menu (each physics variant has its own tune object).
   const carTune = sim.player.tune;
-  const v2 = sim.player.physicsId === 2;
+  const v2 = sim.player.physicsId !== 1;
   const car = pane.addFolder({ title: `Car · physics ${sim.player.physicsId}` });
   car.addBinding(carTune, 'powerKW', { min: 100, max: 700, step: 10 });
   car.addBinding(carTune, 'gripFront', { min: 0.6, max: 1.8, step: 0.01 });
@@ -49,7 +49,7 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   if (v2) {
     // Physics №2 extras (ranges from its author; the lag and ESP range must stay above zero).
     const rt = carTune as DriftTune;
-    const rwd = pane.addFolder({ title: 'V8 RWD' });
+    const rwd = pane.addFolder({ title: sim.player.physicsId === 4 ? 'GT3 RS' : sim.player.physicsId === 3 ? 'AMG' : 'V8 RWD' });
     rwd.addBinding(rt, 'escAssist', { min: 0, max: 1, step: 0.05, label: 'ESP' });
     rwd.addBinding(rt, 'escSlip', { min: 0.08, max: 0.35, step: 0.01, label: 'ESP from, rad' });
     rwd.addBinding(rt, 'tcSlip', { min: 0.05, max: 0.3, step: 0.01, label: 'TC slip' });

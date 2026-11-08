@@ -217,7 +217,7 @@ export class GameServer {
       if (until > Date.now()) return this.reject(conn, 'banned', `Администратор закрыл вам вход до ${new Date(until).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' })} МСК`);
       this.bans.delete(addr!);
     }
-    const physics = msg.physics === 2 || msg.physics === 3 ? msg.physics : 1;
+    const physics = msg.physics === 2 || msg.physics === 3 || msg.physics === 4 ? msg.physics : 1;
     const car = carId(msg.car);
 
     // Reconnect: the slot (car, score, best) is kept for a while after a drop.

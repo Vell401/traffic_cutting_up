@@ -14,7 +14,7 @@ export interface CarInfo {
 /** In menu order (the A45 first); the ids are what the network and saved choices use. */
 export const CARS: readonly CarInfo[] = [
   { id: 3, name: 'Mercedes-AMG A45 S', desc: 'Компактный AMG-хэтчбек 4MATIC+: 1605 кг, усиленная тормозная система, спортивное сцепление, салон с живым рулём (V)' },
-  { id: 1, name: 'Coupe', desc: 'Простое синее купе' },
+  { id: 1, name: 'Porsche 911 GT3 RS', desc: 'IRL Spec 10: розовый кузов, чёрные диски, карбон и чёрный салон; вид из кабины (V)' },
   { id: 2, name: 'R34', desc: 'Японское купе 90-х: серебро с синими полосами, проработанный салон, вид из кабины (V)' },
 ];
 

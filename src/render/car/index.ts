@@ -5,12 +5,13 @@ import { damp } from '../../core/math';
 import { report } from '../../diag';
 import type { CarId } from '../../sim/cars';
 import type { PlayerCar } from '../../sim/vehicle';
-import { buildCoupe, sideExtrude } from '../carModels';
+import { sideExtrude } from '../carModels';
 import { liveryPaint } from './livery';
 import { CHROME, EMIT, GRILLE, IND_L, IND_R, PAINT, RIND_L, RIND_R, SHELL, TAIL, TRIM, r34Geometry } from './r34';
 import { buildR34Cockpit, type Cockpit } from './r34Interior';
 import { LENGTH, TRACK_HALF, AXLES, TYRE_W, WHEEL_R, WIDTH } from './r34Shape';
-import { WheelSet, caliper, plainWheel, sportRim, sportTyre, type WheelPos } from './wheels';
+import { WheelSet, caliper, sportRim, sportTyre, type WheelPos } from './wheels';
+import { buildPorsche, loadPorsche, porscheReady, PORSCHE_NAME } from './porsche';
 
 export type { Cockpit } from './r34Interior';
 
@@ -47,8 +48,8 @@ export const CAMERA_RIGS: Record<CarId, CameraRig> = {
     far: { dist: 2.6, height: 0.9, lookAhead: 2, lookHeight: 0.3 },
     hood: { f: 0.55, y: 1.2, lookHeight: 0.95 },
     bumper: { f: 2.45, y: 0.55, lookHeight: 0.5 },
-    cockpit: null,
-    modes: ['chase', 'far', 'hood', 'bumper'],
+    cockpit: { fov: 64, fovFast: 70, pitch: -0.04 },
+    modes: ['chase', 'far', 'cockpit', 'hood', 'bumper'],
   },
   2: {
     chase: { dist: 6.4, height: 2.05, lookAhead: 6, lookHeight: 0.85, fovMin: 58, fovMax: 76, yawLag: 7 },
@@ -294,6 +295,8 @@ class SwappableWheels implements Wheels {
 }
 
 export interface CarParts {
+  dispose?(): void;
+  setCockpit?(on:boolean):void;
   setPaint(color: number): void;
   /** Pitches and rolls with the suspension. */
   body: THREE.Group;
@@ -337,7 +340,6 @@ function honeycombTexture(): THREE.CanvasTexture {
 }
 
 let r34Wheel: { tyre: THREE.BufferGeometry; rim: THREE.BufferGeometry; caliper: THREE.BufferGeometry } | null = null;
-let coupeWheel: { tyre: THREE.BufferGeometry; rim: THREE.BufferGeometry } | null = null;
 let mercedesModel: THREE.Group | null = null;
 let mercedesLoading = false;
 const mercedesWaiters = new Set<(model: THREE.Group) => void>();
@@ -370,14 +372,21 @@ function emitLoad(s: ModelLoad): void {
 
 /** Start downloading a car's heavy model (on choosing it in the menu, before the run starts). */
 export function preloadCar(id: CarId): void {
+  if (id === 1) void loadPorsche(emitLoad).catch(() => {});
   if (id === 3) loadMercedesModel(() => {});
 }
 
 /** Resolves only after the model is parsed and attached; failed downloads remain retryable. */
 export function waitForCar(id: CarId, progress: (fraction: number, unpacking: boolean) => void = () => {}): Promise<void> {
+  if (id === 1) {
+    if (porscheReady()) return Promise.resolve();
+    const unsubscribe = onModelLoad(s => { if (s.name === PORSCHE_NAME) progress(s.done ? 1 : Math.min(.99,s.loaded / Math.max(1,s.total)),s.unpacking); });
+    return loadPorsche(emitLoad).then(() => {}).finally(unsubscribe);
+  }
   if (id !== 3 || mercedesModel) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const unsubscribe = onModelLoad(s => {
+      if (s.name !== 'Mercedes-AMG A45 S') return;
       progress(s.done ? 1 : Math.min(.99, s.loaded / Math.max(1, s.total)), s.unpacking);
       if (s.failed) { unsubscribe(); reject(new Error(`Cannot load ${s.name}`)); }
       else if (s.done) { unsubscribe(); resolve(); }
@@ -507,7 +516,7 @@ const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean, full = true): CarParts {
   if (id === 2) return buildR34(paint, length, width, own);
   if (id === 3) return buildMercedesParts(paint, length, width, full, own);
-  return buildCoupeParts(paint, length, width);
+  return buildPorsche(paint, own, full, emitLoad);
 }
 
 function buildMercedesParts(paint: number, L: number, W: number, importedModel: boolean, own: boolean): CarParts {
@@ -646,57 +655,6 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
       });
     },
   };
-}
-
-function buildCoupeParts(paint: number, L: number, W: number): CarParts {
-  const body = new THREE.Group();
-  const paintMat = new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.5, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.06 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x06080b, metalness: 0.9, roughness: 0.06 });
-  const trimMat = new THREE.MeshStandardMaterial({ color: 0x101215, roughness: 0.75 });
-  const headMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.5, 2.3) });
-  const tail = new THREE.MeshBasicMaterial({ color: TAIL_IDLE.clone() });
-  const box = (w: number, h: number, l: number, mat: THREE.Material, x: number, y: number, z: number) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), mat);
-    m.position.set(x, y, z);
-    body.add(m);
-  };
-  const coupe = buildCoupe(L, W);
-  body.add(new THREE.Mesh(coupe.paint, paintMat), new THREE.Mesh(coupe.glass, glassMat), new THREE.Mesh(coupe.trim, trimMat));
-  // Lamps sit just proud of the bevelled body surface.
-  box(0.46, 0.08, 0.06, tail, -0.6, 0.7, L / 2 + 0.04);
-  box(0.46, 0.08, 0.06, tail, 0.6, 0.7, L / 2 + 0.04);
-  box(0.8, 0.025, 0.05, tail, 0, 0.72, L / 2 + 0.05);
-  box(0.42, 0.06, 0.06, headMat, -0.62, 0.6, -L / 2 - 0.01);
-  box(0.42, 0.06, 0.06, headMat, 0.62, 0.6, -L / 2 - 0.01);
-
-  coupeWheel ??= plainWheel(0.34, 0.26);
-  const pos: WheelPos[] = [
-    { x: -0.84, y: 0.34, z: -1.32, front: true },
-    { x: 0.84, y: 0.34, z: -1.32, front: true },
-    { x: -0.84, y: 0.34, z: 1.42, front: false },
-    { x: 0.84, y: 0.34, z: 1.42, front: false },
-  ];
-  const wheels = new WheelSet(
-    {
-      tyre: coupeWheel.tyre,
-      rim: coupeWheel.rim,
-      fixed: null,
-      tyreMat: new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.92 }),
-      rimMat: new THREE.MeshStandardMaterial({ color: 0xa7adb5, metalness: 0.85, roughness: 0.28 }),
-      fixedMat: null,
-    },
-    pos,
-  );
-  const wheelRoot = new THREE.Group();
-  wheelRoot.add(wheels.group);
-  const indicators = new Indicators();
-  indicatorBoxes(body, indicators, [
-    [-0.86, 0.58, -L / 2 + 0.01, 0.12, 0.05, 0.05],
-    [0.86, 0.58, -L / 2 + 0.01, 0.12, 0.05, 0.05],
-    [-0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
-    [0.88, 0.7, L / 2 + 0.03, 0.09, 0.08, 0.05],
-  ]);
-  return { body, wheels, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.6, -L / 2 - 0.08), lampX: 0.62, cockpit: null, indicators, setPaint: color => { paintMat.color.setHex(color); } };
 }
 
 function buildR34(paint: number, L: number, W: number, own: boolean): CarParts {

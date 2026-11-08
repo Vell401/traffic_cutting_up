@@ -1,6 +1,7 @@
 import { carTune, scoreTune, trafficTune, SIM_HZ } from '../config';
 import { driftTune } from '../sim/vehicleDrift';
 import { mercedesTune } from '../sim/vehicleMercedes';
+import { porscheTune } from '../sim/vehiclePorsche';
 import { SPAWN_D, SPAWN_GAP, SPAWN_S, ringScript } from '../sim/ring';
 import { VEHICLES } from '../sim/vehicles';
 import type { TrafficPreset } from '../sim/director';
@@ -74,8 +75,8 @@ let cached = '';
 export function rulesHash(): string {
   if (!cached) {
     cached = fnv1a(
-      // Every physics tune (all three are predicted on the client), traffic, scoring, the road.
-      JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, mercedesTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] }),
+      // Every physics tune is shared with client prediction.
+      JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, mercedesTune, porscheTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] }),
     );
   }
   return cached;

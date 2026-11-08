@@ -7,6 +7,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 /** DOM HUD. Values are written only when they change; nothing is re-rendered wholesale. */
 export class Hud {
+  private readonly speedo=document.querySelector<HTMLElement>('.speedo')!;
+  private physicalInstruments=false;
   private readonly score = $('score');
   private readonly mult = $('mult');
   private readonly combo = $('combo');
@@ -89,6 +91,12 @@ export class Hud {
       this.bannerT -= dt;
       if (this.bannerT <= 0) this.banner.classList.remove('on');
     }
+  }
+
+  /** Use the physical cluster instead of the floating speed/gear overlay. */
+  setPhysicalInstruments(on:boolean):void {
+    if(on===this.physicalInstruments)return;
+    this.physicalInstruments=on;this.speedo.style.visibility=on?'hidden':'';
   }
 
   /** Turn signal arrows by the speedometer, lit in step with the car's lamps. */

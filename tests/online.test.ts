@@ -30,7 +30,7 @@ const spec = (name: string, delay: number, jitter: number, over: Partial<ClientS
 });
 
 describe('car state', () => {
-  for (const physics of [1, 2] as const) {
+  for (const physics of [1, 2, 3, 4] as const) {
     it(`physics ${physics}: a saved state steps on exactly like the original`, () => {
       const a = createCar(physics);
       a.reset(100, 2, 150 / 3.6);

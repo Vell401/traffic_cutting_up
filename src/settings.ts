@@ -55,8 +55,8 @@ function saveChoice(key: string, v: number): void {
 }
 
 // First-time players start in the A45 with the AMG physics (the first choices in the menu).
-export const loadPhysics = (): 1 | 2 | 3 => loadChoice('tcu.physics', [1, 2, 3] as const, 3);
-export const savePhysics = (v: 1 | 2 | 3): void => saveChoice('tcu.physics', v);
+export const loadPhysics = (): 1 | 2 | 3 | 4 => loadChoice('tcu.physics', [1, 2, 3, 4] as const, 3);
+export const savePhysics = (v: 1 | 2 | 3 | 4): void => saveChoice('tcu.physics', v);
 export const loadTraffic = (): 1 | 2 => loadChoice('tcu.traffic', [1, 2] as const, 1);
 export const saveTraffic = (v: 1 | 2): void => saveChoice('tcu.traffic', v);
 export const loadCar = (): 1 | 2 | 3 => loadChoice('tcu.car', [1, 2, 3] as const, 3);
@@ -165,13 +165,13 @@ export function saveMouseSens(v: number): void {
 }
 
 /** Body paint, persisted separately from the chosen car. */
-export function loadPaint(): number {
+export function loadPaint(car?: number): number {
   try {
-    const value = localStorage.getItem('tcu.paint');
-    return value && /^#[0-9a-f]{6}$/i.test(value) ? parseInt(value.slice(1), 16) : 0x1f4fd8;
-  } catch { return 0x1f4fd8; }
+    const value = (car ? localStorage.getItem(`tcu.paint.${car}`) : null) ?? (car === 1 ? null : localStorage.getItem('tcu.paint'));
+    return value && /^#[0-9a-f]{6}$/i.test(value) ? parseInt(value.slice(1), 16) : car === 1 ? 0xfee1f9 : 0x1f4fd8;
+  } catch { return car === 1 ? 0xfee1f9 : 0x1f4fd8; }
 }
 
-export function savePaint(value: number): void {
-  try { localStorage.setItem('tcu.paint', `#${value.toString(16).padStart(6, '0')}`); } catch { /* optional storage */ }
+export function savePaint(value: number, car?: number): void {
+  try { localStorage.setItem(car ? `tcu.paint.${car}` : 'tcu.paint', `#${value.toString(16).padStart(6, '0')}`); } catch { /* optional storage */ }
 }

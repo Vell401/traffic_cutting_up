@@ -1,0 +1,2446 @@
+{
+  "sourceBytes": 31535548,
+  "resultBytes": 11139228,
+  "trianglesBefore": 430641,
+  "trianglesAfter": 249971,
+  "texturePixelsBefore": 64956638,
+  "texturePixelsAfter": 12080940,
+  "rgbaMipBytesBefore": 346435403,
+  "rgbaMipBytesAfter": 64431680,
+  "images": [
+    {
+      "originalHeight": 64,
+      "width": 64,
+      "mime": "image/png",
+      "height": 64,
+      "originalWidth": 64,
+      "index": 0,
+      "cap": 256,
+      "sourceMime": "image/png",
+      "bytesBefore": 3578,
+      "bytesAfter": 3578,
+      "hashBefore": "cc31eb1d10703885907df25429b578e351f37eaba14c74b74bfc197ee4cc1979",
+      "hashAfter": "cc31eb1d10703885907df25429b578e351f37eaba14c74b74bfc197ee4cc1979",
+      "uses": [
+        {
+          "material": "TwiXeR_992_ID03_stitch_001_111111FF_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 128,
+      "width": 128,
+      "mime": "image/png",
+      "height": 128,
+      "originalWidth": 128,
+      "index": 1,
+      "cap": 256,
+      "sourceMime": "image/png",
+      "bytesBefore": 40453,
+      "bytesAfter": 40453,
+      "hashBefore": "e07827d8ec2c455e489d37a02145c00b340a4615d96fa4658cdd2971f4ef32e3",
+      "hashAfter": "e07827d8ec2c455e489d37a02145c00b340a4615d96fa4658cdd2971f4ef32e3",
+      "uses": [
+        {
+          "material": "TwiXeR_992_seat_leather_web",
+          "kind": "normalTexture"
+        },
+        {
+          "material": "TwiXeR_992_upper_leather_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 256,
+      "mime": "image/png",
+      "height": 256,
+      "originalWidth": 1024,
+      "index": 2,
+      "cap": 256,
+      "sourceMime": "image/png",
+      "bytesBefore": 2829997,
+      "bytesAfter": 194357,
+      "hashBefore": "bd3193332777e9a104065b0a728a6a6c72c6e9e5cc6319d24e30b75fec85f538",
+      "hashAfter": "eca1964ba03d883847b83d16d9bd4a264d8e01a6825ce60c35aa22114a101043",
+      "uses": [
+        {
+          "material": "TwiXeR_992_plastic_web",
+          "kind": "normalTexture"
+        },
+        {
+          "material": "TwiXeR_992_plastic_1_web",
+          "kind": "normalTexture"
+        },
+        {
+          "material": "TwiXeR_992_ID02_leather_MGL|centerconsolestructure_a_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 1024,
+      "index": 3,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 853419,
+      "bytesAfter": 40569,
+      "hashBefore": "da11e9c4ec0b6621f71d8fba03b53551a807c23aa8cf702e38ffdc59dcbbe1c7",
+      "hashAfter": "befaf49411596d61aa350b48ba17d187170d6dba4af26a09bc6d07f4c2a126b9",
+      "uses": [
+        {
+          "material": "TwiXeR_992_plastic_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "SV_SKIN_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "TwiXeR_992_plastic_1_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "TwiXeR_992_ID02_leather_MGL|centerconsolestructure_a_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 162,
+      "width": 310,
+      "mime": "image/png",
+      "height": 162,
+      "originalWidth": 310,
+      "index": 4,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 815,
+      "bytesAfter": 815,
+      "hashBefore": "8546d100ad7244594cb30130d5a88c67d70d189746d77f594e42aa3e389ba1b3",
+      "hashAfter": "8546d100ad7244594cb30130d5a88c67d70d189746d77f594e42aa3e389ba1b3",
+      "uses": [
+        {
+          "material": "TwiXeR_992_ID05_leather_coarse_mgl|dashstructurebezels_a_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "TwiXeR_992_ID10_chrome_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 1024,
+      "index": 5,
+      "cap": 512,
+      "sourceMime": "image/jpeg",
+      "bytesBefore": 113678,
+      "bytesAfter": 48986,
+      "hashBefore": "3ef047185efc2f4115b15d66ce553f6988c98c4daa5d3d11494ea46751b326eb",
+      "hashAfter": "de86658de922acfca4da957e53b6f023d64364f9ef627d29b06273c3f5289f25",
+      "uses": [
+        {
+          "material": "TwiXeR_992_plastic_2_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 2048,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 2048,
+      "index": 6,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 2322875,
+      "bytesAfter": 213742,
+      "hashBefore": "56d7017d802b3e97bb4e352af45489f0c2375942506a612f76d53923f0b27205",
+      "hashAfter": "13cb5d735fdd9a7abf2fe8147186dedb3d221052bbb7546708a2bcbf3bece25a",
+      "uses": [
+        {
+          "material": "TwiXeR_992_gauges_9000_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 16,
+      "width": 16,
+      "mime": "image/png",
+      "height": 16,
+      "originalWidth": 16,
+      "index": 7,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 2290,
+      "bytesAfter": 2290,
+      "hashBefore": "b0d3f1a49091704f910ddef42ed3d96dc681bece0f9f39b408b2ce9fffe9badd",
+      "hashAfter": "b0d3f1a49091704f910ddef42ed3d96dc681bece0f9f39b408b2ce9fffe9badd",
+      "uses": [
+        {
+          "material": "TwiXeR_992_mirror_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 8,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 181697,
+      "bytesAfter": 181697,
+      "hashBefore": "092eef354d6e0cfc57aa9399ddc39ca0f8ea43208a3a8d01084ba9cb1b3dae2f",
+      "hashAfter": "092eef354d6e0cfc57aa9399ddc39ca0f8ea43208a3a8d01084ba9cb1b3dae2f",
+      "uses": [
+        {
+          "material": "TwiXeR_992_carbon_roof_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 9,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 55416,
+      "bytesAfter": 55416,
+      "hashBefore": "250c0429a54f7a521c6438c9a2ab90b917e44b54d058321e123a1d77c4d9414b",
+      "hashAfter": "250c0429a54f7a521c6438c9a2ab90b917e44b54d058321e123a1d77c4d9414b",
+      "uses": [
+        {
+          "material": "TwiXeR_992_carbon_roof_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "TwiXeR_992_seat_carbon_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 1024,
+      "index": 10,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 391172,
+      "bytesAfter": 150270,
+      "hashBefore": "0a231b4ebb61a396e795f124608486f6e7ad751e17d35a4e68d38e87b18d8279",
+      "hashAfter": "e721cad4e2c09c5b66f72d5b03891795d8457fcf94c5233195469d6c4dd0a07a",
+      "uses": [
+        {
+          "material": "TwiXeR_992_PDK_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 2048,
+      "width": 1024,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 4096,
+      "index": 11,
+      "cap": 1024,
+      "sourceMime": "image/png",
+      "bytesBefore": 4390019,
+      "bytesAfter": 449560,
+      "hashBefore": "7b33c0eaad87b38dd423e92ccc281d1001b81aae416c196e6ebbcdc31f966245",
+      "hashAfter": "258085a4a0204c3db011ef51ca9e6721113941ed337e00feebe2426169623f31",
+      "uses": [
+        {
+          "material": "TwiXeR_992_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 1024,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 2048,
+      "index": 12,
+      "cap": 1024,
+      "sourceMime": "image/png",
+      "bytesBefore": 1501319,
+      "bytesAfter": 471043,
+      "hashBefore": "fa943fae7d2c848ab90411560c94fd200f64c60c9335a298e19c7aa7401dbca8",
+      "hashAfter": "54b59c90a123bf1b92a73a785d3d5e1867f3d9a67892a18cf6a0e597521e4084",
+      "uses": [
+        {
+          "material": "TwiXeR_992_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 417,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 341,
+      "originalWidth": 626,
+      "index": 13,
+      "cap": 512,
+      "sourceMime": "image/jpeg",
+      "bytesBefore": 152211,
+      "bytesAfter": 97299,
+      "hashBefore": "e8f16b3fc03a69a60493c9945fcfba32796eb644f5a3319a5deae68b1e37d50a",
+      "hashAfter": "017f7f8e2298cae41cf18d2b1f81b637e1d8d16a53e181a4f8653917696709eb",
+      "uses": [
+        {
+          "material": "TwiXeR_992_rough_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 256,
+      "width": 256,
+      "mime": "image/png",
+      "height": 256,
+      "originalWidth": 256,
+      "index": 14,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 73706,
+      "bytesAfter": 73706,
+      "hashBefore": "4d614dc9e6169abe20c83a4b17193f8d35417292461df69028e0a2e5309fc973",
+      "hashAfter": "4d614dc9e6169abe20c83a4b17193f8d35417292461df69028e0a2e5309fc973",
+      "uses": [
+        {
+          "material": "TwiXeR_992_CSR2_Badge_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 15,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 70185,
+      "bytesAfter": 70185,
+      "hashBefore": "4e76b87513def3bae0205d993288aff58281292ed0453b5e0e0d9863269d1759",
+      "hashAfter": "4e76b87513def3bae0205d993288aff58281292ed0453b5e0e0d9863269d1759",
+      "uses": [
+        {
+          "material": "TwiXeR_992_CSR2_Badge_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 256,
+      "width": 256,
+      "mime": "image/png",
+      "height": 256,
+      "originalWidth": 256,
+      "index": 16,
+      "cap": 256,
+      "sourceMime": "image/png",
+      "bytesBefore": 68596,
+      "bytesAfter": 68596,
+      "hashBefore": "001183848254ffc4778861a730f200b9a65f79ff417f7fd35e0d7b35b237ed61",
+      "hashAfter": "001183848254ffc4778861a730f200b9a65f79ff417f7fd35e0d7b35b237ed61",
+      "uses": [
+        {
+          "material": "TwiXeR_992_metal_radiator_web",
+          "kind": "normalTexture"
+        },
+        {
+          "material": "TwiXeR_992_rivet_001_747474FF_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 256,
+      "width": 256,
+      "mime": "image/jpeg",
+      "height": 256,
+      "originalWidth": 256,
+      "index": 17,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 7179,
+      "bytesAfter": 10863,
+      "hashBefore": "997a592bd2904476bbc3d974fcf786d7f71f1919587f15c889776b0d55703d15",
+      "hashAfter": "259e042a5d337f30188eb92a6b03b5cf838b5e328b17123266ed4564523c430f",
+      "uses": [
+        {
+          "material": "TwiXeR_992_speakers_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 128,
+      "width": 128,
+      "mime": "image/png",
+      "height": 128,
+      "originalWidth": 128,
+      "index": 18,
+      "cap": 256,
+      "sourceMime": "image/png",
+      "bytesBefore": 41737,
+      "bytesAfter": 41737,
+      "hashBefore": "47ba2c61e7f73ea043933eb82c608f6c01e59816e2338c3e73d02572f6cf4b16",
+      "hashAfter": "47ba2c61e7f73ea043933eb82c608f6c01e59816e2338c3e73d02572f6cf4b16",
+      "uses": [
+        {
+          "material": "TwiXeR_992_rivet_001_FFFFFFFF_web",
+          "kind": "normalTexture"
+        },
+        {
+          "material": "TwiXeR_992_ID04_metal_anodized_alloptions|enginebay_a_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1136,
+      "width": 640,
+      "mime": "image/png",
+      "height": 1136,
+      "originalWidth": 640,
+      "index": 19,
+      "cap": 2048,
+      "sourceMime": "image/png",
+      "bytesBefore": 254924,
+      "bytesAfter": 254924,
+      "hashBefore": "25209dc458057f4d90913b4f26a23eecd5876d1dcfeb1f60fcbdcbb2c207d2c9",
+      "hashAfter": "25209dc458057f4d90913b4f26a23eecd5876d1dcfeb1f60fcbdcbb2c207d2c9",
+      "uses": [
+        {
+          "material": "TwiXeR_992_carPaint_secondary|hoodbadge_a_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "TwiXeR_992_ID06_stitch_001_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 20,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 199947,
+      "bytesAfter": 67017,
+      "hashBefore": "625c5c5444259f2af0739d4615a30e6e953395390e7bb4fe0f3588652b370944",
+      "hashAfter": "79f257d2ae6804c61f30bb00a4aa5e04e28b9fced72a8de5b7da85ab07fba8e2",
+      "uses": [
+        {
+          "material": "TwiXeR_992_red_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 21,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 13339,
+      "bytesAfter": 24581,
+      "hashBefore": "51f46d0f90e2a61747e7e4a39f598351df966961b38dbddb08d5c3fd50601549",
+      "hashAfter": "5c719260e656a6c394e3a54cf3b011695197b5fe102bbb6c07053e4daa9a4242",
+      "uses": [
+        {
+          "material": "TwiXeR_992_CSR2_GT3RS_black_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 2048,
+      "width": 1024,
+      "mime": "image/jpeg",
+      "height": 1024,
+      "originalWidth": 2048,
+      "index": 22,
+      "cap": 1024,
+      "sourceMime": "image/png",
+      "bytesBefore": 2173369,
+      "bytesAfter": 253912,
+      "hashBefore": "2acb81198884dc0221b3f7f8eb8c4ffed87ce5563797aece385fff147bfba36b",
+      "hashAfter": "2dc4d64b00967a8991431bcfb73f24c7a11ede4b6a084554bd7a6d3045049cb6",
+      "uses": [
+        {
+          "material": "TwiXeR_992_ID12_paint_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 1024,
+      "index": 23,
+      "cap": 512,
+      "sourceMime": "image/jpeg",
+      "bytesBefore": 164841,
+      "bytesAfter": 69190,
+      "hashBefore": "a14dfdb3ef454315b919fe8ce4a1485c3ce61f796da4c9741d5bc0737d2d8627",
+      "hashAfter": "c2256b9b0c3ff5e012ede9ef4c1c72f218daa1c04b3dc3e4cfe6756b62a09d21",
+      "uses": [
+        {
+          "material": "TwiXeR_992_roof_alc_web",
+          "kind": "baseColorTexture"
+        },
+        {
+          "material": "TwiXeR_992_carpet_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 256,
+      "width": 256,
+      "mime": "image/png",
+      "height": 256,
+      "originalWidth": 256,
+      "index": 24,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 71818,
+      "bytesAfter": 71818,
+      "hashBefore": "e4ccd1f1ed1aedf40f2e446cc3441123b157159ad5dc88223a013bfa97712f1e",
+      "hashAfter": "e4ccd1f1ed1aedf40f2e446cc3441123b157159ad5dc88223a013bfa97712f1e",
+      "uses": [
+        {
+          "material": "TwiXeR_992_seatbelt_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 128,
+      "width": 128,
+      "mime": "image/png",
+      "height": 128,
+      "originalWidth": 128,
+      "index": 25,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 17673,
+      "bytesAfter": 17673,
+      "hashBefore": "591d9667e99b8b22de67cc1221bf1c5ada2605e90998c3cd2f70e7c5ad357415",
+      "hashAfter": "591d9667e99b8b22de67cc1221bf1c5ada2605e90998c3cd2f70e7c5ad357415",
+      "uses": [
+        {
+          "material": "TwiXeR_992_ID08_keyhole_002|enginebay_a_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 26,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 150728,
+      "bytesAfter": 150728,
+      "hashBefore": "314c2ddc288abcec6acb2297b91e3fb488b3239d548946895841df3b5681be90",
+      "hashAfter": "314c2ddc288abcec6acb2297b91e3fb488b3239d548946895841df3b5681be90",
+      "uses": [
+        {
+          "material": "TwiXeR_992_symbols_1_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 2048,
+      "width": 2048,
+      "mime": "image/png",
+      "height": 1024,
+      "originalWidth": 4096,
+      "index": 27,
+      "cap": 2048,
+      "sourceMime": "image/png",
+      "bytesBefore": 152417,
+      "bytesAfter": 10772,
+      "hashBefore": "69acb422ca2dc2199d0c424caca3f28cc6c18114f7e0c89ae12c34467b4df944",
+      "hashAfter": "a09d5cfd9dc10c73e7bdaf8262d0520d159b7a76038522ad2ebae2565a619336",
+      "uses": [
+        {
+          "material": "Porsche_logowing_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 256,
+      "width": 256,
+      "mime": "image/png",
+      "height": 256,
+      "originalWidth": 256,
+      "index": 28,
+      "cap": 256,
+      "sourceMime": "image/png",
+      "bytesBefore": 26714,
+      "bytesAfter": 26714,
+      "hashBefore": "1d122271960eeb176c9a6e2bd74605557ae413a74d7f566b62ea15963958d49c",
+      "hashAfter": "1d122271960eeb176c9a6e2bd74605557ae413a74d7f566b62ea15963958d49c",
+      "uses": [
+        {
+          "material": "TwiXeR_992_seat_leather_2_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 256,
+      "width": 256,
+      "mime": "image/png",
+      "height": 256,
+      "originalWidth": 256,
+      "index": 29,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 10714,
+      "bytesAfter": 10714,
+      "hashBefore": "1a520abab06efb98c3c095fcb8e8320316262f337f1494b00e789d919f1147dd",
+      "hashAfter": "1a520abab06efb98c3c095fcb8e8320316262f337f1494b00e789d919f1147dd",
+      "uses": [
+        {
+          "material": "TwiXeR_992_seat_leather_2_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 128,
+      "width": 128,
+      "mime": "image/png",
+      "height": 128,
+      "originalWidth": 128,
+      "index": 30,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 637,
+      "bytesAfter": 637,
+      "hashBefore": "29c07479019df3d50958534349da7a8c71bdb45ef425b037549f0dcbcaa396e8",
+      "hashAfter": "29c07479019df3d50958534349da7a8c71bdb45ef425b037549f0dcbcaa396e8",
+      "uses": [
+        {
+          "material": "TwiXeR_992_chrome_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 128,
+      "width": 128,
+      "mime": "image/png",
+      "height": 128,
+      "originalWidth": 128,
+      "index": 31,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 674,
+      "bytesAfter": 674,
+      "hashBefore": "7774d1cb3607358c16f6d3f0248faba5de9078c54fff32735e71c3f8d48c0651",
+      "hashAfter": "7774d1cb3607358c16f6d3f0248faba5de9078c54fff32735e71c3f8d48c0651",
+      "uses": [
+        {
+          "material": "TwiXeR_992_chrome_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 32,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 144055,
+      "bytesAfter": 144055,
+      "hashBefore": "5307a02913444f27f108ba601b0963e44513d75ae15aa047c1a473d0c39bc4d5",
+      "hashAfter": "5307a02913444f27f108ba601b0963e44513d75ae15aa047c1a473d0c39bc4d5",
+      "uses": [
+        {
+          "material": "TwiXeR_992_inttex_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 1024,
+      "mime": "image/png",
+      "height": 1024,
+      "originalWidth": 1024,
+      "index": 33,
+      "cap": 1024,
+      "sourceMime": "image/png",
+      "bytesBefore": 391172,
+      "bytesAfter": 391172,
+      "hashBefore": "0a231b4ebb61a396e795f124608486f6e7ad751e17d35a4e68d38e87b18d8279",
+      "hashAfter": "0a231b4ebb61a396e795f124608486f6e7ad751e17d35a4e68d38e87b18d8279",
+      "uses": [
+        {
+          "material": "TwiXeR_992_Interior_D_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 2048,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 2048,
+      "index": 34,
+      "cap": 512,
+      "sourceMime": "image/jpeg",
+      "bytesBefore": 259890,
+      "bytesAfter": 244293,
+      "hashBefore": "a9f6cf116bc28b0ad1586c8817476e30b45982173abbec52b9224a417d35b5ac",
+      "hashAfter": "cda706c5738f51ad8ce4431f0d53f2b1f5004d792b5f049f010baf6544337029",
+      "uses": [
+        {
+          "material": "Porsche_logo_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 2048,
+      "width": 512,
+      "mime": "image/png",
+      "height": 512,
+      "originalWidth": 2048,
+      "index": 35,
+      "cap": 512,
+      "sourceMime": "image/jpeg",
+      "bytesBefore": 302607,
+      "bytesAfter": 197823,
+      "hashBefore": "e0def4cc67c9d6502f9b68256d7467dfb82148b44e8cbd08ee3be0513a797fba",
+      "hashAfter": "2ae368ceacfb3efa7406c5fc0de61530a42a3520f88eed8cacaae8322708d254",
+      "uses": [
+        {
+          "material": "Porsche_logo_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1024,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 1024,
+      "index": 36,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 376884,
+      "bytesAfter": 44478,
+      "hashBefore": "eeba8ea914897253477495d23e65857df04ae2c107e9b1bc3fb67cb648c05ff5",
+      "hashAfter": "46f7c5b2f13d8caf74fbbc5bfa552726ef2c180ecab7806b6373e170658e3fec",
+      "uses": [
+        {
+          "material": "TwiXeR_992_GT3RS_BB_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 512,
+      "width": 512,
+      "mime": "image/jpeg",
+      "height": 512,
+      "originalWidth": 512,
+      "index": 37,
+      "cap": 512,
+      "sourceMime": "image/png",
+      "bytesBefore": 64216,
+      "bytesAfter": 51890,
+      "hashBefore": "054aab8592ae28afdfa9d52e1a08a0cf1e24610733f0f9bc061b1a39f3ddd292",
+      "hashAfter": "9723c202ba08087edd193cd5d8aa5481bd6d125135c67915f19d011fcc4027c5",
+      "uses": [
+        {
+          "material": "TwiXeR_992_GT3RS_black_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 1792,
+      "width": 1024,
+      "mime": "image/png",
+      "height": 224,
+      "originalWidth": 8192,
+      "index": 38,
+      "cap": 1024,
+      "sourceMime": "image/png",
+      "bytesBefore": 2492974,
+      "bytesAfter": 221583,
+      "hashBefore": "1831b11dbc09f0d5edf3eec8a88894f21597eda06b4a54927a43c9c0e4ea3e3a",
+      "hashAfter": "17d9b3147497923d0c28fd2da69e85db22c97ee9845ac2bad34ccdaffad3fac7",
+      "uses": [
+        {
+          "material": "P911_Tires_web",
+          "kind": "normalTexture"
+        }
+      ]
+    },
+    {
+      "originalHeight": 896,
+      "width": 2048,
+      "mime": "image/png",
+      "height": 448,
+      "originalWidth": 4096,
+      "index": 39,
+      "cap": 2048,
+      "sourceMime": "image/png",
+      "bytesBefore": 3806848,
+      "bytesAfter": 1057086,
+      "hashBefore": "13d466f11a7be269901502b8029df06b721f9c3df2fb022dc7b5667fa16fa49c",
+      "hashAfter": "31f18e8f4fc732d17e38e570a3a022b98d0555f1ba5e7f2edd5cc93f6d5c71ac",
+      "uses": [
+        {
+          "material": "P911_Tires_web",
+          "kind": "baseColorTexture"
+        }
+      ]
+    }
+  ],
+  "primitives": [
+    {
+      "mesh": 0,
+      "primitive": 0,
+      "material": "TwiXeR_992_headlight_high_web",
+      "before": 1084,
+      "after": 596,
+      "errorLimit": 0.0008,
+      "error": 0.0006912681274116039,
+      "protected": false,
+      "beforeHash": "9c5809c10f2f33b240ec4ce608331269e477519c2ae9809c9f354fa04f15302d",
+      "afterHash": "b98b0dab5d9b5cadd51c32954e280a79f92d9cbd0ee6a7709bc47ee8e34cca02"
+    },
+    {
+      "mesh": 0,
+      "primitive": 1,
+      "material": "TwiXeR_992_headlight_1_web",
+      "before": 2388,
+      "after": 1312,
+      "errorLimit": 0.0008,
+      "error": 0.000413348781876266,
+      "protected": false,
+      "beforeHash": "68d30787807ddc9aa16cd5c23cc43154a742624ab9073957addeae7d6c0956c8",
+      "afterHash": "b456b73ec978b861f9b454c44667fc90a6549b1469c3086dfc89e2930e901e37"
+    },
+    {
+      "mesh": 0,
+      "primitive": 2,
+      "material": "dzd.005_web",
+      "before": 2428,
+      "after": 1334,
+      "errorLimit": 0.0008,
+      "error": 0.00034749144106172025,
+      "protected": false,
+      "beforeHash": "68fc610c602aec138fdda445f2780428c15db2959db91cb13234805881630a35",
+      "afterHash": "471e3169ccfb962e47733c62905ba919b192ea75dfa9954ca78345775c2fe0bf"
+    },
+    {
+      "mesh": 0,
+      "primitive": 3,
+      "material": "head_frame_web",
+      "before": 31078,
+      "after": 11158,
+      "errorLimit": 0.001,
+      "error": 0.000993418274447322,
+      "protected": false,
+      "beforeHash": "2a43b7271af4208e3d7417b10447190d78316705ce535cd4ee395f07397343a2",
+      "afterHash": "a9d640dd9946f5d66d77c600f7c257e7b17d047880bd948d5dde433bdd17be55"
+    },
+    {
+      "mesh": 0,
+      "primitive": 4,
+      "material": "head_frame_2_web",
+      "before": 3848,
+      "after": 1420,
+      "errorLimit": 0.001,
+      "error": 0.0009997468441724777,
+      "protected": false,
+      "beforeHash": "188d7cc788f1344322ade8628187eb0cadd6048b0f200b10cb0bc91234360a81",
+      "afterHash": "e1d4e9423dfbfb8aeff70eb6ad74a756a94730077181ecb9d35608fac375ea89"
+    },
+    {
+      "mesh": 0,
+      "primitive": 5,
+      "material": "TwiXeR_992_glass_rear_tint_web",
+      "before": 2086,
+      "after": 2086,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "ce5cd4077be3fd86da719dff98ebfb1adf204ad7f0f609d7a17686db20cf3df1",
+      "afterHash": "ce5cd4077be3fd86da719dff98ebfb1adf204ad7f0f609d7a17686db20cf3df1"
+    },
+    {
+      "mesh": 0,
+      "primitive": 6,
+      "material": "TwiXeR_992_glass_int_web",
+      "before": 1524,
+      "after": 1524,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "cd3b80df4cbaf6774614720dbfa6e2919295dcb50b54ca623ab24233cb0ecf5d",
+      "afterHash": "cd3b80df4cbaf6774614720dbfa6e2919295dcb50b54ca623ab24233cb0ecf5d"
+    },
+    {
+      "mesh": 0,
+      "primitive": 7,
+      "material": "TwiXeR_992_ID05_leather_coarse_mgl|shifterassy_a_2_web",
+      "before": 1757,
+      "after": 965,
+      "errorLimit": 0.0015,
+      "error": 0.0012941283639520407,
+      "protected": false,
+      "beforeHash": "cce7c1dba4513fbfe09afb08360a2db7d960843a19c6626df3355e2baa2abb3d",
+      "afterHash": "20c474dc7fb52aaea9bfbb2b075cf99721ad001aa64c156a41ab5fe7e0f978e7"
+    },
+    {
+      "mesh": 0,
+      "primitive": 8,
+      "material": "TwiXeR_992_rubbertrim_web",
+      "before": 33412,
+      "after": 24934,
+      "errorLimit": 0.0008,
+      "error": 0.0007874759030528367,
+      "protected": false,
+      "beforeHash": "90e7318188eec2db89c0b3a4f9e23c6eafb4b75d7c18ba23b29d7810e35d2424",
+      "afterHash": "92454201715a207389a46c6354d1627d9385a312b44897c280043e5499f81157"
+    },
+    {
+      "mesh": 0,
+      "primitive": 9,
+      "material": "TwiXeR_992_gloss_web",
+      "before": 215,
+      "after": 167,
+      "errorLimit": 0.0008,
+      "error": 0.0005676826112903655,
+      "protected": false,
+      "beforeHash": "4f5f5575865fece4f116115818aac0c5aaf1c024e51cf060212dd2392a73b1a0",
+      "afterHash": "b0a47bf4b69ef2e50a964857170782f69b6d4fed218d2e5f930052df3282ead8"
+    },
+    {
+      "mesh": 0,
+      "primitive": 10,
+      "material": "TwiXeR_992_ID03_stitch_001_111111FF_web",
+      "before": 842,
+      "after": 842,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "34b0c6a800c80ff0c5861bda10db6945e95f5f74a7c57506fd5e5e78b00be095",
+      "afterHash": "34b0c6a800c80ff0c5861bda10db6945e95f5f74a7c57506fd5e5e78b00be095"
+    },
+    {
+      "mesh": 0,
+      "primitive": 11,
+      "material": "TwiXeR_992_symbols_web",
+      "before": 147,
+      "after": 147,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "6274c3ea57fa3e642f0c8c0ac18f8e95f4db090fc505b33498b7b18da9f715dd",
+      "afterHash": "6274c3ea57fa3e642f0c8c0ac18f8e95f4db090fc505b33498b7b18da9f715dd"
+    },
+    {
+      "mesh": 0,
+      "primitive": 12,
+      "material": "TwiXeR_992_seat_leather_web",
+      "before": 6601,
+      "after": 4985,
+      "errorLimit": 0.0015,
+      "error": 0.0014974467922002077,
+      "protected": false,
+      "beforeHash": "a7464ab963a2e5f7eee8e03ff347b474687211e9ba7c3160b8dec075ebd41a7c",
+      "afterHash": "9f1a42c1f882c2f3285cb350bc9db833e38a0cd282142e8066c4f8a67e714f52"
+    },
+    {
+      "mesh": 0,
+      "primitive": 13,
+      "material": "TwiXeR_992_plastic_web",
+      "before": 6863,
+      "after": 3949,
+      "errorLimit": 0.0008,
+      "error": 0.0007998034707270563,
+      "protected": false,
+      "beforeHash": "dc36f95abea8429231b437280e2b215c4b05ad4d1cd0e2aeb3eb68366440ee24",
+      "afterHash": "a93705e359f1578379072c8ed46547589b03fbb8dc37ce75ce9ec4d36ed8dfba"
+    },
+    {
+      "mesh": 0,
+      "primitive": 14,
+      "material": "TwiXeR_992_upper_leather_web",
+      "before": 5547,
+      "after": 3827,
+      "errorLimit": 0.0015,
+      "error": 0.0014923819107934833,
+      "protected": false,
+      "beforeHash": "3337367e8ec419637b07cea6f2439a6eba9e769f514c9335f3e068200598c29e",
+      "afterHash": "9b784cad756fa8a3c9185327f4593c41d498d2112315a4c8b839d2e149c88d73"
+    },
+    {
+      "mesh": 0,
+      "primitive": 15,
+      "material": "TwiXeR_992_ID05_leather_coarse_mgl|vents_a_web",
+      "before": 96,
+      "after": 96,
+      "errorLimit": 0.0015,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "39f9aef40e5d6671d63adec2d9ab7258cde8154a8b2da7c6bf819f629ee160dc",
+      "afterHash": "d26c33aca1868f140e81c66905b3dd77b0699f9c5e040fd0f88f417412cbfd0a"
+    },
+    {
+      "mesh": 0,
+      "primitive": 16,
+      "material": "TwiXeR_992_ID05_leather_coarse_mgl|shifterassy_a_web",
+      "before": 220,
+      "after": 124,
+      "errorLimit": 0.0015,
+      "error": 0.001306641730479896,
+      "protected": false,
+      "beforeHash": "53f94e1692f51734dda0f38cae23dced95d4aa2973b8d5e3a357fd43c93dcca4",
+      "afterHash": "c364efc097c2bdb9051bb7d6609279b6ddfed3ad37299d48163ff1a052446832"
+    },
+    {
+      "mesh": 0,
+      "primitive": 17,
+      "material": "TwiXeR_992_ID02_leather_MGL_web",
+      "before": 633,
+      "after": 445,
+      "errorLimit": 0.0015,
+      "error": 0.001493217539973557,
+      "protected": false,
+      "beforeHash": "60a1b9d1635c8e30a292eb2d77fde23b311bdbda6d894c281c424e96287b27e8",
+      "afterHash": "7aeb2225e0ad2fd2c87a62240208709f2ef7da70e6e19b27549ef0a2f35ed42a"
+    },
+    {
+      "mesh": 0,
+      "primitive": 18,
+      "material": "TwiXeR_992_ID03_stitch_001|vents_a_web",
+      "before": 133,
+      "after": 133,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "fb60ee37c5319c506321a34fc7e30f63a236d9556a2d498f8c3c16963c7b06d7",
+      "afterHash": "fb60ee37c5319c506321a34fc7e30f63a236d9556a2d498f8c3c16963c7b06d7"
+    },
+    {
+      "mesh": 0,
+      "primitive": 19,
+      "material": "TwiXeR_992_ID03_stitch_001_web",
+      "before": 40,
+      "after": 40,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "f1982fac5e4288041fde71236623c5c8a5de4ca80c14752d16962660c002b798",
+      "afterHash": "f1982fac5e4288041fde71236623c5c8a5de4ca80c14752d16962660c002b798"
+    },
+    {
+      "mesh": 0,
+      "primitive": 20,
+      "material": "TwiXeR_992_ID05_leather_coarse_mgl|dashstructurebezels_a_web",
+      "before": 4,
+      "after": 4,
+      "errorLimit": 0.0015,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "7be5c34aec8b9da0a3c744286a4401bad532021e60c837dc1348703f17601641",
+      "afterHash": "7be5c34aec8b9da0a3c744286a4401bad532021e60c837dc1348703f17601641"
+    },
+    {
+      "mesh": 0,
+      "primitive": 21,
+      "material": "TwiXeR_992_ID04_plastic_textured_001|shifterassy_a_web",
+      "before": 251,
+      "after": 223,
+      "errorLimit": 0.0008,
+      "error": 0.0007941328804008663,
+      "protected": false,
+      "beforeHash": "907900b53d4f61d8d23c66132f088a35824f794082e5ff8cb4d73da1b5679908",
+      "afterHash": "2617b6e6e3581d4d02e8c070e3df4185ed3d0e0a263b42d5968ca265a68f9331"
+    },
+    {
+      "mesh": 0,
+      "primitive": 22,
+      "material": "TwiXeR_992_ID08_fabric_002|centerconsolestructure_a_web",
+      "before": 238,
+      "after": 194,
+      "errorLimit": 0.0008,
+      "error": 0.0007877800380811095,
+      "protected": false,
+      "beforeHash": "08486ffe74a776c3cdeb0b44bf5015bcea804e4004c0687226c3088ef53010b0",
+      "afterHash": "67d8ce9568be092deb6ea868e2bba93b565bb0b67f18097703fc0ab7667fafd5"
+    },
+    {
+      "mesh": 0,
+      "primitive": 23,
+      "material": "TwiXeR_992_gps_screen_web",
+      "before": 2,
+      "after": 2,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "333659cb03659b5fdf952abaafe514c35ae688398697f65ef7aca6b1eafcd1cd",
+      "afterHash": "333659cb03659b5fdf952abaafe514c35ae688398697f65ef7aca6b1eafcd1cd"
+    },
+    {
+      "mesh": 0,
+      "primitive": 24,
+      "material": "TwiXeR_992_plastic_2_web",
+      "before": 709,
+      "after": 613,
+      "errorLimit": 0.0008,
+      "error": 0.000772011058870703,
+      "protected": false,
+      "beforeHash": "5fa9cb0e1be3e3c065b6bf233e516b22f2fe94bfe6523b68db56fa70398fc4fd",
+      "afterHash": "7b590495f90bfdad1aa202a67740ab1ad162fab433e7309c592056815181fd52"
+    },
+    {
+      "mesh": 0,
+      "primitive": 25,
+      "material": "TwiXeR_992_gauges_1_web",
+      "before": 61,
+      "after": 61,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "9df12bb6feff6450b47c32c4f521016a5b71b7cbbac863be8eeb38883f3e3753",
+      "afterHash": "da2d321f1c93dd416b88b3347eb51d3633b0f37ea651bb8a3cd864eb1e343bc9"
+    },
+    {
+      "mesh": 0,
+      "primitive": 26,
+      "material": "parkingbrake_1_web",
+      "before": 2,
+      "after": 2,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "4b00754af8f310b5a5e7c05c5ee767ea8b16656fb900618b9324dece22077cf1",
+      "afterHash": "4b00754af8f310b5a5e7c05c5ee767ea8b16656fb900618b9324dece22077cf1"
+    },
+    {
+      "mesh": 0,
+      "primitive": 27,
+      "material": "TwiXeR_992_glass_gauges_web",
+      "before": 38,
+      "after": 38,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "75b920f035d0ae3b440fe66503853b733daa6929245682b946ed6ffb774c7cd8",
+      "afterHash": "75b920f035d0ae3b440fe66503853b733daa6929245682b946ed6ffb774c7cd8"
+    },
+    {
+      "mesh": 0,
+      "primitive": 28,
+      "material": "DEtal_B_web",
+      "before": 60,
+      "after": 60,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "f5e2db284a3e76c0d3f648b05a3cfda8dc762a256c434976834edf96e4c6a0de",
+      "afterHash": "f5e2db284a3e76c0d3f648b05a3cfda8dc762a256c434976834edf96e4c6a0de"
+    },
+    {
+      "mesh": 0,
+      "primitive": 29,
+      "material": "TwiXeR_992_gauges_9000_web",
+      "before": 228,
+      "after": 228,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "edcec4d2be0a1b28fc1e4f497fcd7109e3f2394ba8520f60fb091ad6e43c09e9",
+      "afterHash": "edcec4d2be0a1b28fc1e4f497fcd7109e3f2394ba8520f60fb091ad6e43c09e9"
+    },
+    {
+      "mesh": 0,
+      "primitive": 30,
+      "material": "TwiXeR_992_glass_web",
+      "before": 6454,
+      "after": 6454,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "0362929b417ce49783fcbf3ff81b58fc47d0efdb17fbdd06ad9c29ae75c3c077",
+      "afterHash": "0362929b417ce49783fcbf3ff81b58fc47d0efdb17fbdd06ad9c29ae75c3c077"
+    },
+    {
+      "mesh": 0,
+      "primitive": 31,
+      "material": "TwiXeR_992_int_chrome_web",
+      "before": 3370,
+      "after": 1852,
+      "errorLimit": 0.0008,
+      "error": 0.0007773454417474568,
+      "protected": false,
+      "beforeHash": "209df99d55a20c72ad8cf0df3e17e5e86371f8853ef9da27b9675c37ccbdfeb2",
+      "afterHash": "1a6733bfe7ba18f87802e7309ff04fdf0bff51bd1a2d4c1545b31e6ae81138ee"
+    },
+    {
+      "mesh": 0,
+      "primitive": 32,
+      "material": "TwiXeR_992_dash_clock_1_web",
+      "before": 1440,
+      "after": 792,
+      "errorLimit": 0.0008,
+      "error": 0.0000990784537862055,
+      "protected": false,
+      "beforeHash": "4f3a27b696099f1d01f908a05233f47766eb2d68c39c08f78b128f456d08971c",
+      "afterHash": "e00a349a5e87f2460ab329bd7507a7b615799a13262bf873403f204936f57fad"
+    },
+    {
+      "mesh": 0,
+      "primitive": 33,
+      "material": "TwiXeR_992_gauges_chrome_2_web",
+      "before": 6848,
+      "after": 2120,
+      "errorLimit": 0.0004,
+      "error": 0.0003941953182220459,
+      "protected": false,
+      "beforeHash": "237fb28659d3ab3565afdfbf432dfe5d76b1a601c7862223612711860436a1ad",
+      "afterHash": "47efa372beee4ce9e3adadc16ea46b2a5cad6bdf831cf1535d2a3ebc3b617e53"
+    },
+    {
+      "mesh": 0,
+      "primitive": 34,
+      "material": "TwiXeR_992_antichrome_web",
+      "before": 3155,
+      "after": 2391,
+      "errorLimit": 0.0008,
+      "error": 0.0007956146146170795,
+      "protected": false,
+      "beforeHash": "7eebfeb392a8b141041f3455f21cfb34af8d534753389c4f78ad708814c4e393",
+      "afterHash": "700a084753c4bb62cf07b0340c2a9acdc1b2360238ff738034b5c923991ab3a9"
+    },
+    {
+      "mesh": 0,
+      "primitive": 35,
+      "material": "TwiXeR_992_glass_front_tint_web",
+      "before": 1954,
+      "after": 1954,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "9c0b617bb1e90a2b4879a141d76c97b8a5b4d2077277de2285d0d5e7271c8e56",
+      "afterHash": "9c0b617bb1e90a2b4879a141d76c97b8a5b4d2077277de2285d0d5e7271c8e56"
+    },
+    {
+      "mesh": 0,
+      "primitive": 36,
+      "material": "parkingbrake_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "2412d2e7bc1e24a5b6227e1472f58dd6392c7c482ca04dcd4854104fe1217748",
+      "afterHash": "2412d2e7bc1e24a5b6227e1472f58dd6392c7c482ca04dcd4854104fe1217748"
+    },
+    {
+      "mesh": 0,
+      "primitive": 37,
+      "material": "checkengine_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "aac3f28543c6a2561ac41f9602ebd9f2453122c80ed1fb278de328a6d404083a",
+      "afterHash": "aac3f28543c6a2561ac41f9602ebd9f2453122c80ed1fb278de328a6d404083a"
+    },
+    {
+      "mesh": 0,
+      "primitive": 38,
+      "material": "oil_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "046cdcb4a9ca83f4c45afab8b4df6afc0fbd4694fd792c8b8f3ad9d56c1b4c49",
+      "afterHash": "046cdcb4a9ca83f4c45afab8b4df6afc0fbd4694fd792c8b8f3ad9d56c1b4c49"
+    },
+    {
+      "mesh": 0,
+      "primitive": 39,
+      "material": "abs_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "2af6dcc127d87d99bfe2d6048971a275210c6c26e087cb2021cec479a995bcb5",
+      "afterHash": "2af6dcc127d87d99bfe2d6048971a275210c6c26e087cb2021cec479a995bcb5"
+    },
+    {
+      "mesh": 0,
+      "primitive": 40,
+      "material": "lowpressure_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "380a1bb06e8beba81ab1f50cfc746499bc892895a19c29a7392c73b54da65182",
+      "afterHash": "380a1bb06e8beba81ab1f50cfc746499bc892895a19c29a7392c73b54da65182"
+    },
+    {
+      "mesh": 0,
+      "primitive": 41,
+      "material": "signal_L_web",
+      "before": 2,
+      "after": 2,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "9c967744000bb4ebadf539507eb3d0c29ec3dc3089e9911a01b34bee849fa336",
+      "afterHash": "9c967744000bb4ebadf539507eb3d0c29ec3dc3089e9911a01b34bee849fa336"
+    },
+    {
+      "mesh": 0,
+      "primitive": 42,
+      "material": "signal_R_web",
+      "before": 2,
+      "after": 2,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "0f7fcb8814bb2806393e38ac110be7db88d29633938e5842bd43dfcd1735556a",
+      "afterHash": "0f7fcb8814bb2806393e38ac110be7db88d29633938e5842bd43dfcd1735556a"
+    },
+    {
+      "mesh": 0,
+      "primitive": 43,
+      "material": "esc_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "27a4ad4408649871cbe7cca1023176b6607442d8dd07492b07fcab771fdc8668",
+      "afterHash": "27a4ad4408649871cbe7cca1023176b6607442d8dd07492b07fcab771fdc8668"
+    },
+    {
+      "mesh": 0,
+      "primitive": 44,
+      "material": "tcs_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "b8a452e02d1606ec17ce886ef8c33104d86d1cc499835687e442896a12672e7d",
+      "afterHash": "b8a452e02d1606ec17ce886ef8c33104d86d1cc499835687e442896a12672e7d"
+    },
+    {
+      "mesh": 0,
+      "primitive": 45,
+      "material": "lowbeam_web",
+      "before": 3,
+      "after": 3,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "1e539bce64bd80a05711667bbe67140f9f868cf7c14a74ef79c0d89aa1a9c04c",
+      "afterHash": "1e539bce64bd80a05711667bbe67140f9f868cf7c14a74ef79c0d89aa1a9c04c"
+    },
+    {
+      "mesh": 0,
+      "primitive": 46,
+      "material": "TwiXeR_992_symbol_web",
+      "before": 6,
+      "after": 6,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "0beb215265f6f3f161acac107afc456dff6b670dfa8ce7fbab3b62a681898972",
+      "afterHash": "0beb215265f6f3f161acac107afc456dff6b670dfa8ce7fbab3b62a681898972"
+    },
+    {
+      "mesh": 0,
+      "primitive": 47,
+      "material": "TwiXeR_992_gauges_screen_web",
+      "before": 8,
+      "after": 8,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "2e6fb6359b702ac86564faeb0ff7b5758b5b10b57ed01cd8af5be37c91ed8f8a",
+      "afterHash": "2e6fb6359b702ac86564faeb0ff7b5758b5b10b57ed01cd8af5be37c91ed8f8a"
+    },
+    {
+      "mesh": 0,
+      "primitive": 48,
+      "material": "head_glass_web",
+      "before": 744,
+      "after": 744,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "4cf6bec64e3f34a304af8b8c67bb65fcb7dc29926518e6de09e8d8f0d7dc6cae",
+      "afterHash": "4cf6bec64e3f34a304af8b8c67bb65fcb7dc29926518e6de09e8d8f0d7dc6cae"
+    },
+    {
+      "mesh": 0,
+      "primitive": 49,
+      "material": "Porsche_BodyPaint",
+      "before": 27734,
+      "after": 27734,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "8906d8b379d64dc1aad53e43d5b429c3ebe08ed541d28d99460967c5c67032fd",
+      "afterHash": "8906d8b379d64dc1aad53e43d5b429c3ebe08ed541d28d99460967c5c67032fd"
+    },
+    {
+      "mesh": 0,
+      "primitive": 50,
+      "material": "TwiXeR_992_plastic_mgl_web",
+      "before": 3882,
+      "after": 2826,
+      "errorLimit": 0.0008,
+      "error": 0.0007928175618872046,
+      "protected": false,
+      "beforeHash": "75e5f3e8c3e97bab544fcd51db2a6ba818ecda6f74e434b1642de36dd093e257",
+      "afterHash": "ae4fc7f8435d0bd2cdcb25d1bf92d61241222b69896071eaa1fcd813086484d9"
+    },
+    {
+      "mesh": 0,
+      "primitive": 51,
+      "material": "TwiXeR_992_mirror_web",
+      "before": 114,
+      "after": 114,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "b20236224982037829612566e3807ca6d8ca56b121fbdd8829be17f4bddc8e17",
+      "afterHash": "30d5fae31a28a3e52ddb962d4c885b93c5304216203dab19c8cda325f4d6da61"
+    },
+    {
+      "mesh": 0,
+      "primitive": 52,
+      "material": "TwiXeR_992_carbon_roof_web",
+      "before": 10240,
+      "after": 10240,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "efad99b0d630e550e093e08f8a0896e496f284d90830f09c7eab35108c64fbe9",
+      "afterHash": "efad99b0d630e550e093e08f8a0896e496f284d90830f09c7eab35108c64fbe9"
+    },
+    {
+      "mesh": 0,
+      "primitive": 53,
+      "material": "TwiXeR_992_PDK_web",
+      "before": 45,
+      "after": 45,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "1ad196ece72564ff0aee44656e98ee2909b5cbef37e76f21924e91d238568d02",
+      "afterHash": "1ad196ece72564ff0aee44656e98ee2909b5cbef37e76f21924e91d238568d02"
+    },
+    {
+      "mesh": 0,
+      "primitive": 54,
+      "material": "TwiXeR_992_gauges_chrome_web",
+      "before": 2,
+      "after": 2,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "94585c30e1bbff1a69310e2c3b14bc4dfbc88d99229eacd3d8925bf852debe25",
+      "afterHash": "94585c30e1bbff1a69310e2c3b14bc4dfbc88d99229eacd3d8925bf852debe25"
+    },
+    {
+      "mesh": 0,
+      "primitive": 55,
+      "material": "TwiXeR_992_Brushed_web",
+      "before": 2198,
+      "after": 1208,
+      "errorLimit": 0.0008,
+      "error": 0.0000750525578041561,
+      "protected": false,
+      "beforeHash": "c8a894ff2dfa755080133eed9ef8d09df06548a82446c8000c9e5ed035770973",
+      "afterHash": "6babd5a95eadd095049c7bb809e3193d48173c8490b433745d1225c6d00a0a4d"
+    },
+    {
+      "mesh": 0,
+      "primitive": 56,
+      "material": "Gauge_Yellow_web",
+      "before": 4,
+      "after": 4,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "3e157efb7a1ed2dba9c25ceed16a710837891f40f4ba36adba57e982fa8bc21c",
+      "afterHash": "3e157efb7a1ed2dba9c25ceed16a710837891f40f4ba36adba57e982fa8bc21c"
+    },
+    {
+      "mesh": 0,
+      "primitive": 57,
+      "material": "TwiXeR_992_web",
+      "before": 2324,
+      "after": 2270,
+      "errorLimit": 0.0008,
+      "error": 0.0006391063216142356,
+      "protected": false,
+      "beforeHash": "e2a396c08c4b712da0db435e1bc093652b97d79c224b3783e37bb978ca745702",
+      "afterHash": "8fb440e7973a287df4e6ed5b9176ba3736c6614a39b0abbbf7626059ea069402"
+    },
+    {
+      "mesh": 0,
+      "primitive": 58,
+      "material": "TwiXeR_992_rough_web",
+      "before": 1060,
+      "after": 762,
+      "errorLimit": 0.0008,
+      "error": 0.0007787253707647324,
+      "protected": false,
+      "beforeHash": "aaf36bf43e0a261f758fd595e5788d5f382eae210a7af9622f10c0487a0fd89e",
+      "afterHash": "ea3cd0fa1295fd9b6ba8c11d81c60e4b837ba987440d18aea41652611d053e78"
+    },
+    {
+      "mesh": 0,
+      "primitive": 59,
+      "material": "TwiXeR_992_exhausttip_antichrome_web",
+      "before": 1152,
+      "after": 830,
+      "errorLimit": 0.0008,
+      "error": 0.0007908783736638725,
+      "protected": false,
+      "beforeHash": "ac00328ce9e4844be70617c11c557a4edd2b2e7d5325a830860dc7a317017d32",
+      "afterHash": "615f6e66d99922b758010d3a6c996ff6992a4c54c0ff1a64a3aedd2a0615649f"
+    },
+    {
+      "mesh": 0,
+      "primitive": 60,
+      "material": "SV_SKIN_web",
+      "before": 42864,
+      "after": 25440,
+      "errorLimit": 0.0015,
+      "error": 0.001499917241744697,
+      "protected": false,
+      "beforeHash": "e3971910f1e46a11ac9c663ad962d084dc98691de9cf3973f3fd5bb5d6d540f9",
+      "afterHash": "519f867fecf3315b69e0a151297e1ad970e1bd09d8e793f8a360b512f9147b36"
+    },
+    {
+      "mesh": 0,
+      "primitive": 61,
+      "material": "TwiXeR_992_CSR2_Badge_web",
+      "before": 136,
+      "after": 136,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "3b5009ae1bf4da1ebb51350aed34c0087627f35fcef463f8769696aedd15994e",
+      "afterHash": "3b5009ae1bf4da1ebb51350aed34c0087627f35fcef463f8769696aedd15994e"
+    },
+    {
+      "mesh": 0,
+      "primitive": 62,
+      "material": "titanium_tarnished_web",
+      "before": 276,
+      "after": 208,
+      "errorLimit": 0.0008,
+      "error": 0.000781951704993844,
+      "protected": false,
+      "beforeHash": "200531f57ed8a6ebba02b0bed75e1c2d676bde88759407337dd5b96075155016",
+      "afterHash": "bec37bb57215798af4fcb859cff8ef46648638bd17fc211ffa91b63441b09456"
+    },
+    {
+      "mesh": 0,
+      "primitive": 63,
+      "material": "metal_RGH_001_web",
+      "before": 118,
+      "after": 86,
+      "errorLimit": 0.0008,
+      "error": 0.000779328343924135,
+      "protected": false,
+      "beforeHash": "42d71a3d15d61e49601b8080b191622d509f896fae27afbf9c3accb2c6e86c18",
+      "afterHash": "fab84df2278b2f7df70b1650475d5ab69973d88662f0a9464aa306983e920b55"
+    },
+    {
+      "mesh": 0,
+      "primitive": 64,
+      "material": "TwiXeR_992_body_CSR2_GT3RS_web",
+      "before": 1517,
+      "after": 1517,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "22d6ab5617c5863738cfdc45df9dee02338affc9ff71e4fa005a17a4b4bd6db8",
+      "afterHash": "22d6ab5617c5863738cfdc45df9dee02338affc9ff71e4fa005a17a4b4bd6db8"
+    },
+    {
+      "mesh": 0,
+      "primitive": 65,
+      "material": "TwiXeR_992_metal_radiator_web",
+      "before": 950,
+      "after": 764,
+      "errorLimit": 0.0008,
+      "error": 0.0007881285855546594,
+      "protected": false,
+      "beforeHash": "1ee1fd2ef5920bd9e2cb242fed549572a32f1d123a88d7685a1ddaccddfb3d07",
+      "afterHash": "644885acd8558ff289498a66ba62d8b0c906e94a47ec71678fa2536b2d75bb84"
+    },
+    {
+      "mesh": 0,
+      "primitive": 66,
+      "material": "TwiXeR_992_brakelight_1_web",
+      "before": 486,
+      "after": 414,
+      "errorLimit": 0.0008,
+      "error": 0.0007604858255945146,
+      "protected": false,
+      "beforeHash": "a522f5a2edc636bb18daf997001ae2b8dcc6ed4549d953a95cf3b998f10c1457",
+      "afterHash": "38ec67afd9df0ca790fc2d6a3a6312c22170599b67812f3e4d73a6bd56ebd5a3"
+    },
+    {
+      "mesh": 0,
+      "primitive": 67,
+      "material": "TwiXeR_992_headlight_web",
+      "before": 936,
+      "after": 790,
+      "errorLimit": 0.0008,
+      "error": 0.0007796232821419835,
+      "protected": false,
+      "beforeHash": "e9a7076982371a082985fc5d9b6424017ab01e2980ba9068e2edd9a27596f6a1",
+      "afterHash": "e9c4b02be0cc936db663ce40f1c97da3ebb7a3d7d4bb678b85d3fad128b16450"
+    },
+    {
+      "mesh": 0,
+      "primitive": 68,
+      "material": "TwiXeR_992_carpet.001_web",
+      "before": 1025,
+      "after": 879,
+      "errorLimit": 0.0015,
+      "error": 0.0014925978612154722,
+      "protected": false,
+      "beforeHash": "f1c31d8fcf39e98baaaa4e1977df67abcbafdd6d5c78db4bb3509046126e03ef",
+      "afterHash": "c89f3caaae4d00171c2590ecfded1ffdcf860b2b573fa365f7f50aa3ce513973"
+    },
+    {
+      "mesh": 0,
+      "primitive": 69,
+      "material": "TwiXeR_992_speakers_web",
+      "before": 116,
+      "after": 116,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "ad033a281217c1aa338652ec72b908ef8c975ef58d34335671146621aac0fa94",
+      "afterHash": "cbe47318f8c6160872d9e059cde15baf99537d2cfa6fd986fcf7a3f1bbb44476"
+    },
+    {
+      "mesh": 0,
+      "primitive": 70,
+      "material": "TwiXeR_992_ID04_plastic_textured_001_060606FF_web",
+      "before": 435,
+      "after": 381,
+      "errorLimit": 0.0008,
+      "error": 0.0007952387677505612,
+      "protected": false,
+      "beforeHash": "f1bd84feef307f45acc6927ead9c9a56f25eb25f6e39c06d00bca1dd3c181ab0",
+      "afterHash": "375874da3870d9f0d8f2168d99afb2742377078b45c874b051a688f905f71288"
+    },
+    {
+      "mesh": 0,
+      "primitive": 71,
+      "material": "TwiXeR_992_ID09_rubbertrim_FFFFFFFF_web",
+      "before": 116,
+      "after": 98,
+      "errorLimit": 0.0008,
+      "error": 0.0007352199172601104,
+      "protected": false,
+      "beforeHash": "c21182048378edd789ff6b02a066e74c3e6c628f51b31cf931b54762ee14b935",
+      "afterHash": "a9a92f6f46a56be3dbb1fb656c0114eba6910b050543fb21734ba60312b83e71"
+    },
+    {
+      "mesh": 0,
+      "primitive": 72,
+      "material": "TwiXeR_992_ID05_leather_coarse_mgl_171717FF_web",
+      "before": 132,
+      "after": 72,
+      "errorLimit": 0.0015,
+      "error": 0.001266053761355579,
+      "protected": false,
+      "beforeHash": "c88296cca4adbb3c8465a20f474d9dc415b542b4054c9a3467efe2016dff1879",
+      "afterHash": "a1595d2f0b652138840990157872631f5849585809d384882047de6bee9a54c6"
+    },
+    {
+      "mesh": 0,
+      "primitive": 73,
+      "material": "TwiXeR_992_rivet_001_FFFFFFFF_web",
+      "before": 12,
+      "after": 12,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "8e2b102a9dddee74ffe041cf713379c1b265a8b22692ab3762583a21a392a365",
+      "afterHash": "8e2b102a9dddee74ffe041cf713379c1b265a8b22692ab3762583a21a392a365"
+    },
+    {
+      "mesh": 0,
+      "primitive": 74,
+      "material": "TwiXeR_992_carPaint_secondary|hoodbadge_a_web",
+      "before": 30,
+      "after": 30,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "28b990bf465db85babb999f4cbcd93dbbc4b57f1b153f009d5a48a365a78e5a0",
+      "afterHash": "28b990bf465db85babb999f4cbcd93dbbc4b57f1b153f009d5a48a365a78e5a0"
+    },
+    {
+      "mesh": 0,
+      "primitive": 75,
+      "material": "TwiXeR_992_red_web",
+      "before": 74,
+      "after": 74,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "35121ee2b41245780de9cc446c415a6e887f7e6b35ef483a41276126ae6d40a4",
+      "afterHash": "35121ee2b41245780de9cc446c415a6e887f7e6b35ef483a41276126ae6d40a4"
+    },
+    {
+      "mesh": 0,
+      "primitive": 76,
+      "material": "TwiXeR_992_emblem_antichrome_web",
+      "before": 857,
+      "after": 545,
+      "errorLimit": 0.0008,
+      "error": 0.0007903652731329203,
+      "protected": false,
+      "beforeHash": "f700fa8529717eab7b009d753b375e0147ece58c5ef3d053f78781040857da8a",
+      "afterHash": "dd78308feab5bdf9747fdeb9eae71d5a18cb194f857b580e3041c134330d406b"
+    },
+    {
+      "mesh": 0,
+      "primitive": 77,
+      "material": "TwiXeR_992_signal_L_bumper_web",
+      "before": 23,
+      "after": 23,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "3bdd32e4512628bde47b45144d3421b404ce925393c9e7d7b5ca83803c08c60c",
+      "afterHash": "3bdd32e4512628bde47b45144d3421b404ce925393c9e7d7b5ca83803c08c60c"
+    },
+    {
+      "mesh": 0,
+      "primitive": 78,
+      "material": "TwiXeR_992_signal_R_bumper_web",
+      "before": 23,
+      "after": 23,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "e5404e8a7c020825184f9c04bea53dd4b5715a9a8fe3cb128992d6e4bb462040",
+      "afterHash": "e5404e8a7c020825184f9c04bea53dd4b5715a9a8fe3cb128992d6e4bb462040"
+    },
+    {
+      "mesh": 0,
+      "primitive": 79,
+      "material": "TwiXeR_992_CSR2_GT3RS_black_web",
+      "before": 19,
+      "after": 19,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "b3ace8e8d87ef0beb3ccc93b0021c020fdbd0e9f297ea789c6c8bebbcd86f567",
+      "afterHash": "b3ace8e8d87ef0beb3ccc93b0021c020fdbd0e9f297ea789c6c8bebbcd86f567"
+    },
+    {
+      "mesh": 0,
+      "primitive": 80,
+      "material": "TwiXeR_992_blackGlass.001_web",
+      "before": 5305,
+      "after": 5305,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "7ebca72e9294dd2b562864738bb6f62c9ab53057682e79603ee5a10c6ee5ea5b",
+      "afterHash": "7ebca72e9294dd2b562864738bb6f62c9ab53057682e79603ee5a10c6ee5ea5b"
+    },
+    {
+      "mesh": 0,
+      "primitive": 81,
+      "material": "TwiXeR_992_ID10_chrome_web",
+      "before": 4,
+      "after": 4,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "2521f5c3cd992f3f5159ed2d018c30eaf6bc855498a122a7c8848cbbdbf1505a",
+      "afterHash": "2521f5c3cd992f3f5159ed2d018c30eaf6bc855498a122a7c8848cbbdbf1505a"
+    },
+    {
+      "mesh": 0,
+      "primitive": 82,
+      "material": "TwiXeR_992_ID03_stitch_001|pillartrim_a_web",
+      "before": 26,
+      "after": 26,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "f77b30cbcbe4212485a64e74f2f4d1cd88cfbcd984d104d011cb0cc32bcafc71",
+      "afterHash": "f77b30cbcbe4212485a64e74f2f4d1cd88cfbcd984d104d011cb0cc32bcafc71"
+    },
+    {
+      "mesh": 0,
+      "primitive": 83,
+      "material": "TwiXeR_992_undercarriage_web",
+      "before": 10,
+      "after": 10,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "e40871a25d47ef53e4ff8bdcfb7f10fef31d82f10265645164369617be188732",
+      "afterHash": "e40871a25d47ef53e4ff8bdcfb7f10fef31d82f10265645164369617be188732"
+    },
+    {
+      "mesh": 0,
+      "primitive": 84,
+      "material": "TwiXeR_992_ID02_leather_MGL_060606FF_web",
+      "before": 64,
+      "after": 62,
+      "errorLimit": 0.0015,
+      "error": 0.00019238701497670263,
+      "protected": false,
+      "beforeHash": "f75f40d86ba91029086eca590b019229d6ead0fbc85723eca30bc885961f0daa",
+      "afterHash": "199619d792dad2954ff5d54788957a99ff58066c06a1ed0d017ba345da32f359"
+    },
+    {
+      "mesh": 0,
+      "primitive": 85,
+      "material": "TwiXeR_992_ID08_fabric_002_web",
+      "before": 764,
+      "after": 420,
+      "errorLimit": 0.0008,
+      "error": 0.0007391017279587686,
+      "protected": false,
+      "beforeHash": "ea6a639ff5d106df0f561992c9faa6463a46c4afd9fa487a3cb0bff7164a50ce",
+      "afterHash": "e5b57ea391c00af1745c26925f6947c3485fac204329388238712644c6ba9d1c"
+    },
+    {
+      "mesh": 0,
+      "primitive": 86,
+      "material": "TwiXeR_992_ID12_paint_web",
+      "before": 45,
+      "after": 45,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "759a495e5e572f744e671b15c5b749138c28a322bc246bd5da56b4ff9bb749ee",
+      "afterHash": "759a495e5e572f744e671b15c5b749138c28a322bc246bd5da56b4ff9bb749ee"
+    },
+    {
+      "mesh": 0,
+      "primitive": 87,
+      "material": "TwiXeR_992_rivet_001_747474FF_web",
+      "before": 9,
+      "after": 9,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "7d9d6669291ec41320a6986729697168109547417ab06efe553b1fdd93a333f8",
+      "afterHash": "7d9d6669291ec41320a6986729697168109547417ab06efe553b1fdd93a333f8"
+    },
+    {
+      "mesh": 0,
+      "primitive": 88,
+      "material": "TwiXeR_992_roof_alc_web",
+      "before": 2163,
+      "after": 1921,
+      "errorLimit": 0.0008,
+      "error": 0.0007944368408061564,
+      "protected": false,
+      "beforeHash": "4c0cb071cd3b020c88fc6977891cca8d0b9076722e2af8be8f0fe82daa234ff3",
+      "afterHash": "438da52b9c9876e2e068b7a7ac207e3bcf4a7274273b7273c34734f9518fc2d1"
+    },
+    {
+      "mesh": 0,
+      "primitive": 89,
+      "material": "TwiXeR_992_seatbelt_web",
+      "before": 80,
+      "after": 62,
+      "errorLimit": 0.0015,
+      "error": 0.0014661054592579603,
+      "protected": false,
+      "beforeHash": "b7804e15da6e32f1ebf455f37c01ab49b69e70ca9e62b4f3919a083db1230aae",
+      "afterHash": "bd6b219bf3938a2f2e79672f99712b6abc532c46e0cdf0ece065c4c945d93861"
+    },
+    {
+      "mesh": 0,
+      "primitive": 90,
+      "material": "TwiXeR_992_plastic_1_web",
+      "before": 1004,
+      "after": 888,
+      "errorLimit": 0.0008,
+      "error": 0.0007846535881981254,
+      "protected": false,
+      "beforeHash": "4b782dda87fecc6c306e16b79cddb80d97de69e843ad3133fc178d92457afece",
+      "afterHash": "14bbdf2dba8412e91a8721febf65e5adcc8a5ea94bc13b5250fb72ddb2571ed4"
+    },
+    {
+      "mesh": 0,
+      "primitive": 91,
+      "material": "TwiXeR_992_ID04_metal_anodized_alloptions|enginebay_a_web",
+      "before": 12,
+      "after": 12,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "69f1c7f5e1d2cfaa590725d67ddd0f0a5e8f137f069d02ca65bc3f3446dd2962",
+      "afterHash": "69f1c7f5e1d2cfaa590725d67ddd0f0a5e8f137f069d02ca65bc3f3446dd2962"
+    },
+    {
+      "mesh": 0,
+      "primitive": 92,
+      "material": "TwiXeR_992_ID08_keyhole_002|enginebay_a_web",
+      "before": 2,
+      "after": 2,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "26e00ab2ff8684ade524e32feb90669c18436bfa001c0e54880d009f003afcbd",
+      "afterHash": "26e00ab2ff8684ade524e32feb90669c18436bfa001c0e54880d009f003afcbd"
+    },
+    {
+      "mesh": 0,
+      "primitive": 93,
+      "material": "TwiXeR_992_symbols_1_web",
+      "before": 21,
+      "after": 21,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "e0d4e7180ebd8ebfd740ebc9a9b6ea19c99ebbe1157b6af2a5da9ad6b943677b",
+      "afterHash": "e0d4e7180ebd8ebfd740ebc9a9b6ea19c99ebbe1157b6af2a5da9ad6b943677b"
+    },
+    {
+      "mesh": 0,
+      "primitive": 94,
+      "material": "Porsche_logowing_web",
+      "before": 204,
+      "after": 204,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "5678ac3e0c217b0272271cfa8f5eda992219c5fbbddec40aa29ac73714828060",
+      "afterHash": "5678ac3e0c217b0272271cfa8f5eda992219c5fbbddec40aa29ac73714828060"
+    },
+    {
+      "mesh": 0,
+      "primitive": 95,
+      "material": "wing_bolts_web",
+      "before": 12,
+      "after": 12,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "2927e5e99440d62ee5753ee4481b0554b851397474197bd262796efdc81b3db5",
+      "afterHash": "2927e5e99440d62ee5753ee4481b0554b851397474197bd262796efdc81b3db5"
+    },
+    {
+      "mesh": 0,
+      "primitive": 96,
+      "material": "TwiXeR_992_seat_leather_2_web",
+      "before": 1494,
+      "after": 836,
+      "errorLimit": 0.0015,
+      "error": 0.0014785192906856537,
+      "protected": false,
+      "beforeHash": "f1befa68d309c69f1657dc66831fc5c13c94bb63b502ae6a1b9ff5ec7a883d51",
+      "afterHash": "e9e9c5c74251182f051e08f8c7004946784786d2fc6e2af35535e17ee8cd5929"
+    },
+    {
+      "mesh": 0,
+      "primitive": 97,
+      "material": "TwiXeR_992_ID08_fabric_002_B60000FF_web",
+      "before": 12,
+      "after": 12,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "6a306736cb902a819eface185f2d5b97b3e9039aeaa81974412b1f51fe4bc082",
+      "afterHash": "6a306736cb902a819eface185f2d5b97b3e9039aeaa81974412b1f51fe4bc082"
+    },
+    {
+      "mesh": 0,
+      "primitive": 98,
+      "material": "TwiXeR_992_seat_carbon_web",
+      "before": 5049,
+      "after": 4231,
+      "errorLimit": 0.0015,
+      "error": 0.0014989618211984634,
+      "protected": false,
+      "beforeHash": "c30f91d359fea544315fbbde9dd5a307ef6c88584bd84319eafb2b8dcc56c10b",
+      "afterHash": "930850fbbc08171943a9bbe2cee2fdc540a5a31fef61fb67d4303671d77499aa"
+    },
+    {
+      "mesh": 0,
+      "primitive": 99,
+      "material": "TwiXeR_992_chrome_web",
+      "before": 130,
+      "after": 124,
+      "errorLimit": 0.0008,
+      "error": 0.0007647557649761438,
+      "protected": false,
+      "beforeHash": "34c4c93749b9e3ce0ecb4956d29e0e07f902fab60fadf3d9ca7d699c58a43b00",
+      "afterHash": "6680a2b7a0087feef0eba1d7799f1d9c1a48d248497b561ebe7cc0ea38b38497"
+    },
+    {
+      "mesh": 0,
+      "primitive": 100,
+      "material": "TwiXeR_992_brakelight_new_web",
+      "before": 36,
+      "after": 36,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "59017b850cea9e03189794a2bcbdf883e66b16da01b32668696fdd51e566fecc",
+      "afterHash": "59017b850cea9e03189794a2bcbdf883e66b16da01b32668696fdd51e566fecc"
+    },
+    {
+      "mesh": 0,
+      "primitive": 101,
+      "material": "TwiXeR_992_taillight_running_web",
+      "before": 576,
+      "after": 394,
+      "errorLimit": 0.0008,
+      "error": 0.000776452012360096,
+      "protected": false,
+      "beforeHash": "dc0b3049a618ddeb1e825fb0e980182a2fadf45f106160a307e6043b05817aa9",
+      "afterHash": "2ebbbdef1f27a6951c6e0dd54db4f1380c21c7de05265ec2f62bb1bbba39194d"
+    },
+    {
+      "mesh": 0,
+      "primitive": 102,
+      "material": "TwiXeR_992_signal_L_web",
+      "before": 69,
+      "after": 69,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "b2def82f48edcc544123df7b979f6a3fc53d9273f250a23d3e2d264fe08108d2",
+      "afterHash": "61dec792993b12a46f0bf132683ef67aba18f069cfc2821338d387227b8e6397"
+    },
+    {
+      "mesh": 0,
+      "primitive": 103,
+      "material": "TwiXeR_992_signal_R_web",
+      "before": 69,
+      "after": 69,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "d8df3ebb647d840cef17d0af858236bf67cef4befc5583883450b109a43b8824",
+      "afterHash": "8d01476d7f49764f7ab7fb6b7bae0be0bde14b0e8bb3d5818f5fda004a6b4850"
+    },
+    {
+      "mesh": 0,
+      "primitive": 104,
+      "material": "TwiXeR_992_plastic_smooth_web",
+      "before": 1944,
+      "after": 1586,
+      "errorLimit": 0.0008,
+      "error": 0.0007788223447278142,
+      "protected": false,
+      "beforeHash": "573b4a6d788de1808e514fc28b98d64999b30527e42a77c701c4ab22cde2e4e0",
+      "afterHash": "56fd39b2e6504a5f8416c3febf8055d4d392701808fca52e7089c2c4826b9641"
+    },
+    {
+      "mesh": 0,
+      "primitive": 105,
+      "material": "TwiXeR_992_reverselight_web",
+      "before": 12,
+      "after": 12,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "7b4c858ebd21af0336f742734667944d21012772bac1d1a1e97c1352c724df2d",
+      "afterHash": "7b4c858ebd21af0336f742734667944d21012772bac1d1a1e97c1352c724df2d"
+    },
+    {
+      "mesh": 1,
+      "primitive": 0,
+      "material": "TwiXeR_992_carpet_web",
+      "before": 1957,
+      "after": 1957,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "493cbb720e0de5aafe838cd4b334ca5c12df17685a1e0ac6a96511c6b89ebc85",
+      "afterHash": "493cbb720e0de5aafe838cd4b334ca5c12df17685a1e0ac6a96511c6b89ebc85"
+    },
+    {
+      "mesh": 1,
+      "primitive": 1,
+      "material": "TwiXeR_992_ID06_stitch_001_web",
+      "before": 30,
+      "after": 30,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "a018f3e44664f35fbf846525b65824844908e3aa6b3acdeca690c0d1b0e71aab",
+      "afterHash": "a018f3e44664f35fbf846525b65824844908e3aa6b3acdeca690c0d1b0e71aab"
+    },
+    {
+      "mesh": 1,
+      "primitive": 2,
+      "material": "TwiXeR_992_ID01_plastic_lgl_010101FF_web",
+      "before": 4749,
+      "after": 4749,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "d5b4b7af7e862b57edd87ae5f2279434d2326d48211d638d747b3dfdbb73126d",
+      "afterHash": "d5b4b7af7e862b57edd87ae5f2279434d2326d48211d638d747b3dfdbb73126d"
+    },
+    {
+      "mesh": 1,
+      "primitive": 3,
+      "material": "TwiXeR_992_ID02_leather_MGL|centerconsolestructure_a_web",
+      "before": 736,
+      "after": 736,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "a437887ff98f188378ad7ed22c8285df93d80a872738022ed69cc281b784609b",
+      "afterHash": "a437887ff98f188378ad7ed22c8285df93d80a872738022ed69cc281b784609b"
+    },
+    {
+      "mesh": 1,
+      "primitive": 4,
+      "material": "TwiXeR_992_ID03_stitch_001_111111FF_web",
+      "before": 130,
+      "after": 130,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "246621b94cc6240e63f9d97b86ceb5dc0c5b58481b5244e9c23419f58979faba",
+      "afterHash": "246621b94cc6240e63f9d97b86ceb5dc0c5b58481b5244e9c23419f58979faba"
+    },
+    {
+      "mesh": 1,
+      "primitive": 5,
+      "material": "TwiXeR_992_inttex_web",
+      "before": 1178,
+      "after": 1178,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "39d2d082f1b043983e4872ae50e7949825c67a3fcc1343a20c29cf6d38cf364a",
+      "afterHash": "39d2d082f1b043983e4872ae50e7949825c67a3fcc1343a20c29cf6d38cf364a"
+    },
+    {
+      "mesh": 1,
+      "primitive": 6,
+      "material": "TwiXeR_992_symbols_1_web",
+      "before": 12,
+      "after": 12,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "0af37a722bd840733f7cb888ded2d6153908afd250bc90e413205c2aac118400",
+      "afterHash": "0af37a722bd840733f7cb888ded2d6153908afd250bc90e413205c2aac118400"
+    },
+    {
+      "mesh": 1,
+      "primitive": 7,
+      "material": "TwiXeR_992_symbols_5_web",
+      "before": 17,
+      "after": 17,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "330ddbd388721290c41d5123cb20873b5dc76d2f7507d7ca9a37335e69899bbe",
+      "afterHash": "330ddbd388721290c41d5123cb20873b5dc76d2f7507d7ca9a37335e69899bbe"
+    },
+    {
+      "mesh": 1,
+      "primitive": 8,
+      "material": "TwiXeR_992_symbols_6_web",
+      "before": 52,
+      "after": 52,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "0e15e5edff9f65a0ede383d2e7ee7b998754062f0ae278094f2c6e31384f8467",
+      "afterHash": "0e15e5edff9f65a0ede383d2e7ee7b998754062f0ae278094f2c6e31384f8467"
+    },
+    {
+      "mesh": 1,
+      "primitive": 9,
+      "material": "TwiXeR_992_Interior_D_web",
+      "before": 1726,
+      "after": 1726,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "80b968db564edfa5debbb8b4375ad42e33bbc82991f11303e025c8357e1a9d31",
+      "afterHash": "80b968db564edfa5debbb8b4375ad42e33bbc82991f11303e025c8357e1a9d31"
+    },
+    {
+      "mesh": 2,
+      "primitive": 0,
+      "material": "Porsche_BodyPaint",
+      "before": 1911,
+      "after": 1911,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "38e5f7aec491e6f0fff8b50b0a613e9600c5c821f8bb55f0324b1290d4895b7a",
+      "afterHash": "38e5f7aec491e6f0fff8b50b0a613e9600c5c821f8bb55f0324b1290d4895b7a"
+    },
+    {
+      "mesh": 2,
+      "primitive": 1,
+      "material": "TwiXeR_992_plastic_mgl_web",
+      "before": 178,
+      "after": 178,
+      "errorLimit": 0.0008,
+      "error": 0,
+      "protected": false,
+      "beforeHash": "631eda4be418383e20152d88667e022594978d5baa3f0faec333d2813063e0ea",
+      "afterHash": "7d841107b28311c2e09562242212581d09018266d713cc56accc4350db8a2da9"
+    },
+    {
+      "mesh": 2,
+      "primitive": 2,
+      "material": "Porsche_logo_web",
+      "before": 108,
+      "after": 108,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "ab0b092a274d6d330be466af0e2e2cdfb5d99ceb37cfa01381c864d80a1d7c4b",
+      "afterHash": "ab0b092a274d6d330be466af0e2e2cdfb5d99ceb37cfa01381c864d80a1d7c4b"
+    },
+    {
+      "mesh": 2,
+      "primitive": 3,
+      "material": "TwiXeR_992_chrome_web",
+      "before": 488,
+      "after": 472,
+      "errorLimit": 0.0008,
+      "error": 0.0006890437216497958,
+      "protected": false,
+      "beforeHash": "fe5ffa4d2f57bc21a3ac6584118e97d43ee86b447c8f774e59fc4c486be7a52c",
+      "afterHash": "62711d7da2c17caa24c9bc2282c8328983085721e8d0fc3ae7263e8e0312ebad"
+    },
+    {
+      "mesh": 3,
+      "primitive": 0,
+      "material": "TwiXeR_992_wheels_black_gloss_web",
+      "before": 32970,
+      "after": 8242,
+      "errorLimit": 0.0015,
+      "error": 0.0007699832203797996,
+      "protected": false,
+      "beforeHash": "599b482dead5c2513ff36faf23df1a370d2a22d773032764d1a0fdb40aedbdb8",
+      "afterHash": "9f051538a78835e40361532a29f3a7fd640011f9628cdc5eca2a2c7f4c3fa36a"
+    },
+    {
+      "mesh": 3,
+      "primitive": 1,
+      "material": "TwiXeR_992_GT3RS_BB_web",
+      "before": 34,
+      "after": 34,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "7ffe28982a59fd1c99a691faebecff7096b885ddd9d8cb5ffe2e4f9b4682c717",
+      "afterHash": "7ffe28982a59fd1c99a691faebecff7096b885ddd9d8cb5ffe2e4f9b4682c717"
+    },
+    {
+      "mesh": 3,
+      "primitive": 2,
+      "material": "TwiXeR_992_GT3RS_black_web",
+      "before": 3352,
+      "after": 3352,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "370b1ee792a7f8528275f3ed6908811e2865c2dad8743866fd6ceafc95b9ef0d",
+      "afterHash": "370b1ee792a7f8528275f3ed6908811e2865c2dad8743866fd6ceafc95b9ef0d"
+    },
+    {
+      "mesh": 4,
+      "primitive": 0,
+      "material": "P911_Tires_web",
+      "before": 4488,
+      "after": 2468,
+      "errorLimit": 0.0008,
+      "error": 0.00028810708317905664,
+      "protected": false,
+      "beforeHash": "4e6fc3af1b0cd724bdf70674e9d494ea560a3b6d939d73fa0b88ef0b7f79dc4b",
+      "afterHash": "e376aaa33de8e2bf1cc6ca01c5a20715efcd308676a29256d149288d67178dea"
+    },
+    {
+      "mesh": 5,
+      "primitive": 0,
+      "material": "Porsche_BodyPaint",
+      "before": 2026,
+      "after": 2026,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "8537e76598be7959c1851ffe43afc5f262011cfcf7ca20a1b35a4de8f7c4b763",
+      "afterHash": "8537e76598be7959c1851ffe43afc5f262011cfcf7ca20a1b35a4de8f7c4b763"
+    },
+    {
+      "mesh": 5,
+      "primitive": 1,
+      "material": "TwiXeR_992_plastic_mgl_web",
+      "before": 208,
+      "after": 204,
+      "errorLimit": 0.0008,
+      "error": 0.0006787801976315677,
+      "protected": false,
+      "beforeHash": "713a4a9a73ad4c66e7efa1d9908efd1812a6b369feb1175edf75aa7341af6fa7",
+      "afterHash": "3aae8f8293e5606db12b0471779bce4ad2b900bb3f7d6ff0b339f221cef23fa0"
+    },
+    {
+      "mesh": 5,
+      "primitive": 2,
+      "material": "Porsche_logo_web",
+      "before": 108,
+      "after": 108,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "f014be19372f812e679b06a0afeffbd83d95df9f68e1ec75caf770046a52876a",
+      "afterHash": "f014be19372f812e679b06a0afeffbd83d95df9f68e1ec75caf770046a52876a"
+    },
+    {
+      "mesh": 5,
+      "primitive": 3,
+      "material": "TwiXeR_992_chrome_web",
+      "before": 456,
+      "after": 448,
+      "errorLimit": 0.0008,
+      "error": 0.0007976307533681393,
+      "protected": false,
+      "beforeHash": "d9eff8b0d4b86cdce567ba44eb5e9813bd0ab894f585874e2b7bd4bee9a785eb",
+      "afterHash": "54cc5308df062b344656e65e355d3e0563828963fae20f41dcb444e4f1bd95f8"
+    },
+    {
+      "mesh": 6,
+      "primitive": 0,
+      "material": "TwiXeR_992_wheels_black_gloss_web",
+      "before": 33705,
+      "after": 8425,
+      "errorLimit": 0.0015,
+      "error": 0.001017770147882402,
+      "protected": false,
+      "beforeHash": "90cddcdecb26ed5e88279a2d508e6a4c414539490242f7f86cc98101b487fda9",
+      "afterHash": "674cd19553b8cbbe317d8b0642fc05d51953c494c2f820c5a7e1f73b7f3dd3b7"
+    },
+    {
+      "mesh": 6,
+      "primitive": 1,
+      "material": "TwiXeR_992_GT3RS_BB_web",
+      "before": 34,
+      "after": 34,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "1cb90fef09712d2e9650ba3ef70ae8f4565457422b7e5ed8ca51097e7b9d29dd",
+      "afterHash": "1cb90fef09712d2e9650ba3ef70ae8f4565457422b7e5ed8ca51097e7b9d29dd"
+    },
+    {
+      "mesh": 6,
+      "primitive": 2,
+      "material": "TwiXeR_992_GT3RS_black_web",
+      "before": 3358,
+      "after": 3358,
+      "errorLimit": 0,
+      "error": 0,
+      "protected": true,
+      "beforeHash": "63871c8b0da79360e2e9a214f03b2580a2557350cdb09a62a7bd4db8da1fc719",
+      "afterHash": "63871c8b0da79360e2e9a214f03b2580a2557350cdb09a62a7bd4db8da1fc719"
+    },
+    {
+      "mesh": 7,
+      "primitive": 0,
+      "material": "P911_Tires_web",
+      "before": 4324,
+      "after": 2378,
+      "errorLimit": 0.0008,
+      "error": 0.0004011357668787241,
+      "protected": false,
+      "beforeHash": "4b147967a1b172bb365c10d720789653771c1ddbc64f4d728e722879a1edbcd3",
+      "afterHash": "730ac1c6b32524c454235b376c2290a9d7921e52aec64492b7797086a2d4b846"
+    }
+  ]
+}

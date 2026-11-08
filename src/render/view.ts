@@ -288,6 +288,15 @@ export class View {
     return this.chase.mode;
   }
 
+  /** Compile both Porsche material sets under the loading screen, before the first V key press. */
+  async prepareCar():Promise<void> {
+    await this.renderer.compileAsync(this.scene,this.camera);
+    if(this.playerView.car!==1||!this.playerView.hasCockpit)return;
+    this.playerView.setCockpit(this.cameraMode!=='cockpit');
+    try{await this.renderer.compileAsync(this.scene,this.camera);}
+    finally{this.playerView.setCockpit(this.cameraMode==='cockpit');}
+  }
+
   cycleCamera(): CameraMode {
     const mode = this.chase.cycle();
     this.applyCameraMode();

@@ -1,9 +1,11 @@
 import { G, clamp, smoothstep } from '../core/math';
 import { ROAD_HALF } from '../config';
 import type { Sim } from '../sim/world';
+import { PorscheEngine, preloadPorscheAudio } from './porscheEngine';
+import type { CarId } from '../sim/cars';
 
 /*
- * All sound is synthesised with Web Audio: no samples to download.
+ * Web Audio mixer: synthetic road/effect voices plus the Porsche's original sampled engine banks.
  *
  *   engine, turbo, pops        ── engine bus ─┐    ┌─ dry ──────────────┐
  *   wind, roar, squeal, strips,               ├────┤                    ├─ master ─ compressor ─ out
@@ -60,6 +62,9 @@ interface Voice {
 }
 
 export class Sound {
+  private carId:CarId=3;
+  private cockpit=false;
+  private porsche:PorscheEngine|null=null;
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private dry!: GainNode;
@@ -145,6 +150,17 @@ export class Sound {
     return this.muted;
   }
 
+  setCar(id:CarId):void {
+    this.carId=id;
+    if(id===1){
+      void preloadPorscheAudio().catch(()=>{/* The voice reports a decode/fetch failure if used. */});
+      if(this.ctx&&!this.porsche)this.porsche=new PorscheEngine(this.ctx,this.bus.engine);
+    }
+    this.popsLeft=0;this.burble=0;
+  }
+
+  setCockpit(on:boolean):void {this.cockpit=on;}
+
   /** For the F1 overlay. */
   get state(): string {
     if (!this.ctx) return 'locked (press a key)';
@@ -223,6 +239,7 @@ export class Sound {
     this.bus = { engine: bus('engine'), world: bus('world'), fx: bus('fx') };
     const E = this.bus.engine;
     const W = this.bus.world;
+    if(this.carId===1)this.porsche=new PorscheEngine(ctx,E);
 
     const len = ctx.sampleRate * 2;
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -466,7 +483,9 @@ export class Sound {
     const rpmN = clamp(p.rpm / t.redline, 0, 1.05);
 
     // Physics №3 is the AMG's turbo inline four; №1 and №2 keep the six and the V8 voice.
-    const four = p.physicsId === 3;
+    const isPorsche=this.carId===1;
+    const sampled=isPorsche&&!!this.porsche?.ready;
+    const four = !isPorsche&&p.physicsId === 3;
 
     // Engine.
     this.load += (p.throttle - this.load) * Math.min(1, dt * 10);
@@ -489,7 +508,10 @@ export class Sound {
       eg *= 0.25;
     }
     if (p.rpm >= t.redline * 0.995 && p.throttle > 0.5) eg *= Math.sin(this.t * Math.PI * 2 * 17) > 0 ? 1 : 0.35;
-    if (four) {
+    this.porsche?.update(p.rpm,p.throttle,p.shiftT>0,isPorsche,this.cockpit);
+    if(sampled){
+      set(this.engGain.gain,0,.04);set(this.i4Gain.gain,0,.04);
+    } else if (four) {
       set(this.engGain.gain, 0, 0.05);
       this.inlineFour(set, dt, p.rpm, p.throttle, rpmN, eg);
     } else {
@@ -498,7 +520,7 @@ export class Sound {
     }
 
     // Lift-off: crackle and pop on the overrun, blow-off valve if the turbo was spooled.
-    if (this.prevThrottle > 0.6 && p.throttle < 0.15 && rpmN > 0.55) {
+    if (!isPorsche && this.prevThrottle > 0.6 && p.throttle < 0.15 && rpmN > 0.55) {
       if (four) {
         // AMG Sport+: a longer crackle while the revs fall.
         this.burble = 0.8 + 1.2 * rpmN;
@@ -523,7 +545,7 @@ export class Sound {
     const boostTarget = p.throttle * smoothstep((rpmN - 0.35) / 0.5);
     this.boost += (boostTarget - this.boost) * Math.min(1, dt * (boostTarget > this.boost ? 2.5 : 6));
     set(this.turboOsc.frequency, 1400 + this.boost * 2200 + rpmN * 500);
-    set(this.turboGain.gain, (four ? 0.014 : 0.008) * this.boost);
+    set(this.turboGain.gain, isPorsche ? 0 : (four ? 0.014 : 0.008) * this.boost);
 
     // Speed: wind and tyre roar; louder roar in tunnels where it reverberates.
     const tunnel = sim.road.chunkAt(p.s).kind === 'tunnel';

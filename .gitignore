@@ -5,3 +5,14 @@ dist/
 dist-server/
 sessions/
 data/
+
+# Local source mods and intermediate 3D conversion files, never game delivery assets.
+*.zip
+*.7z
+*.rar
+*.blend
+*.blend[0-9]
+*.dae
+*.fbx
+*.raw.glb
+*.full.glb

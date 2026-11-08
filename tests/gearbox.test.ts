@@ -10,7 +10,7 @@ const run = (car: PlayerCar, inp: DriveInput, seconds: number) => {
 const kmh = (car: PlayerCar) => car.vAlong * 3.6;
 
 describe('manual gearbox', () => {
-  for (const physics of [1, 2, 3] as const) {
+  for (const physics of [1, 2, 3, 4] as const) {
     describe(`physics ${physics}`, () => {
       it('holds the gear flat out and stops at the limiter (the automatic would shift up)', () => {
         const auto = createCar(physics);
@@ -92,7 +92,7 @@ describe('input flags', () => {
 });
 
 describe('manual gearbox, nearly stopped', () => {
-  for (const physics of [1, 2, 3] as const) {
+  for (const physics of [1, 2, 3, 4] as const) {
     it(`physics ${physics}: first gear goes in by itself, the car pulls away`, () => {
       const car = createCar(physics);
       car.reset(0, 0, 3 / 3.6);

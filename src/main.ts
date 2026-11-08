@@ -81,13 +81,13 @@ const TEST = params.has('test');
 const ONLINE = !TEST && !params.has('solo');
 let showcase = 0;
 await loading.stage(18, 'Подготовка трассы и трафика');
-const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadPhysics(), online: ONLINE });
+const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadCar() === 1 ? 4 : loadPhysics(), online: ONLINE });
 sim.director.preset = loadTraffic();
 sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
 const quality = loadQuality();
 let car: CarId = loadCar();
-let paint = loadPaint();
+let paint = loadPaint(car);
 // Before the view: building the chosen car may start a model download right away.
 initModelLoad();
 await loading.stage(28, 'Создание сцены');
@@ -101,6 +101,7 @@ const API = apiBase(serverUrl(params));
 initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.renderer.getContext());
 const input = new Input();
 const sound = new Sound(sim);
+sound.setCar(car);
 const mixer = new Mixer(sound);
 const metrics = new Metrics(view.renderer, sim, () => `quality ${quality}  audio ${sound.state}`);
 // Audio may only start after a user gesture.
@@ -431,6 +432,11 @@ function choice<T extends number>(
 choice('carSeg', 'carDesc', CARS, car, (id) => {
   car = id;
   saveCar(id);
+  selectPhysics(id === 1 ? 4 : id === 3 ? 3 : 2);
+  sound.setCar(id);
+  paint = loadPaint(id);
+  view.setPaint(paint);
+  showPaint();
   void (async () => {
     loading.begin('car', 'Готовим твою машину');
     await loading.stage(10, 'Подготовка модели');
@@ -439,7 +445,7 @@ choice('carSeg', 'carDesc', CARS, car, (id) => {
       view.setCar(id, loadCameraMode(id) as CameraMode);
       await loading.stage(92, 'Подготовка первого кадра');
       view.render(1, 0);
-      await view.renderer.compileAsync(view.scene, view.camera);
+      await view.prepareCar();
       loading.finish();
     } catch { loading.fail('Не удалось загрузить автомобиль. Попробуйте ещё раз.'); }
   })();
@@ -452,7 +458,7 @@ function showPaint(): void {
   paintInput.value = `#${paint.toString(16).padStart(6, '0')}`;
   for (const button of swatches.children) button.setAttribute('aria-pressed', String(Number((button as HTMLElement).dataset.color) === paint));
 }
-function choosePaint(color: number): void { paint = color; savePaint(color); view.setPaint(color); showPaint(); }
+function choosePaint(color: number): void { paint = color; savePaint(color,car); view.setPaint(color); showPaint(); }
 for (const [name, color] of paints) {
   const button = document.createElement('button');
   button.dataset.color = String(color); button.setAttribute('aria-label', name); button.title = name;
@@ -463,10 +469,13 @@ for (const [name, color] of paints) {
 paintInput.addEventListener('input', () => choosePaint(parseInt(paintInput.value.slice(1),16)));
 for (const type of ['keydown','keyup'] as const) paintInput.addEventListener(type, e => e.stopPropagation());
 showPaint();
-choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, (id) => {
-  savePhysics(id);
-  sim.setPhysics(id);
-});
+function selectPhysics(id: PhysicsId): void {
+  savePhysics(id);sim.setPhysics(id);
+  for(const button of document.getElementById('physicsSeg')!.children)
+    button.classList.toggle('on',(button as HTMLElement).dataset.id===String(id));
+  document.getElementById('physicsDesc')!.textContent=PHYSICS.find(p=>p.id===id)?.desc??'';
+}
+choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, selectPhysics);
 // The menu card always fits the window: when its content is taller than the room, the whole card is
 // scaled down (CSS zoom keeps the layout and the clicks right). Re-fitted on resize, once the fonts
 // are in, and whenever something in it shows, hides or unfolds.
@@ -724,11 +733,13 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);
+  hud.setPhysicalInstruments(car===1&&view.cameraMode==='cockpit');
   updateBlinker();
   updateMouseHud();
   // C held: rear view (while driving).
   view.setLookBack(state === 'play' && input.isDown('KeyC'));
   if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
+  sound.setCockpit(view.cameraMode === 'cockpit');
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);
   diagFrame(frameMs);
@@ -741,4 +752,4 @@ await loading.stage(45, 'Загрузка выбранного автомоби�
 await waitForCar(car, (fraction, unpacking) => loading.set(45 + fraction * 45, unpacking ? 'Подготовка материалов автомобиля' : 'Загрузка автомобиля'));
 await loading.stage(95, 'Подготовка первого кадра');
 view.render(1, 0);
-await view.renderer.compileAsync(view.scene, view.camera);
+await view.prepareCar();

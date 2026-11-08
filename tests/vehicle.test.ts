@@ -120,8 +120,8 @@ describe('PlayerCar', () => {
   });
 });
 
-describe('handbrake, mouse steering, horn (all three physics)', () => {
-  for (const id of [1, 2, 3] as const) {
+describe('handbrake, mouse steering, horn (all physics)', () => {
+  for (const id of [1, 2, 3, 4] as const) {
     it(`physics ${id}: the handbrake slows the car and lets the rear swing out`, () => {
       const make = () => {
         const car = createCar(id);
