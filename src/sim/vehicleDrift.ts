@@ -498,15 +498,18 @@ export class DriftCar extends PlayerCar {
       const vwF = vx * cosd + vyF * sind;
       const denF = Math.hypot(vwF, t.slipSpeed);
       const denR = Math.hypot(vx, t.slipSpeed);
-      const alphaF = Math.atan2(vyF, Math.hypot(vx, t.slipSpeed)) - this.steerAngle;
-      const alphaR = Math.atan2(this.vy - b * this.r, Math.hypot(vx, t.slipSpeed));
+      const alphaF = Math.atan2(-vx * sind + vyF * cosd, Math.hypot(vwF, t.slipSpeed));
+      const alphaR = Math.atan2(this.vy - b * this.r, vx);
       const kapF = (this.omegaF * R - vwF) / denF;
       const kapR = (this.omegaR * R - vx) / denR;
       this.tire(kapF, alphaF, gripF * t.longGrip, gripF, 1);
       const fxF = this.tfx;
       const fyF = this.tfy;
       const kF = this.tdx;
-      this.tire(kapR, alphaR, gripRx * t.longGrip, gripR, t.rearStiffness);
+      const rearSlide = Math.abs(alphaR);
+      // Preserve a recoverable amount of rear lateral grip during extreme post-impact rotation.
+      const rearLateralScale = 1 - 0.98 * clamp((rearSlide - 1.1) / 0.3, 0, 1);
+      this.tire(kapR, alphaR, gripRx * t.longGrip, gripR * rearLateralScale, t.rearStiffness);
       const fxR = this.tfx;
       const fyR = this.tfy;
       const kR = this.tdx;
@@ -536,6 +539,10 @@ export class DriftCar extends PlayerCar {
       this.vx = Math.max(0, this.vx - this.brake * t.brakeAssist * h);
       this.vy += (fy / m - vx * this.r) * h;
       this.r += (mz / Iz) * h;
+      this.r *= Math.exp(-0.25 * h);
+      // Do not let the low-speed model pivot the car around a stationary contact patch.
+      const speed = Math.hypot(this.vx, this.vy);
+      if (speed < 0.35) this.r = 0;
 
       // TC is a torque intervention over the same tire and wheel dynamics.
       const tc = this.tractionControlEnabled ? t.tractionControl : 0;

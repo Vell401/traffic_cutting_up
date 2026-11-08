@@ -86,7 +86,7 @@ describe('PlayerCar', () => {
     }
   });
 
-  it('brakes to a stop without going backwards; still holding the brake then engages reverse', () => {
+  it('brakes to a stop, then W drives in reverse and S stops', () => {
     const car = new PlayerCar();
     car.reset(0, 0, 200 / 3.6);
     const s0 = car.s;
@@ -98,14 +98,22 @@ describe('PlayerCar', () => {
     }
     expect(car.vx).toBe(0);
     expect(car.s - s0).toBeLessThan(200);
-    run(car, brake, 3);
+    car.step(DT, { steer: 0, throttle: 0, brake: 1 }, 0);
+    run(car, { steer: 0, throttle: 1, brake: 0 }, 3);
     expect(car.gear).toBe(0);
     expect(car.vx).toBeLessThan(-3);
     expect(car.vx).toBeGreaterThanOrEqual(-REVERSE_MAX);
-    // Throttle stops it and, at a standstill, puts first gear back in.
-    run(car, { steer: 0, throttle: 1, brake: 0 }, 3);
+    run(car, brake, 3);
+    expect(car.vx).toBeGreaterThan(-0.1);
     expect(car.gear).toBeGreaterThan(0);
-    expect(car.vx).toBeGreaterThan(2);
+  });
+
+  it('steering at a standstill does not rotate the car in place', () => {
+    const car = new PlayerCar();
+    car.reset(0, 0, 0);
+    run(car, { steer: 1, throttle: 0, brake: 0, analog: true }, 2);
+    expect(car.vx).toBe(0);
+    expect(car.psi).toBe(0);
   });
 
   it('is held inside the barriers and reports the hit once', () => {

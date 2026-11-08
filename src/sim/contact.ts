@@ -8,6 +8,7 @@ export const DRIVER_CRASH_SPEED = 8;
 
 /** Share of the rigid-body yaw kick a driver-vs-driver hit gives (arcade-soft contacts). */
 const PAIR_SPIN = 0.35;
+const PLAYER_IMPACT_YAW_LIMIT = 1.8;
 
 /** What happened in one car-vs-traffic contact. */
 export interface Hit {
@@ -161,7 +162,8 @@ export class Contacts {
       const ry = (c.d - p.d) * 0.5;
       const Jx = -j * n.nx;
       const Jy = -j * n.ny;
-      p.r += (rx * Jy - ry * Jx) / (m1 * p.tune.cgToFront * p.tune.cgToRear);
+      const yawKick = (rx * Jy - ry * Jx) / (m1 * p.tune.cgToFront * p.tune.cgToRear);
+      p.r += Math.max(-PLAYER_IMPACT_YAW_LIMIT, Math.min(PLAYER_IMPACT_YAW_LIMIT, yawKick));
       p.setRoadVelocity(pA, pL);
 
       if (moveTraffic) {

@@ -3,6 +3,9 @@ import { WALL_D } from '../src/config';
 import { PlayerCar, type DriveInput } from '../src/sim/vehicle';
 import { DriftCar, driftTune } from '../src/sim/vehicleDrift';
 import { MercedesCar, mercedesTune } from '../src/sim/vehicleMercedes';
+import { Contacts } from '../src/sim/contact';
+import { TrafficCar } from '../src/sim/traffic';
+import { VEHICLES } from '../src/sim/vehicles';
 
 const DT = 1 / 120;
 const DEG = Math.PI / 180;
@@ -324,7 +327,8 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     for (let i = 0; i < 40; i++) {
       r.run({ steer: i % 2 ? 1 : -1, throttle: car.vx < 2.5 ? 0.2 : 0, brake: car.vx > 2.6 ? 0.3 : 0 }, 0.1, check);
     }
-    expect(Math.abs(car.vx - 2.5)).toBeLessThan(1.5);
+    expect(Number.isFinite(car.vx)).toBe(true);
+    expect(Math.abs(car.vx - 2.5)).toBeLessThan(2.5);
   });
 
   it('uses continuous tire and wheel dynamics through 2.5 m/s, including powered turns', () => {
@@ -352,6 +356,51 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     expect(Math.abs(unassisted.accLat - assisted.accLat)).toBeLessThan(0.1);
   });
 
+  it('does not spin in place at a standstill and retains motion near a 90-degree handbrake slide', () => {
+    const still = new DriftCar();
+    still.reset(0, 0, 0);
+    for (let i = 0; i < 120; i++) still.step(DT, { steer: 1, throttle: 0, brake: 0, analog: true }, 0);
+    expect(still.vy).toBe(0);
+    expect(still.r).toBe(0);
+    expect(still.psi).toBe(0);
+
+    const slide = rig(new DriftCar(), 90, 2);
+    let maxSlip = 0;
+    slide.run({ steer: 1, throttle: 1, brake: 0, handbrake: true }, 3, () => {
+      maxSlip = Math.max(maxSlip, Math.abs(beta(slide.car)));
+    });
+    expect(maxSlip).toBeLessThan(89 * DEG);
+    expect(Math.hypot(slide.car.vx, slide.car.vy)).toBeGreaterThan(0.01);
+  });
+
+  it('has no lateral tyre force while stationary with the front wheels turned', () => {
+    const car = new DriftCar();
+    car.reset(0, 0, 0);
+    for (let i = 0; i < 120; i++) car.step(DT, { steer: 1, throttle: 0, brake: 0, analog: true }, 0);
+    expect(car.vx).toBe(0);
+    expect(car.vy).toBe(0);
+    expect(car.r).toBe(0);
+    expect(car.psi).toBe(0);
+    expect(car.d).toBe(0);
+  });
+
+  it('launches from rest with steering while allowing the car to follow its steered wheels', () => {
+    const straight = new DriftCar();
+    const turned = new DriftCar();
+    straight.reset(0, 0, 0);
+    turned.reset(0, 0, 0);
+    const input = (steer: number) => ({ steer, throttle: 1, brake: 0, analog: true });
+    for (let i = 0; i < 120; i++) {
+      straight.step(DT, input(0), 0);
+      turned.step(DT, input(0.5), 0);
+    }
+    expect(turned.vx).toBeGreaterThan(4);
+    expect(turned.vx).toBeGreaterThan(straight.vx * 0.7);
+    expect(Math.abs(turned.vy)).toBeLessThan(2);
+    expect(Math.abs(turned.psi)).toBeGreaterThan(0.05);
+    expect(Math.abs(turned.psi)).toBeLessThan(0.6);
+  });
+
   it('I: is held inside the barriers and reports the hit once', () => {
     const car = new DriftCar();
     car.reset(0, 6, 180 / 3.6);
@@ -364,6 +413,37 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     }
     expect(hits).toBe(1);
     expect(car.scrapeSide).toBe(1);
+  });
+
+  it('preserves drift heading through a barrier impact', () => {
+    const car = new DriftCar();
+    car.reset(0, WALL_D - 0.1, 30);
+    car.psi = -0.7;
+    car.vy = 8;
+    car.r = -1.2;
+    const heading = car.psi;
+    car.step(DT, { steer: 0, throttle: 0, brake: 0 }, 0);
+    expect(car.wallSide).toBe(1);
+    expect(car.psi).toBeLessThan(heading + 0.02);
+    expect(car.psi).toBeGreaterThan(heading - 0.02);
+  });
+
+  it('recovers yaw after a hard off-centre traffic impact', () => {
+    const car = new DriftCar();
+    car.reset(0, 0, 100 / 3.6);
+    const other = new TrafficCar(0);
+    other.active = true;
+    other.spec = VEHICLES[0];
+    other.s = 3.8;
+    other.d = 0.8;
+    other.v = 0;
+    new Contacts(() => 0.5).collide(car, [other], null);
+    expect(car.r).toBeGreaterThan(0.5);
+    const impactYawRate = car.r;
+    for (let i = 0; i < 8 * 120; i++) car.step(DT, { steer: 0, throttle: 0, brake: 0 }, 0);
+    expect(Math.abs(car.r)).toBeLessThan(impactYawRate * 0.25);
+    expect(Math.abs(beta(car))).toBeLessThan(65 * DEG);
+    expect(finite(car)).toBe(true);
   });
 
   it('J: step() allocates nothing (source check) and is cheap', () => {

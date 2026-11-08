@@ -342,7 +342,7 @@ export class PlayerCar {
       this.vx += (fx / m) * dt;
       this.vx = Math.max(0, this.vx - (this.brake * t.brakeDecel + (hb ? HANDBRAKE_DECEL : 0)) * dt);
       this.vy = 0;
-      this.r = (Math.max(this.vx, 0) * Math.tan(delta)) / L;
+      this.r = Math.abs(this.vx) > 0.05 ? (this.vx * Math.tan(delta)) / L : 0;
       this.accLong = fx / m;
       this.accLat = 0;
     }
@@ -370,8 +370,8 @@ export class PlayerCar {
    * pressScale scales the keyboard press rate (1 = as tuned).
    */
   /**
-   * Direction: holding the brake at a standstill engages reverse (gear 0), the throttle at a
-   * standstill (or X in manual) goes back to first; Z in first at a standstill also selects reverse.
+   * Direction: holding the brake at a standstill engages reverse (gear 0), while W/throttle drives
+   * backwards; the brake stops it and returns to first. Manual selection uses X/Z as before.
    * In reverse this runs the step and returns true.
    */
   protected reverse(dt: number, inp: DriveInput, kRoad: number): boolean {
@@ -384,7 +384,7 @@ export class PlayerCar {
     if (!inp.manual && this.gear !== 0 && this.vx < 1e-3 && (inp.brake > 0.5 && inp.throttle < 0.05)) {
       this.gear = 0;
       this.shiftT = 0;
-    } else if (!inp.manual && this.gear === 0 && this.vx > -0.3 && (inp.throttle > 0.1 && inp.brake < 0.05)) {
+    } else if (!inp.manual && this.gear === 0 && this.vx > -0.3 && (inp.brake > 0.1 && inp.throttle < 0.05)) {
       this.gear = 1;
       this.vx = Math.max(this.vx, 0);
     }
@@ -418,14 +418,14 @@ export class PlayerCar {
     this.shiftT = this.tune.shiftTime;
   }
 
-  /** Reverse: a slow kinematic bicycle backwards. The brake pedal drives, the throttle stops the car. */
+  /** Reverse: a slow kinematic bicycle backwards; throttle drives, brake stops. */
   protected stepReverse(dt: number, inp: DriveInput, kRoad: number): void {
     const t = this.tune;
     const L = t.cgToFront + t.cgToRear;
     this.rampSteer(dt, inp);
     this.steerAngle = this.steerIn * t.maxSteerLow;
-    this.throttle = clamp(inp.brake, 0, 1);
-    this.brake = clamp(inp.throttle, 0, 1);
+    this.throttle = clamp(inp.throttle, 0, 1);
+    this.brake = clamp(inp.brake, 0, 1);
     const v0 = this.vx;
     let vx = this.vx;
     if (vx > -REVERSE_MAX) vx = Math.max(-REVERSE_MAX, vx - this.throttle * REVERSE_ACC * dt);
@@ -559,7 +559,7 @@ export class PlayerCar {
       vA -= Math.sign(vA) * Math.min(Math.abs(vA), into * 0.8);
     }
     vA *= 1 - 0.35 * dt;
-    if (this.psi * side > 0) this.psi -= this.psi * Math.min(1, 6 * dt);
+    // A wall can reduce speed and yaw rate, but must not snap the body's heading toward the road.
     this.r *= 1 - Math.min(1, 8 * dt);
     this.setRoadVelocity(vA, vL);
   }
