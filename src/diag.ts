@@ -80,19 +80,30 @@ export function initDiag(apiBase: string, page: string, quality: string, canvas:
 let fpsT = 0;
 let fpsFrames = 0;
 let slowSpells = 0;
+let simT = 0;
+let renderT = 0;
 /**
  * Per frame: a frame rate under 24 for a whole 10 s stretch is reported (twice at most). Under 5 the
- * page is almost surely in the background (throttled), not slow: not reported.
+ * page is almost surely in the background (throttled), not slow: not reported. Loading, hidden tabs
+ * and long interruptions reset the sampling window, so they cannot contaminate a driving report.
  */
-export function diagFrame(dtMs: number): void {
+export function diagFrame(dtMs: number, simMs = 0, renderMs = 0, detail: () => object = () => ({}), active = true): void {
+  if (!active || document.hidden || dtMs <= 0 || dtMs > 250) {
+    fpsT = fpsFrames = simT = renderT = 0;
+    return;
+  }
   fpsT += dtMs;
   fpsFrames++;
+  simT += simMs;
+  renderT += renderMs;
   if (fpsT < 10_000) return;
   const fps = (fpsFrames * 1000) / fpsT;
+  const timings = { simulationMs: +(simT / fpsFrames).toFixed(2), renderCpuMs: +(renderT / fpsFrames).toFixed(2) };
   fpsT = 0;
   fpsFrames = 0;
+  simT = renderT = 0;
   if (fps < 24 && fps >= 5 && !document.hidden && slowSpells < 2) {
     slowSpells++;
-    report('warn', `low frame rate ${fps.toFixed(0)} fps for 10 s`);
+    report('warn', `low frame rate ${fps.toFixed(0)} fps for 10 s`, JSON.stringify({ ...timings, ...detail() }));
   }
 }

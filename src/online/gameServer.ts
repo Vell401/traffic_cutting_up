@@ -12,6 +12,7 @@ import {
 } from './protocol';
 import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from './rules';
 import { OnlineWorld, type Driver, type Stimulus, type TrafficState, type WorldConfig } from './world';
+import { currentTuning, validateTuning, type GlobalTuning } from '../sim/tuning';
 
 /** A connected socket, as the game server sees it (the Node entry point wraps `ws`). */
 export interface Peer {
@@ -144,9 +145,12 @@ export class GameServer {
   /** Totals for /health and the periodic log line. */
   readonly totals = { snapshots: 0, snapshotBytes: 0, skipped: 0, kicked: 0, joins: 0 };
   readonly steps: StepStats = { count: 0, total: 0, max: 0 };
+  /** Last tick phase timings, including serialization/socket work (not just physics). */
+  readonly timing = { simulationMs: 0, snapshotMs: 0, housekeepingMs: 0 };
   private readonly onRun: ServerOptions['onRun'] | null;
   /** Addresses the admin turned away, until (ms since epoch). */
   readonly bans = new Map<string, number>();
+  tuning: GlobalTuning = currentTuning();
 
   constructor(opts: ServerOptions) {
     this.world = new OnlineWorld(opts.seed, opts.rules);
@@ -256,6 +260,7 @@ export class GameServer {
       tick: this.world.tick,
       ringLen: this.world.ringLen,
       players: this.playerList(),
+      tuning: this.tuning,
     });
     this.pushPlayers(true);
   }
@@ -329,7 +334,7 @@ export class GameServer {
 
   // ----------------------------------------------------------------------- ticking
 
-  /** One world tick, then the snapshots (every snapshotEvery ticks) and housekeeping (once a second). */
+  /** One world tick, a staggered share of snapshots and housekeeping (once a second). */
   tick(now: () => number = () => 0): void {
     const w = this.world;
     const t0 = now();
@@ -340,12 +345,19 @@ export class GameServer {
     st.total += ms;
     if (ms > st.max) st.max = ms;
 
-    if (w.tick % w.rules.snapshotEvery === 0) this.sendSnapshots();
+    this.timing.simulationMs = ms;
+    const t1 = now();
+    this.sendSnapshots();
+    const t2 = now();
     if (w.tick % w.rules.tickHz === 0) this.housekeeping();
+    this.timing.snapshotMs = t2 - t1;
+    this.timing.housekeepingMs = now() - t2;
   }
 
   private sendSnapshots(): void {
     for (const slot of this.slots.values()) {
+      // Still 30 snapshots/s per driver; avoid a burst of 50 serializations every fourth tick.
+      if (this.world.tick % this.world.rules.snapshotEvery !== slot.driver.id % this.world.rules.snapshotEvery) continue;
       const conn = slot.conn;
       if (!conn || conn.closed) continue;
       const backlog = conn.peer.buffered;
@@ -410,6 +422,13 @@ export class GameServer {
   /** Traffic or the player limit, from the admin page. */
   configure(cfg: WorldConfig): void {
     this.world.configure(cfg);
+  }
+
+  setTuning(value: GlobalTuning): void {
+    this.tuning = validateTuning(value);
+    // New epochs fence off prediction made using the old physical parameters.
+    this.world.setTuning(this.tuning);
+    this.broadcast({ t: 'tuning', tuning: this.tuning });
   }
 
   /**

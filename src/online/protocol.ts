@@ -3,6 +3,7 @@ import type { TrafficCar } from '../sim/traffic';
 import type { CarId } from '../sim/cars';
 import type { PhysicsId } from '../sim/physics';
 import type { OnlineRules } from './rules';
+import type { GlobalTuning } from '../sim/tuning';
 
 /*
  * Wire format.
@@ -47,7 +48,8 @@ export type ClientMsg =
   | { t: 'ping'; c: number };
 
 export type ServerMsg =
-  | { t: 'welcome'; id: number; token: string; rules: OnlineRules; tick: number; ringLen: number; players: PlayerInfo[] }
+  | { t: 'welcome'; id: number; token: string; rules: OnlineRules; tick: number; ringLen: number; players: PlayerInfo[]; tuning?: GlobalTuning }
+  | { t: 'tuning'; tuning: GlobalTuning }
   | { t: 'reject'; reason: 'full' | 'version' | 'rules' | 'bad' | 'kicked' | 'banned'; text: string }
   | { t: 'players'; list: PlayerInfo[] }
   | { t: 'ev'; name: string; data: Record<string, unknown> }

@@ -9,7 +9,7 @@ import { createCar, type PhysicsId } from '../sim/physics';
 import { SPAWN_D, SPAWN_GAP, SPAWN_PLACES, ringScript, spawnS } from '../sim/ring';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
-import { AHEAD as TRAFFIC_AHEAD, BEHIND as TRAFFIC_BEHIND, MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
+import { AHEAD as TRAFFIC_AHEAD, BEHIND as TRAFFIC_BEHIND, MAX_PER_KM, MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
 import type { DriveInput, PlayerCar } from '../sim/vehicle';
 import { VEHICLES } from '../sim/vehicles';
 import {
@@ -30,6 +30,7 @@ import {
   type Writer,
 } from './protocol';
 import { DEFAULT_RULES, type OnlineRules } from './rules';
+import { applyTuning, defaultTuning, validateTuning, type GlobalTuning } from '../sim/tuning';
 
 /** Paint per driver slot. */
 export const DRIVER_COLORS = [0x1f4fd8, 0xd8321f, 0x16a35a, 0xe0a812, 0x9b30d9, 0x14b8c4, 0xd9d9de, 0xff6a13];
@@ -54,7 +55,9 @@ export interface WorldConfig {
   mode?: TrafficMode | 'auto';
   /** Spawn density of modes as a factor of the base (normal = 1). */
   modeDensity?: Partial<Record<TrafficMode, number>>;
-  /** One mode's density in cars per km of lane at the current preset and difficulty (the admin page edits this). */
+  /** Absolute targets, persisted without hidden density/difficulty multipliers. */
+  densities?: Partial<Record<TrafficMode, number>>;
+  /** One mode's absolute target in cars per km of lane (the admin page edits this). */
   modePerKm?: { mode: TrafficMode; perKm: number };
   maxPlayers?: number;
 }
@@ -81,11 +84,14 @@ export interface TrafficState {
   /** Road around each driver kept topped up with traffic, km, and its lanes. */
   windowKm: number;
   lanes: number;
+  maxPerKm: number;
+  capacity: number;
 }
 
 export const TRAFFIC_MODES: readonly TrafficMode[] = ['normal', 'sparse', 'dense', 'trucks', 'walls', 'platoons'];
 
 export type Stimulus =
+  | { k: 'tuning'; t: number; value: GlobalTuning }
   | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId; color?: number }
   | { k: 'paint'; t: number; id: number; color: number }
   | { k: 'config'; t: number; cfg: WorldConfig }
@@ -197,8 +203,8 @@ export class Driver {
  * their way); with more than `inputHigh` queued it applies two per tick to catch up. So a driver's car
  * sees every input exactly once, and the client can predict it exactly.
  */
-/** Most traffic cars the ring ever needs (12 km × 4 lanes, dense mode, with margin). */
-const RING_TRAFFIC = 480;
+/** 12 km × 4 lanes × 80 cars/km, with margin; allocated only as higher densities are requested. */
+const RING_TRAFFIC = 4096;
 /** Ticks two drivers must stay apart before their next contact counts again (0.5 s). */
 const PAIR_QUIET = 60;
 
@@ -226,7 +232,6 @@ export class OnlineWorld {
   private readonly awayTicks: number;
   private readonly stateBuf = new Float64Array(64);
   private readonly picks: TrafficCar[] = [];
-  private readonly pickRel = new Map<TrafficCar, number>();
   private nextId = 1;
   private modeHeld = false;
 
@@ -244,7 +249,7 @@ export class OnlineWorld {
     this.director.fixedIntensity = this.rules.intensity;
     this.director.resetRun();
     // Room for every driver's window, but never more than the whole ring holds.
-    this.traffic = new Traffic(this.rng, this.director, Math.min(this.rules.maxPlayers * MAX_TRAFFIC, RING_TRAFFIC));
+    this.traffic = new Traffic(this.rng, this.director, Math.min(this.rules.maxPlayers * MAX_TRAFFIC, 480));
     this.traffic.ringLen = this.ringLen;
     this.contacts = new Contacts(this.rng);
     this.contacts.ringLen = this.ringLen;
@@ -308,8 +313,8 @@ export class OnlineWorld {
    * A client (re)attached to this driver and numbers its inputs from `seq` on: drop what is queued,
    * count `seq` as applied, and have the client take the car's state as is (epoch).
    */
-  resync(dr: Driver, seq: number): void {
-    this.journal?.({ k: 'resync', t: this.tick, id: dr.id, seq });
+  resync(dr: Driver, seq: number, record = true): void {
+    if (record) this.journal?.({ k: 'resync', t: this.tick, id: dr.id, seq });
     dr.clearQueue();
     dr.lastQueued = seq;
     dr.ack = seq;
@@ -324,7 +329,9 @@ export class OnlineWorld {
   configure(cfg: WorldConfig): void {
     this.journal?.({ k: 'config', t: this.tick, cfg });
     const r = this.rules;
-    if (cfg.maxPlayers !== undefined && Number.isInteger(cfg.maxPlayers) && cfg.maxPlayers >= 1 && cfg.maxPlayers <= 64) r.maxPlayers = cfg.maxPlayers;
+    if (cfg.maxPlayers !== undefined && Number.isInteger(cfg.maxPlayers) && cfg.maxPlayers >= 1 && cfg.maxPlayers <= 64) {
+      r.maxPlayers = cfg.maxPlayers;
+    }
     if (cfg.traffic === 1 || cfg.traffic === 2) this.director.preset = r.traffic = cfg.traffic;
     if (typeof cfg.intensity === 'number' && cfg.intensity >= 0 && cfg.intensity <= 1) {
       r.intensity = cfg.intensity;
@@ -337,10 +344,15 @@ export class OnlineWorld {
         if (typeof v === 'number' && v >= 0 && v <= 6) d.modeDensity[m] = v;
       }
     }
-    if (cfg.modePerKm && TRAFFIC_MODES.includes(cfg.modePerKm.mode) && cfg.modePerKm.perKm >= 0 && cfg.modePerKm.perKm <= 40) {
+    if (cfg.densities) {
+      for (const m of TRAFFIC_MODES) {
+        const v = cfg.densities[m];
+        if (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= MAX_PER_KM) d.modePerKm[m] = v;
+      }
+    }
+    if (cfg.modePerKm && TRAFFIC_MODES.includes(cfg.modePerKm.mode) && Number.isFinite(cfg.modePerKm.perKm) && cfg.modePerKm.perKm >= 0 && cfg.modePerKm.perKm <= MAX_PER_KM) {
       const m = cfg.modePerKm.mode;
-      const base = d.densityOf(m) / Math.max(d.modeDensity[m], 1e-6);
-      d.modeDensity[m] = Math.min(6, cfg.modePerKm.perKm / Math.max(base, 1e-6));
+      d.modePerKm[m] = cfg.modePerKm.perKm;
     }
     if (cfg.mode === 'auto') {
       this.modeHeld = false;
@@ -355,6 +367,9 @@ export class OnlineWorld {
     } else if (cfg.trafficOn === true) {
       this.traffic.enabled = true;
     }
+    const peakDensity = Math.max(...TRAFFIC_MODES.map(m => d.densityOf(m)));
+    const ringCapacity = Math.ceil(peakDensity * LANES * this.ringLen / 1000) + 64;
+    this.traffic.reserve(Math.min(r.maxPlayers * MAX_TRAFFIC, RING_TRAFFIC, Math.max(480, ringCapacity)));
   }
 
   trafficState(): TrafficState {
@@ -369,7 +384,25 @@ export class OnlineWorld {
       densities: TRAFFIC_MODES.map((mode) => ({ mode, perKm: d.densityOf(mode), scale: d.modeDensity[mode] })),
       windowKm: (TRAFFIC_BEHIND + TRAFFIC_AHEAD) / 1000,
       lanes: LANES,
+      maxPerKm: MAX_PER_KM,
+      capacity: this.traffic.cars.length,
     };
+  }
+
+  setTuning(value: GlobalTuning): void {
+    const tuning = validateTuning(value);
+    this.journal?.({ k: 'tuning', t: this.tick, value: tuning });
+    applyTuning(tuning);
+    for (const dr of this.drivers) this.resync(dr, dr.lastQueued, false);
+    const speed = tuning.traffic;
+    for (const c of this.traffic.cars) {
+      if (!c.active || c.crashed) continue;
+      const unit = (((c.formation || c.id) * 2654435761) >>> 0) / 0xffffffff;
+      if (c.wall) { c.v0 = (speed.wallMin + (speed.wallMax - speed.wallMin) * unit) / 3.6; continue; }
+      const range = speed.lanes[c.lane];
+      c.v0 = (range[0] + (range[1] - range[0]) * unit) / 3.6;
+      if (c.spec.truck) c.v0 = Math.min(c.v0, (speed.truckMin + (speed.truckMax - speed.truckMin) * unit) / 3.6);
+    }
   }
 
   respawn(dr: Driver): void {
@@ -603,17 +636,15 @@ export class OnlineWorld {
     // Traffic in view, nearest first if there is more than a client draws.
     const picks = this.picks;
     picks.length = 0;
-    const rel = this.pickRel;
-    rel.clear();
     for (const c of this.traffic.cars) {
       if (!c.active) continue;
       const r = this.traffic.rel(c.s, car.s);
       if (r < -this.rules.viewBehind || r > this.rules.viewAhead) continue;
       picks.push(c);
-      rel.set(c, Math.abs(r));
+      c.snapshotDistance = Math.abs(r);
     }
     if (picks.length > MAX_TRAFFIC) {
-      picks.sort((a, b) => rel.get(a)! - rel.get(b)!);
+      picks.sort((a, b) => a.snapshotDistance - b.snapshotDistance);
       picks.length = MAX_TRAFFIC;
     }
     w.u16(picks.length);
@@ -659,12 +690,15 @@ const u32 = new Uint32Array(f64.buffer);
  * to the live world before its first tick (tests switch traffic off, say).
  */
 export function replay(seed: number, rules: Partial<OnlineRules>, journal: readonly Stimulus[], endTick: number, prepare?: (w: OnlineWorld) => void): OnlineWorld {
+  applyTuning(defaultTuning());
   const w = new OnlineWorld(seed, rules);
   prepare?.(w);
   const q: InputQ[] = [];
   for (const rec of journal) {
     while (w.tick < rec.t) w.step();
-    if (rec.k === 'join') {
+    if (rec.k === 'tuning') {
+      w.setTuning(rec.value);
+    } else if (rec.k === 'join') {
       const dr = w.join(rec.name, rec.physics, rec.car ?? 1, rec.color);
       if (!dr || dr.id !== rec.id) throw new Error(`replay: join gave ${dr?.id} instead of ${rec.id}`);
     } else if (rec.k === 'leave') {

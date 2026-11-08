@@ -4,9 +4,12 @@ import { type Rng, range } from '../core/rng';
 import type { Director } from './director';
 import { VEHICLES, type VehicleSpec } from './vehicles';
 import type { PlayerCar } from './vehicle';
+import { trafficSpeed } from './tuning';
 
 /** Cars around one driver (and what a client draws). The server's pool holds this many per driver. */
-export const MAX_TRAFFIC = 112;
+export const MAX_TRAFFIC = 384;
+/** Physical target limit exposed by the online admin, cars per km of lane. */
+export const MAX_PER_KM = 80;
 /** Traffic lives in [driver.s - BEHIND, driver.s + AHEAD]; new cars appear far ahead, hidden by fog. */
 export const BEHIND = 220;
 export const AHEAD = 850;
@@ -38,6 +41,10 @@ export class TrafficCar {
   gen = 0;
   /** Index in Traffic's s-sorted order (neighbour search), -1 when not in it. */
   ord = -1;
+  /** Scratch distance for snapshot selection (avoids rebuilding a Map for every recipient). */
+  snapshotDistance = 0;
+  formation = 0;
+  wall = false;
 
   s = 0;
   d = 0;
@@ -110,6 +117,7 @@ export class Traffic {
   /** Active cars sorted by s. */
   private readonly order: TrafficCar[] = [];
   private orderLen = 0;
+  private nextFormation = 1;
   private windowCount = new Int32Array(1);
 
   // Results of the last leader/follower query (avoids allocations in the hot loop).
@@ -129,6 +137,11 @@ export class Traffic {
   /** Target number of cars in one driver's window. */
   targetCount(): number {
     return Math.min(MAX_TRAFFIC - 6, Math.round((this.director.density() * LANES * (BEHIND + AHEAD)) / 1000));
+  }
+
+  /** Grow on an admin limit change, retaining existing ids and cars. */
+  reserve(capacity: number): void {
+    for (let i = this.cars.length; i < capacity; i++) this.cars.push(new TrafficCar(i));
   }
 
   /** Signed distance from b to a along the road (the short way round on a ring). */
@@ -510,7 +523,7 @@ export class Traffic {
   private laneSpeed(lane: number, spec: VehicleSpec): number {
     const [lo, hi] = trafficTune.laneSpeedKmh[lane];
     let v0 = range(this.rng, lo, hi) / 3.6;
-    if (spec.truck) v0 = Math.min(v0, range(this.rng, 80, 92) / 3.6);
+    if (spec.truck) v0 = Math.min(v0, range(this.rng, trafficSpeed.truckMin, trafficSpeed.truckMax) / 3.6);
     return v0;
   }
 
@@ -525,7 +538,8 @@ export class Traffic {
     const dir = this.director;
     const spec = dir.pickSpec();
     const lane = dir.pickLane(dir.lanesFor(spec));
-    if (!this.laneFree(lane, s, spec.len, 22)) return false;
+    const clearance = Math.max(5, Math.min(22, 700 / Math.max(1, dir.density()) - spec.len));
+    if (!this.laneFree(lane, s, spec.len, clearance)) return false;
     const v0 = this.laneSpeed(lane, spec);
     if (fromBehind && v0 < p.vAlong + 3) return false;
     return this.spawnAt(spec, s, lane, v0, laneCenter(lane) + this.pickLaneOffset(spec)) !== null;
@@ -552,11 +566,13 @@ export class Traffic {
     if (this.cars.length - this.activeCount < lanes.length) return false;
     for (const l of lanes) if (!this.laneFree(l, s, 15, 30)) return false;
     if (!this.laneFree(gapLane, s, 15, 25)) return false;
-    const v0 = range(rng, 86, 100) / 3.6;
+    const v0 = range(rng, trafficSpeed.wallMin, trafficSpeed.wallMax) / 3.6;
+    const formation = this.nextFormation++;
     for (const l of lanes) {
       const spec = l >= 2 && rng() < 0.3 ? BOX_TRUCK : this.director.pickCar();
       const c = this.spawnAt(spec, this.wrap(s + range(rng, -1.5, 1.5)), l, v0);
       if (!c) break;
+      c.formation = formation; c.wall = true;
       c.rude = false;
       this.holdLanes(c, p);
     }
@@ -580,11 +596,13 @@ export class Traffic {
     }
     if (!this.laneFree(lane, this.wrap(s + span / 2), span, 25)) return false;
     const v0 = this.laneSpeed(lane, specs[0]);
+    const formation = this.nextFormation++;
     let at = s;
     for (let i = 0; i < n; i++) {
       const c = this.spawnAt(specs[i], this.wrap(at + specs[i].len / 2), lane, v0);
       if (!c) break;
       c.tGap = 0.55;
+      c.formation = formation;
       c.rude = false;
       this.holdLanes(c, p);
       at += specs[i].len + gaps[i];
@@ -631,6 +649,7 @@ export class Traffic {
     c.vd = 0;
     c.yawRate = 0;
     c.hit = false;
+    c.formation = 0; c.wall = false;
     this.activeCount++;
     return c;
   }

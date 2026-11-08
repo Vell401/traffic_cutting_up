@@ -24,8 +24,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { GameServer } from '../src/online/gameServer';
 import { TRAFFIC_MODES, type WorldConfig } from '../src/online/world';
 import type { TrafficMode } from '../src/sim/director';
+import { MAX_PER_KM } from '../src/sim/traffic';
 import { Limiter, clientIp, ownJson, readJson, send } from './api';
 import type { RunMode, Store } from './store';
+import { defaultTuning, validateTuning } from '../src/sim/tuning';
+import type { RadioStore } from './radio';
 
 const SESSION_MS = 12 * 3600_000;
 /** Settings key of the traffic configuration the admin page set last. */
@@ -34,9 +37,9 @@ export const TRAFFIC_SETTINGS = 'traffic';
 /** The traffic settings to keep: everything the admin page can change about traffic, as it is now. */
 export function trafficSettings(game: GameServer): WorldConfig {
   const t = game.trafficState();
-  const modeDensity: Partial<Record<TrafficMode, number>> = {};
-  for (const d of t.densities) modeDensity[d.mode] = d.scale;
-  return { trafficOn: t.on, traffic: t.preset, intensity: t.intensity, mode: t.held ? t.mode : 'auto', modeDensity };
+  const densities: Partial<Record<TrafficMode, number>> = {};
+  for (const d of t.densities) densities[d.mode] = d.perKm;
+  return { trafficOn: t.on, traffic: t.preset, intensity: t.intensity, mode: t.held ? t.mode : 'auto', densities };
 }
 const MAX_SESSIONS = 50;
 
@@ -46,6 +49,7 @@ export interface AdminOptions {
   origins: readonly string[];
   game: GameServer;
   store: Store;
+  radio?: RadioStore;
   /** Server status (the same as /health). */
   health: () => object;
   /** Audit and problems (the diagnostics log). */
@@ -75,7 +79,9 @@ export class Admin {
     }
     const path = url.pathname.slice('/api/admin/'.length);
     const ip = clientIp(req);
-    if (req.method === 'POST' && !ownJson(req, this.o.origins)) {
+    const upload = req.method === 'POST' && path === 'radio/upload';
+    const badUploadOrigin = upload && !!req.headers.origin && this.o.origins.length > 0 && !this.o.origins.includes(req.headers.origin);
+    if (req.method === 'POST' && (upload ? badUploadOrigin : !ownJson(req, this.o.origins))) {
       send(res, 403, { ok: false });
       return true;
     }
@@ -86,6 +92,19 @@ export class Admin {
     const token = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
     if (!this.valid(token)) {
       send(res, 401, { ok: false, error: 'login' });
+      return true;
+    }
+    if (upload && this.o.radio) {
+      void this.o.radio.upload(req, res, url).catch(() => { if (!res.destroyed && !res.headersSent) send(res, 500, { error: 'Ошибка загрузки трека' }); });
+      return true;
+    }
+    if (req.method === 'POST' && path === 'radio' && this.o.radio) {
+      this.withBody(req, res, b => {
+        void this.o.radio!.action(b).then(
+          radio => { this.o.diag('info', `admin (${ip}): radio ${String(b.action)}`); send(res, 200, { ok: true, radio }); },
+          error => send(res, 400, { error: (error as Error).message }),
+        );
+      });
       return true;
     }
     if (req.method === 'GET') {
@@ -158,6 +177,9 @@ export class Admin {
       server: this.o.health(),
       rules: { maxPlayers: g.world.rules.maxPlayers, tickHz: g.world.rules.tickHz, ringKm: +(g.world.ringLen / 1000).toFixed(2) },
       traffic: g.trafficState(),
+      tuning: g.tuning,
+      defaults: defaultTuning(),
+      radio: this.o.radio?.state() ?? { playlists: [] },
       modes: TRAFFIC_MODES,
       drivers: g.adminDrivers(),
       bans: [...g.bans].filter(([, until]) => until > now).map(([addr, until]) => ({ addr, until })),
@@ -168,17 +190,30 @@ export class Admin {
     const g = this.o.game;
     const audit = (text: string) => this.o.diag('info', `admin (${ip}): ${text}`);
     switch (path) {
+      case 'tuning': {
+        try {
+          const next = structuredClone(g.tuning), defaults = defaultTuning();
+          if (typeof b.resetCar === 'string' && Object.hasOwn(defaults.cars, b.resetCar)) next.cars[b.resetCar] = defaults.cars[b.resetCar];
+          else if (b.resetTraffic === true) next.traffic = defaults.traffic;
+          else if (typeof b.car === 'string' && Object.hasOwn(next.cars, b.car) && b.values && typeof b.values === 'object') next.cars[b.car] = b.values as typeof next.cars[string];
+          else if (b.traffic && typeof b.traffic === 'object') next.traffic = b.traffic as typeof next.traffic;
+          else return send(res, 400, { error: 'Выберите машину или скорости трафика' });
+          validateTuning(next);
+          this.o.store.setSetting('tuning', next);
+          g.setTuning(next);
+          audit(`tuning ${JSON.stringify(b)}`);
+          return send(res, 200, { ok: true, tuning: g.tuning });
+        } catch (error) { return send(res, 400, { error: (error as Error).message }); }
+      }
       case 'traffic': {
         const cfg: WorldConfig = {};
         if (typeof b.trafficOn === 'boolean') cfg.trafficOn = b.trafficOn;
-        if (b.traffic === 1 || b.traffic === 2) cfg.traffic = b.traffic;
-        if (typeof b.intensity === 'number' && b.intensity >= 0 && b.intensity <= 1) cfg.intensity = b.intensity;
         if (b.mode === 'auto' || TRAFFIC_MODES.includes(b.mode as never)) cfg.mode = b.mode as WorldConfig['mode'];
         const pk = b.modePerKm as { mode?: unknown; perKm?: unknown } | undefined;
-        if (pk && TRAFFIC_MODES.includes(pk.mode as never) && typeof pk.perKm === 'number' && pk.perKm >= 0 && pk.perKm <= 40) {
+        if (pk && TRAFFIC_MODES.includes(pk.mode as never) && typeof pk.perKm === 'number' && Number.isFinite(pk.perKm) && pk.perKm >= 0 && pk.perKm <= MAX_PER_KM) {
           cfg.modePerKm = { mode: pk.mode as TrafficMode, perKm: pk.perKm };
         }
-        if (Object.keys(cfg).length === 0) return send(res, 400, { ok: false });
+        if (Object.keys(cfg).length === 0) return send(res, 400, { ok: false, error: 'Настройка не поддерживается. Обновите страницу админки.' });
         g.configure(cfg);
         this.o.store.setSetting(TRAFFIC_SETTINGS, trafficSettings(g));
         audit(`traffic ${JSON.stringify(cfg)}`);

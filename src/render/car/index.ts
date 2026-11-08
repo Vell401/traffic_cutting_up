@@ -12,6 +12,7 @@ import { buildR34Cockpit, type Cockpit } from './r34Interior';
 import { LENGTH, TRACK_HALF, AXLES, TYRE_W, WHEEL_R, WIDTH } from './r34Shape';
 import { WheelSet, caliper, sportRim, sportTyre, type WheelPos } from './wheels';
 import { buildPorsche, loadPorsche, porscheReady, PORSCHE_NAME } from './porsche';
+import { cloneInSlices } from './clone';
 
 export type { Cockpit } from './r34Interior';
 
@@ -295,6 +296,8 @@ class SwappableWheels implements Wheels {
 }
 
 export interface CarParts {
+  /** Imported scene attached (remote construction is sliced, not done in the render loop). */
+  ready?: Promise<void>;
   dispose?(): void;
   setCockpit?(on:boolean):void;
   setPaint(color: number): void;
@@ -357,7 +360,7 @@ export interface ModelLoad {
 }
 
 /** Size of mercedes-a45s.glb, for progress when the response has no length. */
-const A45_BYTES = 36_172_120;
+const A45_BYTES = 36_109_040;
 const modelLoadListeners = new Set<(s: ModelLoad) => void>();
 
 /** Follow heavy model downloads; returns an unsubscribe function. */
@@ -408,7 +411,7 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
   emitLoad(state);
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
-  loader.load('/models/mercedes-a45s.glb', ({ scene }) => {
+  loader.load('/models/mercedes-a45s.glb?v=lossless-textures-1', ({ scene }) => {
     scene.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh) return;
@@ -601,10 +604,14 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
     [W / 2 - 0.1, 0.84, L / 2 - 0.08, 0.1, 0.05, 0.06],
   ]);
   // Last: with the model already cached this runs at once and swaps the placeholders out.
+  let disposed = false;
+  let finishReady: () => void = () => {};
+  const ready = importedModel ? new Promise<void>(resolve => { finishReady = resolve; }) : Promise.resolve();
   if (importedModel) loadMercedesModel((model) => {
-    const imported = model.clone(true);
-    // Paint belongs to each driver; other drivers can still share glass, trim and interiors.
-    {
+    void (async () => {
+      const imported = own ? model.clone(true) : await cloneInSlices(model, () => disposed);
+      if (!imported || disposed) return;
+      // Paint belongs to each driver; other drivers can still share glass, trim and interiors.
       const copies = new Map<THREE.Material, THREE.Material>();
       imported.traverse((o) => {
         const mesh = o as THREE.Mesh;
@@ -620,32 +627,34 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
           finish.userData.bodyPaint = true;
         }
       });
-    }
-    imported.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(imported);
-    const size = bounds.getSize(new THREE.Vector3());
-    // Keep the source proportions and fit its wheelbase direction to the car spec.
-    const fit = L / size.z;
-    imported.scale.setScalar(fit);
-    imported.updateMatrixWorld(true);
-    const scaled = new THREE.Box3().setFromObject(imported);
-    imported.position.set(-(scaled.min.x + scaled.max.x) / 2, -scaled.min.y, -(scaled.min.z + scaled.max.z) / 2);
-    body.remove(shell);
-    shell.clear();
-    for (const m of placeholders) body.remove(m);
-    indicators.drop(placeholders.map((m) => m.material as THREE.Material));
-    hookA45Lamps(imported, indicators);
-    body.add(imported);
-    cockpit?.attach(imported, body);
-    // The model brings its own wheels: drive those and drop the procedural set.
-    const modelWheels = new ImportedWheels(imported);
-    if (modelWheels.found) {
-      wheelRoot.remove(wheels.group);
-      wheelDrive.target = modelWheels;
-    }
+      imported.updateMatrixWorld(true);
+      const bounds = new THREE.Box3().setFromObject(imported);
+      const size = bounds.getSize(new THREE.Vector3());
+      // Keep the source proportions and fit its wheelbase direction to the car spec.
+      const fit = L / size.z;
+      imported.scale.setScalar(fit);
+      imported.updateMatrixWorld(true);
+      const scaled = new THREE.Box3().setFromObject(imported);
+      imported.position.set(-(scaled.min.x + scaled.max.x) / 2, -scaled.min.y, -(scaled.min.z + scaled.max.z) / 2);
+      body.remove(shell);
+      shell.clear();
+      for (const m of placeholders) body.remove(m);
+      indicators.drop(placeholders.map((m) => m.material as THREE.Material));
+      hookA45Lamps(imported, indicators);
+      body.add(imported);
+      cockpit?.attach(imported, body);
+      // The model brings its own wheels: drive those and drop the procedural set.
+      const modelWheels = new ImportedWheels(imported);
+      if (modelWheels.found) {
+        wheelRoot.remove(wheels.group);
+        wheelDrive.target = modelWheels;
+      }
+    })().catch(error => report('error', 'Mercedes model preparation failed', String(error))).finally(finishReady);
   });
   // Beams from the projectors (±0.61 m, 0.66 m up), just ahead of the lamp glass.
   return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.66, -2.16), lampX: 0.61, cockpit, indicators,
+    ready,
+    dispose() { disposed = true; finishReady(); },
     setPaint(color) {
       paint = color; paintMat.color.setHex(color);
       body.traverse(o => {

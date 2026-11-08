@@ -65,6 +65,8 @@ export function fnv1a(text: string): string {
 }
 
 let cached = '';
+// Runtime admin settings travel separately. The compatibility hash describes the shipped code/defaults.
+const BASE_RULES = JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, mercedesTune, porscheTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] });
 
 /**
  * Version of the game rules: a hash of every tunable that the server and the client's prediction must
@@ -76,7 +78,7 @@ export function rulesHash(): string {
   if (!cached) {
     cached = fnv1a(
       // Every physics tune is shared with client prediction.
-      JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, mercedesTune, porscheTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] }),
+      BASE_RULES,
     );
   }
   return cached;

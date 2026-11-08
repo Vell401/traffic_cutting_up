@@ -35,6 +35,7 @@ import {
   type Snapshot,
 } from './protocol';
 import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from './rules';
+import { applyTuning } from '../sim/tuning';
 
 /** Input history kept for replays (8.5 s at 120 Hz). */
 const HIST = 1024;
@@ -231,6 +232,7 @@ export class ClientCore {
     const ev = this.sim.events;
     switch (msg.t) {
       case 'welcome':
+        if (msg.tuning) applyTuning(msg.tuning);
         if (this.id !== 0 && this.id !== msg.id) this.forget();
         this.id = msg.id;
         this.token = msg.token;
@@ -238,6 +240,11 @@ export class ClientCore {
         this.players = msg.players;
         this.hooks.onWelcome?.(msg);
         this.hooks.onPlayers?.(msg.players);
+        break;
+      case 'tuning':
+        applyTuning(msg.tuning);
+        this.ready = false;
+        this.epoch = -1;
         break;
       case 'reject':
         this.hooks.onReject?.(msg.text);

@@ -162,6 +162,12 @@
       </div>
     </aside>
 
+    <aside id="radio" aria-label="Радио">
+      <h2>Радио</h2><select aria-label="Плейлист"><option value="">Радио выключено</option></select>
+      <div class="radio-buttons"><button data-radio="prev" aria-label="Предыдущий трек">◀</button><button data-radio="play" aria-label="Включить радио" disabled>▶</button><button data-radio="next" aria-label="Следующий трек">▶▶</button></div>
+      <div class="radio-status" aria-live="polite">Загрузка плейлистов…</div>
+      <label class="radio-volume">Громкость <input type="range" min="0" max="100" aria-label="Громкость радио" /><b></b></label>
+    </aside>
     <aside id="mixer" class="mixer">
       <div class="mh"><span>Звук</span><button id="muteBtn" class="mute" title="M">Выключить</button></div>
       <div id="mixerRows"></div>

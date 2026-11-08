@@ -18,6 +18,8 @@ import { Sparks } from './sparks';
 import { HORIZON, MOON_DIR, applySky, makeSky, skyPreset, type SkyId } from './sky';
 import { makeRadialTexture } from './textures';
 import { TrafficView } from './trafficView';
+import { RemoteCar, revealMaterials } from './remoteCar';
+import { ResolutionBudget } from './resolution';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
@@ -51,13 +53,16 @@ export class View {
   private time = 0;
   private warmedUp = false;
   /** Online: other drivers' cars (id → view, with the body and paint it was built with). */
-  private readonly remoteViews = new Map<number, { view: PlayerView; color: number; car: CarId; physics: number; frame: number }>();
+  private readonly remoteViews = new Map<number, { view: RemoteCar; color: number; car: CarId; physics: number; frame: number; prepared: boolean }>();
+  private remoteQueue: Promise<void> = Promise.resolve();
+  private readonly remoteSpares: PlayerView[] = [];
   private frame = 0;
   private readonly shadowTex: THREE.Texture;
   private readonly v3 = new THREE.Vector3();
   private readonly ptRemote: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly spawnPad: SpawnPad | null;
   private readonly anchor: CockpitAnchor;
+  private readonly resolution: ResolutionBudget;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -70,6 +75,7 @@ export class View {
     // MSAA, tone mapping and output encoding happen in the post chain, not on the default framebuffer.
     const r = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     r.setPixelRatio(Math.min(window.devicePixelRatio, quality.pixelRatio));
+    this.resolution = new ResolutionBudget(r.getPixelRatio());
     // Count draw calls for the whole frame (scene + post passes), reset once per frame in render().
     r.info.autoReset = false;
     this.renderer = r;
@@ -104,16 +110,6 @@ export class View {
     this.post = new Post(r, this.scene, this.camera, quality);
     this.spawnPad = sim.online ? new SpawnPad(SPAWN_PLACES) : null;
     if (this.spawnPad) this.scene.add(this.spawnPad.group);
-    // Online, other drivers may bring the other bodies: build and compile them now (hidden), not when
-    // their car first comes into view (~150 ms of geometry, livery and shaders).
-    if (sim.online) {
-      for (const id of [1, 2, 3] as const) {
-        const spare = new PlayerView(id, 0x888888, shadowTex, sim.player.tune.length, sim.player.tune.width, false, true);
-        spare.root.visible = false;
-        this.scene.add(spare.root);
-      }
-    }
-
     sim.events.on('nearMiss', (e) => {
       this.chase.kick(0.25);
       this.post.pulse(e.gap < 0.3 ? 0.8 : 0.45);
@@ -203,35 +199,43 @@ export class View {
     this.post.render(dt, p.vAlong * 3.6);
   }
 
-  /** Other online drivers: interpolated like our car, drawn while within sight of the road we draw. */
+  /** Other online drivers: cheap silhouettes first, detailed bodies only nearby. */
   private updateRemotes(alpha: number, dt: number, ownS: number): void {
     const sim = this.sim;
     const frame = ++this.frame;
     for (const r of sim.remotes) {
       let entry = this.remoteViews.get(r.id);
-      if (entry && (entry.color !== r.color || entry.car !== r.carId || entry.physics !== r.car.physicsId)) {
+      if (entry && (entry.car !== r.carId || entry.physics !== r.car.physicsId)) {
         entry.view.dispose();
         entry = undefined;
       }
       if (!entry) {
-        const view = new PlayerView(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, false);
+        const view = new RemoteCar(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width);
         this.scene.add(view.root);
-        entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame };
+        entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame, prepared: false };
         this.remoteViews.set(r.id, entry);
       }
       entry.frame = frame;
+      if (entry.color !== r.color) { entry.color = r.color; entry.view.setPaint(r.color); }
       const c = r.car;
       const s = lerp(c.prevS, c.s, alpha);
       // Others' ghosts (on the spawn pad, back from the pits) are invisible; ours is see-through.
       const near = r.visible && !c.ghost && s > ownS - 400 && s < ownS + 1300;
       entry.view.root.visible = near;
       if (!near) continue;
+      const distance = Math.abs(s - ownS);
+      if (!entry.prepared && distance < 180) {
+        entry.prepared = true;
+        const remote = entry.view;
+        this.remoteQueue = this.remoteQueue.then(() => remote.prepare(this.renderer, this.camera, this.scene)).catch(error => {
+          console.warn('Remote car preparation failed', error);
+        });
+      }
       const d = lerp(c.prevD, c.d, alpha);
       const psi = lerp(c.prevPsi, c.psi, alpha);
       sim.road.toWorld(s, d, this.ptRemote);
       this.v3.set(this.ptRemote.x - this.ox, 0, this.ptRemote.z - this.oz);
-      entry.view.update(dt, c, this.v3, this.ptRemote.th + psi);
-      entry.view.setGhost(c.ghost);
+      entry.view.update(dt, c, this.v3, this.ptRemote.th + psi, distance);
     }
     for (const [id, entry] of this.remoteViews) {
       if (entry.frame === frame) continue;
@@ -299,6 +303,39 @@ export class View {
     this.playerView.setCockpit(this.cameraMode!=='cockpit');
     try{await this.renderer.compileAsync(this.scene,this.camera);}
     finally{this.playerView.setCockpit(this.cameraMode==='cockpit');}
+  }
+
+  adaptResolution(frameMs: number, cpuMs: number, active: boolean): void {
+    if (!this.resolution.observe(frameMs, cpuMs, active)) return;
+    this.renderer.setPixelRatio(this.resolution.ratio);
+    this.resize();
+  }
+
+  /** All online bodies are parsed, compiled and uploaded under the initial loading screen. */
+  async prepareOnlineCars(): Promise<void> {
+    for (const id of [1, 2, 3] as const) {
+      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
+      await spare.ready;
+      revealMaterials(spare.root).value = 1;
+      spare.root.position.copy(this.playerView.root.position);
+      this.scene.add(spare.root);
+      await this.renderer.compileAsync(spare.root, this.camera, this.scene);
+      // compileAsync only compiles programs: the first draw must also upload geometry/textures.
+      const target = new THREE.WebGLRenderTarget(4, 4);
+      const previous = this.renderer.getRenderTarget();
+      const culled: THREE.Object3D[] = [];
+      spare.root.traverse(o => { if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
+      try {
+        this.renderer.setRenderTarget(target);
+        this.renderer.render(this.scene, this.camera);
+      } finally {
+        this.renderer.setRenderTarget(previous);
+        target.dispose();
+        for (const o of culled) o.frustumCulled = true;
+        spare.root.visible = false;
+      }
+      this.remoteSpares.push(spare); // Keep shared shader programs resident for future joins.
+    }
   }
 
   cycleCamera(): CameraMode {

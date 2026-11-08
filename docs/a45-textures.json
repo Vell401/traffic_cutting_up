@@ -1,0 +1,2689 @@
+{
+  "bytesBefore": 36172120,
+  "bytesAfter": 36109040,
+  "fileHashBefore": "2856917133f0da34a879e50cc22d81cf934cc833e994717a4d2860fc64fde39c",
+  "fileHashAfter": "0f9f6d8bc2f9d67274bb0dbe21ec8d4ed6b8659be0b470e4ed5182269e7bccd4",
+  "geometryBefore": "87ae2ea0caff669b8f909379987018e81cd887fd0dfbdbbb1ffec85f1f2e2e80",
+  "geometryAfter": "87ae2ea0caff669b8f909379987018e81cd887fd0dfbdbbb1ffec85f1f2e2e80",
+  "pixelsBefore": 184137505,
+  "pixelsAfter": 168972329,
+  "uniformTextures": 8,
+  "constantSampledTextures": 8,
+  "untouchedDetailedTextures": 101,
+  "records": [
+    {
+      "index": 0,
+      "name": "glass.png",
+      "before": [
+        64,
+        64
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "constantPixel": [
+        16,
+        12,
+        16,
+        11
+      ],
+      "bytesBefore": 208,
+      "bytesAfter": 70,
+      "hashBefore": "35646aa841e16bc07ada574aef295642256acb0d73d1bb03f7f1077baa317867",
+      "hashAfter": "79b6815b841025ed4c5219e18fdf1880e783f135f0dc821277f684e3cbe5dc54",
+      "protected": false
+    },
+    {
+      "index": 1,
+      "name": "T_Cabin_D.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 222254,
+      "bytesAfter": 222254,
+      "hashBefore": "9854914bceeccb8aff62fad6eebfd9808162e5d7ce26e80d5e80883e56566b86",
+      "hashAfter": "9854914bceeccb8aff62fad6eebfd9808162e5d7ce26e80d5e80883e56566b86",
+      "protected": true
+    },
+    {
+      "index": 2,
+      "name": "T_Cabin_NM.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 417513,
+      "bytesAfter": 417513,
+      "hashBefore": "67520e3b68a3870eb470070d1f99ab86f18f45f5553f79663060d0210d2555ad",
+      "hashAfter": "67520e3b68a3870eb470070d1f99ab86f18f45f5553f79663060d0210d2555ad",
+      "protected": true
+    },
+    {
+      "index": 3,
+      "name": "white.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "constantPixel": [
+        255,
+        255,
+        255
+      ],
+      "bytesBefore": 16912,
+      "bytesAfter": 69,
+      "hashBefore": "79f9cdd920ff0d4b3a17ff949fa739da75a1ca6113c40629430c09debbf29753",
+      "hashAfter": "9853e99cb7e9817f7ee8b6fb9ade7c8e023d2520647034a098f7f85ed81e9cb0",
+      "protected": false
+    },
+    {
+      "index": 4,
+      "name": "FLAT_NM.png",
+      "before": [
+        32,
+        32
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "constantPixel": [
+        129,
+        128,
+        255
+      ],
+      "bytesBefore": 99,
+      "bytesAfter": 69,
+      "hashBefore": "f124b625ccba125915333bf399cd377532f5fc26ba97536ea5a44d57a41732be",
+      "hashAfter": "299ca78d006d2d6049a6900a5fc5232526c8bfdce45003509d5cfabef0367b53",
+      "protected": false
+    },
+    {
+      "index": 5,
+      "name": "INT_MattePlastic_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 674920,
+      "bytesAfter": 674920,
+      "hashBefore": "48db6fdf108e8e026207960ccab8b439fce68008f40c1c5c5a6f3361f87cbeac",
+      "hashAfter": "48db6fdf108e8e026207960ccab8b439fce68008f40c1c5c5a6f3361f87cbeac",
+      "protected": true
+    },
+    {
+      "index": 6,
+      "name": "INT_MattePlastic_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 283740,
+      "bytesAfter": 283740,
+      "hashBefore": "828f1dae3ee246a1a526a2bb89d5cf0a35b1550152edc5eca38918cac80794ad",
+      "hashAfter": "828f1dae3ee246a1a526a2bb89d5cf0a35b1550152edc5eca38918cac80794ad",
+      "protected": true
+    },
+    {
+      "index": 7,
+      "name": "INT_Carpet_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 276510,
+      "bytesAfter": 276510,
+      "hashBefore": "1d0d5b3d8379f6498c75d772b4adcdde3feaac4154d1647bc7690b7a11463d11",
+      "hashAfter": "1d0d5b3d8379f6498c75d772b4adcdde3feaac4154d1647bc7690b7a11463d11",
+      "protected": true
+    },
+    {
+      "index": 8,
+      "name": "INT_Carpet_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 104475,
+      "bytesAfter": 104475,
+      "hashBefore": "8e257054bcee0d514416c050e5142faad7113182e534b7d9fe48f6309eb253e5",
+      "hashAfter": "8e257054bcee0d514416c050e5142faad7113182e534b7d9fe48f6309eb253e5",
+      "protected": true
+    },
+    {
+      "index": 9,
+      "name": "INT_Leather_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 564098,
+      "bytesAfter": 564098,
+      "hashBefore": "9f85088e8cdac7e461ccde8ea728cbb302f640e12030b4ae556a6f7650d38f09",
+      "hashAfter": "9f85088e8cdac7e461ccde8ea728cbb302f640e12030b4ae556a6f7650d38f09",
+      "protected": true
+    },
+    {
+      "index": 10,
+      "name": "INT_Leather_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 227034,
+      "bytesAfter": 227034,
+      "hashBefore": "4a1c6b11c1fd3badd2d74ac959e064ef021589e5b9b847b493b683d5bf751b7d",
+      "hashAfter": "4a1c6b11c1fd3badd2d74ac959e064ef021589e5b9b847b493b683d5bf751b7d",
+      "protected": true
+    },
+    {
+      "index": 11,
+      "name": "INT_Carbon_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 158231,
+      "bytesAfter": 158231,
+      "hashBefore": "48c5ae21b3e3c445014c626f45c4bec0421ac79ae34060d4be5b168e15fe420f",
+      "hashAfter": "48c5ae21b3e3c445014c626f45c4bec0421ac79ae34060d4be5b168e15fe420f",
+      "protected": true
+    },
+    {
+      "index": 12,
+      "name": "INT_Carbon_ambient_occlusion_rough3000.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 25665,
+      "bytesAfter": 25665,
+      "hashBefore": "a4db3654bc53d09afea2c24f257386f138be60e53e5b7add1685a8e40717220a",
+      "hashAfter": "a4db3654bc53d09afea2c24f257386f138be60e53e5b7add1685a8e40717220a",
+      "protected": true
+    },
+    {
+      "index": 13,
+      "name": "INT_Leather_P_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 81380,
+      "bytesAfter": 81380,
+      "hashBefore": "f1535a087d83f68fb741734ec7c9353580fc6df6259a11563ec49d3a35d148cb",
+      "hashAfter": "f1535a087d83f68fb741734ec7c9353580fc6df6259a11563ec49d3a35d148cb",
+      "protected": true
+    },
+    {
+      "index": 14,
+      "name": "INT_Leather_P_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 30240,
+      "bytesAfter": 30240,
+      "hashBefore": "d0b6197148e52ed3a4d5e376c7a433982be3ef684ca854525f67126714134abe",
+      "hashAfter": "d0b6197148e52ed3a4d5e376c7a433982be3ef684ca854525f67126714134abe",
+      "protected": true
+    },
+    {
+      "index": 15,
+      "name": "INT_Seatbelts_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 244841,
+      "bytesAfter": 244841,
+      "hashBefore": "edd7c038aef86b297b778a0af240e4a54cfd998fda1a260b34154e92196d03e1",
+      "hashAfter": "edd7c038aef86b297b778a0af240e4a54cfd998fda1a260b34154e92196d03e1",
+      "protected": true
+    },
+    {
+      "index": 16,
+      "name": "INT_Seatbelts_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 88159,
+      "bytesAfter": 88159,
+      "hashBefore": "ce3e81ab6ca30ca88c612d8b96e98d70c923ec15c1476a6c68e5de0d330cdbcd",
+      "hashAfter": "ce3e81ab6ca30ca88c612d8b96e98d70c923ec15c1476a6c68e5de0d330cdbcd",
+      "protected": true
+    },
+    {
+      "index": 17,
+      "name": "INT_Alcantara_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 277543,
+      "bytesAfter": 277543,
+      "hashBefore": "56ba3ec6b9b8e2e67ed2ff4ae23a00d7db3e7ef247c2068a20fc9de45c67d059",
+      "hashAfter": "56ba3ec6b9b8e2e67ed2ff4ae23a00d7db3e7ef247c2068a20fc9de45c67d059",
+      "protected": true
+    },
+    {
+      "index": 18,
+      "name": "INT_Alcantara_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 102967,
+      "bytesAfter": 102967,
+      "hashBefore": "6a6f1372816f44129d2c38ac2f6fddedf25a35209851d912db246bdd781e6612",
+      "hashAfter": "6a6f1372816f44129d2c38ac2f6fddedf25a35209851d912db246bdd781e6612",
+      "protected": true
+    },
+    {
+      "index": 19,
+      "name": "INT_Roof_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 154723,
+      "bytesAfter": 154723,
+      "hashBefore": "e99e338fadade09d2768712538c8e06482362c967c67a3f90ffc126989d11dbe",
+      "hashAfter": "e99e338fadade09d2768712538c8e06482362c967c67a3f90ffc126989d11dbe",
+      "protected": true
+    },
+    {
+      "index": 20,
+      "name": "INT_Roof_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 49972,
+      "bytesAfter": 49972,
+      "hashBefore": "cb63b39e35e30329e0d41aeb223531c3588f5867832192c9107c3937d2b63549",
+      "hashAfter": "cb63b39e35e30329e0d41aeb223531c3588f5867832192c9107c3937d2b63549",
+      "protected": true
+    },
+    {
+      "index": 21,
+      "name": "INT_PianoBlack_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 214613,
+      "bytesAfter": 214613,
+      "hashBefore": "81a74ba1e6ff6ad6619a835b4d58b221f92409b7b79496fdaeccf1e955d8266c",
+      "hashAfter": "81a74ba1e6ff6ad6619a835b4d58b221f92409b7b79496fdaeccf1e955d8266c",
+      "protected": true
+    },
+    {
+      "index": 22,
+      "name": "INT_PianoBlack_ambient_occlusion_rough12.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 153059,
+      "bytesAfter": 153059,
+      "hashBefore": "200979bfd0d3d3ced517407eec381927b0473845d2defffda9ba0e4d98880056",
+      "hashAfter": "200979bfd0d3d3ced517407eec381927b0473845d2defffda9ba0e4d98880056",
+      "protected": true
+    },
+    {
+      "index": 23,
+      "name": "INT_Chrome_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 562230,
+      "bytesAfter": 562230,
+      "hashBefore": "7525267e6430d085041957c858a741e1ebb2a306c491167a0b5e8e27262d2c64",
+      "hashAfter": "7525267e6430d085041957c858a741e1ebb2a306c491167a0b5e8e27262d2c64",
+      "protected": true
+    },
+    {
+      "index": 24,
+      "name": "INT_Chrome_ambient_occlusion_rough1.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 289244,
+      "bytesAfter": 289244,
+      "hashBefore": "ea3c3f11cf9c3239738d197cc3ca23b00b47cc1472e164a76c8447a7ebfefdbf",
+      "hashAfter": "ea3c3f11cf9c3239738d197cc3ca23b00b47cc1472e164a76c8447a7ebfefdbf",
+      "protected": true
+    },
+    {
+      "index": 25,
+      "name": "INT_Speakrs_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 87886,
+      "bytesAfter": 87886,
+      "hashBefore": "9d965c1ec360cd5b432f93b097e820a320ef859112f9f70e1b153ea87637d75d",
+      "hashAfter": "9d965c1ec360cd5b432f93b097e820a320ef859112f9f70e1b153ea87637d75d",
+      "protected": true
+    },
+    {
+      "index": 26,
+      "name": "INT_Speakrs_ambient_occlusion_rough750.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 16943,
+      "bytesAfter": 16943,
+      "hashBefore": "025fe473e68931db7e27f832820a90646ce1e8438fc56c7ef24df57382c17333",
+      "hashAfter": "025fe473e68931db7e27f832820a90646ce1e8438fc56c7ef24df57382c17333",
+      "protected": true
+    },
+    {
+      "index": 27,
+      "name": "INT_Red_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 205270,
+      "bytesAfter": 205270,
+      "hashBefore": "89c76e47ff8d532145848e552b9833012db8093d03790c859311dd93242dbd1c",
+      "hashAfter": "89c76e47ff8d532145848e552b9833012db8093d03790c859311dd93242dbd1c",
+      "protected": true
+    },
+    {
+      "index": 28,
+      "name": "INT_Red_ambient_occlusion_rough7.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 117948,
+      "bytesAfter": 117948,
+      "hashBefore": "363e0522ea7ee90d691e2a31ea1f9fbd020e9aae84014c495a09a7c7d7ee0078",
+      "hashAfter": "363e0522ea7ee90d691e2a31ea1f9fbd020e9aae84014c495a09a7c7d7ee0078",
+      "protected": true
+    },
+    {
+      "index": 29,
+      "name": "INT_Leather2_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 216317,
+      "bytesAfter": 216317,
+      "hashBefore": "bf758123863d578f353cdf19907401263e81e9687d0d503d9903dc241dbb6af9",
+      "hashAfter": "bf758123863d578f353cdf19907401263e81e9687d0d503d9903dc241dbb6af9",
+      "protected": true
+    },
+    {
+      "index": 30,
+      "name": "INT_Leather2_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 80609,
+      "bytesAfter": 80609,
+      "hashBefore": "5cdb533d332fff9eea827929c2c40e14e2bfe5c4df7a8cb113d2aaa7a1953bfd",
+      "hashAfter": "5cdb533d332fff9eea827929c2c40e14e2bfe5c4df7a8cb113d2aaa7a1953bfd",
+      "protected": true
+    },
+    {
+      "index": 31,
+      "name": "Cluster.png",
+      "before": [
+        512,
+        189
+      ],
+      "after": [
+        512,
+        189
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 41542,
+      "bytesAfter": 41542,
+      "hashBefore": "e9d58765a0767c064dd9eda1ea579bcf17288d0e8799e36c70b0adc7c93fd03a",
+      "hashAfter": "e9d58765a0767c064dd9eda1ea579bcf17288d0e8799e36c70b0adc7c93fd03a",
+      "protected": true
+    },
+    {
+      "index": 32,
+      "name": "10- 7.png",
+      "before": [
+        959,
+        479
+      ],
+      "after": [
+        959,
+        479
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 315486,
+      "bytesAfter": 315486,
+      "hashBefore": "421185ebc2de5e5c6f4d8ee39e6219e12a192809fb1fde411277f6f5bc38c8fb",
+      "hashAfter": "421185ebc2de5e5c6f4d8ee39e6219e12a192809fb1fde411277f6f5bc38c8fb",
+      "protected": true
+    },
+    {
+      "index": 33,
+      "name": "T_Dashboard_D.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 102006,
+      "bytesAfter": 102006,
+      "hashBefore": "52d69ea5c91f88d540a753ea148646a1c20cb4700d95908c7d805a6ce0cb42a9",
+      "hashAfter": "52d69ea5c91f88d540a753ea148646a1c20cb4700d95908c7d805a6ce0cb42a9",
+      "protected": true
+    },
+    {
+      "index": 34,
+      "name": "Steering_Leather_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 212129,
+      "bytesAfter": 212129,
+      "hashBefore": "f82ddb4cce96163fbad8b293f4d4e677140fc8b3a1498d8c58b8769bd16b58ab",
+      "hashAfter": "f82ddb4cce96163fbad8b293f4d4e677140fc8b3a1498d8c58b8769bd16b58ab",
+      "protected": true
+    },
+    {
+      "index": 35,
+      "name": "Steering_Leather_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 71252,
+      "bytesAfter": 71252,
+      "hashBefore": "160d75fe3fa222c50d1a059870260817d3ade87129f071c64f36c5b53e37f9ab",
+      "hashAfter": "160d75fe3fa222c50d1a059870260817d3ade87129f071c64f36c5b53e37f9ab",
+      "protected": true
+    },
+    {
+      "index": 36,
+      "name": "Steering_Alcantara_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 205795,
+      "bytesAfter": 205795,
+      "hashBefore": "cd12109dd9fb52f64128577c20f1a544c5791fb51996776d3742ab83975d0bac",
+      "hashAfter": "cd12109dd9fb52f64128577c20f1a544c5791fb51996776d3742ab83975d0bac",
+      "protected": true
+    },
+    {
+      "index": 37,
+      "name": "Steering_Alcantara_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 68895,
+      "bytesAfter": 68895,
+      "hashBefore": "0d663f397f4d01f1bcef74eca3f858ba27e05c3342012fed2858a844d34f0165",
+      "hashAfter": "0d663f397f4d01f1bcef74eca3f858ba27e05c3342012fed2858a844d34f0165",
+      "protected": true
+    },
+    {
+      "index": 38,
+      "name": "Steering_MattePlastic_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 139201,
+      "bytesAfter": 139201,
+      "hashBefore": "310f5b0344bfaf1799b87a5ae759526e6fd498ae9862572ec79ae2e70aa0ffcf",
+      "hashAfter": "310f5b0344bfaf1799b87a5ae759526e6fd498ae9862572ec79ae2e70aa0ffcf",
+      "protected": true
+    },
+    {
+      "index": 39,
+      "name": "Steering_MattePlastic_ambient_occlusion_rough7.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 126504,
+      "bytesAfter": 126504,
+      "hashBefore": "bd3847b6273d61d9f739d59c79512f38376f6e95219ca3430293cfede8be9d05",
+      "hashAfter": "bd3847b6273d61d9f739d59c79512f38376f6e95219ca3430293cfede8be9d05",
+      "protected": true
+    },
+    {
+      "index": 40,
+      "name": "Brake_Disc_DIF.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 109874,
+      "bytesAfter": 109874,
+      "hashBefore": "625688ffa30c6ff966fea7314500fa1486c6381df3f4b4e7a155cfe211c38b4c",
+      "hashAfter": "625688ffa30c6ff966fea7314500fa1486c6381df3f4b4e7a155cfe211c38b4c",
+      "protected": true
+    },
+    {
+      "index": 41,
+      "name": "Brake_Disc_NM.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 136653,
+      "bytesAfter": 136653,
+      "hashBefore": "4fa960da18c1be5b9de20b819d32e93dde8650431a452d585ea0dd26b5d91f50",
+      "hashAfter": "4fa960da18c1be5b9de20b819d32e93dde8650431a452d585ea0dd26b5d91f50",
+      "protected": true
+    },
+    {
+      "index": 42,
+      "name": "brake_steel.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 468027,
+      "bytesAfter": 468027,
+      "hashBefore": "75049d42de0701a379714b45a5f2c1269722a6c51dfae3dc440c1c9bf79f1850",
+      "hashAfter": "75049d42de0701a379714b45a5f2c1269722a6c51dfae3dc440c1c9bf79f1850",
+      "protected": true
+    },
+    {
+      "index": 43,
+      "name": "brake_steel_rough0.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 158550,
+      "bytesAfter": 158550,
+      "hashBefore": "b372c4cf3c906c98269326eeb79af4ebb1c8cb9ac684f4b23fed61ca7d5571e7",
+      "hashAfter": "b372c4cf3c906c98269326eeb79af4ebb1c8cb9ac684f4b23fed61ca7d5571e7",
+      "protected": true
+    },
+    {
+      "index": 44,
+      "name": "headlight_chrome_1.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 580191,
+      "bytesAfter": 580191,
+      "hashBefore": "5977272cf9c73a160a0edcaa97ca77b42043db7cdea71b12eb8fbea43dff1038",
+      "hashAfter": "5977272cf9c73a160a0edcaa97ca77b42043db7cdea71b12eb8fbea43dff1038",
+      "protected": true
+    },
+    {
+      "index": 45,
+      "name": "headlight_chrome_1_rough1800.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 187745,
+      "bytesAfter": 187745,
+      "hashBefore": "55a8f8ddcebbeb826ca9490044a370223deca193d523b7a647d6e9b81a791546",
+      "hashAfter": "55a8f8ddcebbeb826ca9490044a370223deca193d523b7a647d6e9b81a791546",
+      "protected": true
+    },
+    {
+      "index": 46,
+      "name": "EXT_Carpaint_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 234293,
+      "bytesAfter": 234293,
+      "hashBefore": "50456f36c2a2718d7366f346bb5c538beff60a2817312fc3d5eef07a51906117",
+      "hashAfter": "50456f36c2a2718d7366f346bb5c538beff60a2817312fc3d5eef07a51906117",
+      "protected": true
+    },
+    {
+      "index": 47,
+      "name": "EXT_Carpaint_ambient_occlusion_rough12.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 124881,
+      "bytesAfter": 124881,
+      "hashBefore": "3f6a39e929894df4cdce27276c7e3ed8712889309a27e04a52d7277819332548",
+      "hashAfter": "3f6a39e929894df4cdce27276c7e3ed8712889309a27e04a52d7277819332548",
+      "protected": true
+    },
+    {
+      "index": 48,
+      "name": "EXT_PianoBlack_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 445369,
+      "bytesAfter": 445369,
+      "hashBefore": "08ea5f78b3b0156c8fcd4be18851d00c6f0d71469ab55d9eb6dae7e1ccf89830",
+      "hashAfter": "08ea5f78b3b0156c8fcd4be18851d00c6f0d71469ab55d9eb6dae7e1ccf89830",
+      "protected": true
+    },
+    {
+      "index": 49,
+      "name": "EXT_PianoBlack_ambient_occlusion_rough12.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 273420,
+      "bytesAfter": 273420,
+      "hashBefore": "07ee25a5489b7e02e4949c715bbeb0cebe6fb897f56f869c84097d43ae36d9ab",
+      "hashAfter": "07ee25a5489b7e02e4949c715bbeb0cebe6fb897f56f869c84097d43ae36d9ab",
+      "protected": true
+    },
+    {
+      "index": 50,
+      "name": "INT_Rubber_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 262221,
+      "bytesAfter": 262221,
+      "hashBefore": "dd4bc49a5dc099576180720abca40eb64be2dd6e932a5f55046744ccf61fea05",
+      "hashAfter": "dd4bc49a5dc099576180720abca40eb64be2dd6e932a5f55046744ccf61fea05",
+      "protected": true
+    },
+    {
+      "index": 51,
+      "name": "INT_Rubber_ambient_occlusion_rough2.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 143180,
+      "bytesAfter": 143180,
+      "hashBefore": "df04f8e4448742a298da70cfaf5ed51f5fb1ed04aed5bcc33d4d0c95486b1ded",
+      "hashAfter": "df04f8e4448742a298da70cfaf5ed51f5fb1ed04aed5bcc33d4d0c95486b1ded",
+      "protected": true
+    },
+    {
+      "index": 52,
+      "name": "INT_Carpaint_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 455047,
+      "bytesAfter": 455047,
+      "hashBefore": "2b884aaf29a432c538c2c1848b0030425550567aa1680d7afd28daf9fd0b81f4",
+      "hashAfter": "2b884aaf29a432c538c2c1848b0030425550567aa1680d7afd28daf9fd0b81f4",
+      "protected": true
+    },
+    {
+      "index": 53,
+      "name": "INT_Carpaint_ambient_occlusion_rough12.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 238121,
+      "bytesAfter": 238121,
+      "hashBefore": "682f2e12b6ebf7acd01ffacb11d6ae45ef82f3eaec0305006f9a1d5c7a4afd3e",
+      "hashAfter": "682f2e12b6ebf7acd01ffacb11d6ae45ef82f3eaec0305006f9a1d5c7a4afd3e",
+      "protected": true
+    },
+    {
+      "index": 54,
+      "name": "Signals_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 27015,
+      "bytesAfter": 27015,
+      "hashBefore": "0f6d6b6d5b9ec4e31ea3d63526a7773fb1ae5e2b347a804e9e0d0d3ece4d4b0a",
+      "hashAfter": "0f6d6b6d5b9ec4e31ea3d63526a7773fb1ae5e2b347a804e9e0d0d3ece4d4b0a",
+      "protected": true
+    },
+    {
+      "index": 55,
+      "name": "Signals_ambient_occlusion_rough1800.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "constantPixel": [
+        0,
+        10,
+        0
+      ],
+      "bytesBefore": 5334,
+      "bytesAfter": 69,
+      "hashBefore": "6108a115fc1141faf7f1b574a6862a8325ed277c8780b277f1255870ddf91608",
+      "hashAfter": "6eaca3815d82d08923b341adb92d3e091be3f3842829c05ddf867ad9099b2c85",
+      "protected": false
+    },
+    {
+      "index": 56,
+      "name": "EXT_MattePlastic_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 447229,
+      "bytesAfter": 447229,
+      "hashBefore": "f820885e530ec30f21b4c78b6c10b0121f205e0b932894b60695ce3bcddde4ba",
+      "hashAfter": "f820885e530ec30f21b4c78b6c10b0121f205e0b932894b60695ce3bcddde4ba",
+      "protected": true
+    },
+    {
+      "index": 57,
+      "name": "EXT_MattePlastic_ambient_occlusion_rough7.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 317441,
+      "bytesAfter": 317441,
+      "hashBefore": "2444e4a87ac6263617bbdbc8a68556d9b1400f5a3721ce906c5a7a3b1d18212e",
+      "hashAfter": "2444e4a87ac6263617bbdbc8a68556d9b1400f5a3721ce906c5a7a3b1d18212e",
+      "protected": true
+    },
+    {
+      "index": 58,
+      "name": "EXT_Chrome_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 296747,
+      "bytesAfter": 296747,
+      "hashBefore": "c54eafddbe34aefd27ce8e8d2f903377b8b86a0a9773cce2511ce75d46d98306",
+      "hashAfter": "c54eafddbe34aefd27ce8e8d2f903377b8b86a0a9773cce2511ce75d46d98306",
+      "protected": true
+    },
+    {
+      "index": 59,
+      "name": "EXT_Chrome_ambient_occlusion_rough1800.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 105283,
+      "bytesAfter": 105283,
+      "hashBefore": "33b20efb569de86e9a429196b62f440f3930c4312abcb5208d1e4814d09c34be",
+      "hashAfter": "33b20efb569de86e9a429196b62f440f3930c4312abcb5208d1e4814d09c34be",
+      "protected": true
+    },
+    {
+      "index": 60,
+      "name": "EXH_Black_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 195809,
+      "bytesAfter": 195809,
+      "hashBefore": "dd0768a03e13734e5e754f6b40cf843cbbce02d8722c4257834710358e6a82cb",
+      "hashAfter": "dd0768a03e13734e5e754f6b40cf843cbbce02d8722c4257834710358e6a82cb",
+      "protected": true
+    },
+    {
+      "index": 61,
+      "name": "EXH_Black_ambient_occlusion_rough1.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 100444,
+      "bytesAfter": 100444,
+      "hashBefore": "4aa769ba3723233242e974838d1a93be6a091fec7b9bfcb1e5596b8cdcb15889",
+      "hashAfter": "4aa769ba3723233242e974838d1a93be6a091fec7b9bfcb1e5596b8cdcb15889",
+      "protected": true
+    },
+    {
+      "index": 62,
+      "name": "tailights_satin_metal_bright.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 309434,
+      "bytesAfter": 309434,
+      "hashBefore": "d1c1df48b7b54881323379cfde074a7d328d97915e0ee50d25a87664fd026fd3",
+      "hashAfter": "d1c1df48b7b54881323379cfde074a7d328d97915e0ee50d25a87664fd026fd3",
+      "protected": true
+    },
+    {
+      "index": 63,
+      "name": "tailights_satin_metal_bright_rough1.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 143059,
+      "bytesAfter": 143059,
+      "hashBefore": "9bc41c93aa85049039cbb806a97c7d7aac786abc81558cf812c3a00bb22191a8",
+      "hashAfter": "9bc41c93aa85049039cbb806a97c7d7aac786abc81558cf812c3a00bb22191a8",
+      "protected": true
+    },
+    {
+      "index": 64,
+      "name": "GRID.png",
+      "before": [
+        256,
+        128
+      ],
+      "after": [
+        256,
+        128
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 5906,
+      "bytesAfter": 5906,
+      "hashBefore": "2bd1cf393b58732cbb5d3c4785e61ffca1c9fb3bf677597b7b30c30102514c9b",
+      "hashAfter": "2bd1cf393b58732cbb5d3c4785e61ffca1c9fb3bf677597b7b30c30102514c9b",
+      "protected": true
+    },
+    {
+      "index": 65,
+      "name": "GRID_NM.png",
+      "before": [
+        256,
+        128
+      ],
+      "after": [
+        256,
+        128
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 7486,
+      "bytesAfter": 7486,
+      "hashBefore": "633bdff90b92dd822d7e4c2d657cc753b6f4634a264d0e6ffc9d1f64d9ce2a97",
+      "hashAfter": "633bdff90b92dd822d7e4c2d657cc753b6f4634a264d0e6ffc9d1f64d9ce2a97",
+      "protected": true
+    },
+    {
+      "index": 66,
+      "name": "T_Light_E.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 98651,
+      "bytesAfter": 98651,
+      "hashBefore": "678952d0f2ab5d37efcec408c86af27f012da7be5d4e8e10a9217b1c5e53db82",
+      "hashAfter": "678952d0f2ab5d37efcec408c86af27f012da7be5d4e8e10a9217b1c5e53db82",
+      "protected": true
+    },
+    {
+      "index": 67,
+      "name": "T_Logo_D.png",
+      "before": [
+        256,
+        256
+      ],
+      "after": [
+        256,
+        256
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 32733,
+      "bytesAfter": 32733,
+      "hashBefore": "e80ecca252a22bf7271f07ee5168ee601090a010cfcf4c7fd2ad0d73d3c43563",
+      "hashAfter": "e80ecca252a22bf7271f07ee5168ee601090a010cfcf4c7fd2ad0d73d3c43563",
+      "protected": true
+    },
+    {
+      "index": 68,
+      "name": "T_Logo_N.png",
+      "before": [
+        256,
+        256
+      ],
+      "after": [
+        256,
+        256
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 57432,
+      "bytesAfter": 57432,
+      "hashBefore": "3ab5d936a88ce8de984702b467b91ba987950a21bda61670ebb4be624d972610",
+      "hashAfter": "3ab5d936a88ce8de984702b467b91ba987950a21bda61670ebb4be624d972610",
+      "protected": true
+    },
+    {
+      "index": 69,
+      "name": "T_Engine_D.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 108104,
+      "bytesAfter": 108104,
+      "hashBefore": "fbc8ccf7919eb97ad78715b842996a194b27b19afb149cabe1d91c5971e4df88",
+      "hashAfter": "fbc8ccf7919eb97ad78715b842996a194b27b19afb149cabe1d91c5971e4df88",
+      "protected": true
+    },
+    {
+      "index": 70,
+      "name": "T_Engine_N.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 145980,
+      "bytesAfter": 145980,
+      "hashBefore": "10a816485289a2ca81babc8913cdaeeec37d574ce3b875a454cc64fa7f2682b5",
+      "hashAfter": "10a816485289a2ca81babc8913cdaeeec37d574ce3b875a454cc64fa7f2682b5",
+      "protected": true
+    },
+    {
+      "index": 71,
+      "name": "ENG_Carbon_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 104549,
+      "bytesAfter": 104549,
+      "hashBefore": "e1ed5252c5af2cf643f50bfa17b818fccb6fcfe01eeb48ecbe656d788d384ebe",
+      "hashAfter": "e1ed5252c5af2cf643f50bfa17b818fccb6fcfe01eeb48ecbe656d788d384ebe",
+      "protected": true
+    },
+    {
+      "index": 72,
+      "name": "ENG_Carbon_ambient_occlusion_rough3000.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "constantPixel": [
+        0,
+        10,
+        0
+      ],
+      "bytesBefore": 5334,
+      "bytesAfter": 69,
+      "hashBefore": "6108a115fc1141faf7f1b574a6862a8325ed277c8780b277f1255870ddf91608",
+      "hashAfter": "6eaca3815d82d08923b341adb92d3e091be3f3842829c05ddf867ad9099b2c85",
+      "protected": false
+    },
+    {
+      "index": 73,
+      "name": "EXT_Red_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 102109,
+      "bytesAfter": 102109,
+      "hashBefore": "24b3aed08b73b00e39d15223eef1e215be17f416c4899bd63a31863ef7c39454",
+      "hashAfter": "24b3aed08b73b00e39d15223eef1e215be17f416c4899bd63a31863ef7c39454",
+      "protected": true
+    },
+    {
+      "index": 74,
+      "name": "EXT_Red_ambient_occlusion_rough750.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 14892,
+      "bytesAfter": 14892,
+      "hashBefore": "b60d664a653bd49195a691529c882e6bcaa2e3f32e6cb14142926239ce64c5c7",
+      "hashAfter": "b60d664a653bd49195a691529c882e6bcaa2e3f32e6cb14142926239ce64c5c7",
+      "protected": true
+    },
+    {
+      "index": 75,
+      "name": "led.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "constantPixel": [
+        255,
+        255,
+        255
+      ],
+      "bytesBefore": 16912,
+      "bytesAfter": 69,
+      "hashBefore": "79f9cdd920ff0d4b3a17ff949fa739da75a1ca6113c40629430c09debbf29753",
+      "hashAfter": "9853e99cb7e9817f7ee8b6fb9ade7c8e023d2520647034a098f7f85ed81e9cb0",
+      "protected": false
+    },
+    {
+      "index": 76,
+      "name": "tailights_chrome_1.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 1444168,
+      "bytesAfter": 1444168,
+      "hashBefore": "540330665c5825f0949c22ce6bd81813f2c7195a2f1c0fdb54664194dfa8809e",
+      "hashAfter": "540330665c5825f0949c22ce6bd81813f2c7195a2f1c0fdb54664194dfa8809e",
+      "protected": true
+    },
+    {
+      "index": 77,
+      "name": "tailights_chrome_1_rough1800.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 414730,
+      "bytesAfter": 414730,
+      "hashBefore": "8b64c99186feafdbf4c525366e419c06a3693f07c23f06f7408a8126c930e034",
+      "hashAfter": "8b64c99186feafdbf4c525366e419c06a3693f07c23f06f7408a8126c930e034",
+      "protected": true
+    },
+    {
+      "index": 78,
+      "name": "tailights_diamond_metal_chrome.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 848486,
+      "bytesAfter": 848486,
+      "hashBefore": "ded1b29a1c72824864f732af95c8c0bef3500c3c74a87a7080b31e1ef61639bb",
+      "hashAfter": "ded1b29a1c72824864f732af95c8c0bef3500c3c74a87a7080b31e1ef61639bb",
+      "protected": true
+    },
+    {
+      "index": 79,
+      "name": "tailights_diamond_metal_chrome_rough3.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 406583,
+      "bytesAfter": 406583,
+      "hashBefore": "69e9554b5bc5de11ef9619c8de975252971bbc26d0632c282576f956fbeccdee",
+      "hashAfter": "69e9554b5bc5de11ef9619c8de975252971bbc26d0632c282576f956fbeccdee",
+      "protected": true
+    },
+    {
+      "index": 80,
+      "name": "chrome_tt.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "constantPixel": [
+        255,
+        255,
+        255
+      ],
+      "bytesBefore": 16912,
+      "bytesAfter": 69,
+      "hashBefore": "79f9cdd920ff0d4b3a17ff949fa739da75a1ca6113c40629430c09debbf29753",
+      "hashAfter": "9853e99cb7e9817f7ee8b6fb9ade7c8e023d2520647034a098f7f85ed81e9cb0",
+      "protected": false
+    },
+    {
+      "index": 81,
+      "name": "headlight_satin_metal_1.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 354292,
+      "bytesAfter": 354292,
+      "hashBefore": "dcf94d5189e787c215839ca6db58898d9e1313cd4b334fca26e3aa8c1e70932f",
+      "hashAfter": "dcf94d5189e787c215839ca6db58898d9e1313cd4b334fca26e3aa8c1e70932f",
+      "protected": true
+    },
+    {
+      "index": 82,
+      "name": "headlight_satin_metal_1_rough1.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 135259,
+      "bytesAfter": 135259,
+      "hashBefore": "3bef4046759f2dc23933c7c82711298097b28d3ac10931274e9f5e4d8ee78f91",
+      "hashAfter": "3bef4046759f2dc23933c7c82711298097b28d3ac10931274e9f5e4d8ee78f91",
+      "protected": true
+    },
+    {
+      "index": 83,
+      "name": "headlight_matte_plastic_1.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 776241,
+      "bytesAfter": 776241,
+      "hashBefore": "29939f7867c4d2f99f488e4a62f97f4d1b155b4a9f73f7b258e45d6870f81966",
+      "hashAfter": "29939f7867c4d2f99f488e4a62f97f4d1b155b4a9f73f7b258e45d6870f81966",
+      "protected": true
+    },
+    {
+      "index": 84,
+      "name": "headlight_matte_plastic_1_rough0.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 279057,
+      "bytesAfter": 279057,
+      "hashBefore": "0916c85c5a2726f1553aeb1a7172f44e10b470fcc4f3d09c58a7027b793d56ca",
+      "hashAfter": "0916c85c5a2726f1553aeb1a7172f44e10b470fcc4f3d09c58a7027b793d56ca",
+      "protected": true
+    },
+    {
+      "index": 85,
+      "name": "headlight_blue_plastic.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 668679,
+      "bytesAfter": 668679,
+      "hashBefore": "cab171f046cbd160f7b27e5351d21c338f6e857ec3ce324b8fb3b019fa0918c0",
+      "hashAfter": "cab171f046cbd160f7b27e5351d21c338f6e857ec3ce324b8fb3b019fa0918c0",
+      "protected": true
+    },
+    {
+      "index": 86,
+      "name": "headlight_blue_plastic_rough12.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 320485,
+      "bytesAfter": 320485,
+      "hashBefore": "006143d3dae0de0418b0c491f8f9aae9b766bdc591bc91d1f793f5ba2988c425",
+      "hashAfter": "006143d3dae0de0418b0c491f8f9aae9b766bdc591bc91d1f793f5ba2988c425",
+      "protected": true
+    },
+    {
+      "index": 87,
+      "name": "headlight_piano_black.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 811415,
+      "bytesAfter": 811415,
+      "hashBefore": "9ca00004a799da41dfc462a700e090c5946a0f65f4757b0c75cd9686c4776536",
+      "hashAfter": "9ca00004a799da41dfc462a700e090c5946a0f65f4757b0c75cd9686c4776536",
+      "protected": true
+    },
+    {
+      "index": 88,
+      "name": "headlight_piano_black_rough12.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 431705,
+      "bytesAfter": 431705,
+      "hashBefore": "dc3a83164ff3249ee8863f3d9a4c27eec7ef12c7c09f489a685c9f49848a7440",
+      "hashAfter": "dc3a83164ff3249ee8863f3d9a4c27eec7ef12c7c09f489a685c9f49848a7440",
+      "protected": true
+    },
+    {
+      "index": 89,
+      "name": "headlight_chrome_reflector.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 338090,
+      "bytesAfter": 338090,
+      "hashBefore": "36934ed58bfa3ff63590c7d7b40aef54d6b9eafc0ca9ee75721aabfaad636d69",
+      "hashAfter": "36934ed58bfa3ff63590c7d7b40aef54d6b9eafc0ca9ee75721aabfaad636d69",
+      "protected": true
+    },
+    {
+      "index": 90,
+      "name": "headlight_chrome_reflector_rough19.png",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 196479,
+      "bytesAfter": 196479,
+      "hashBefore": "1909dcafcf6f5b4125b0504b6028a43472c0381885fbaadd0a0beffc7012b9cd",
+      "hashAfter": "1909dcafcf6f5b4125b0504b6028a43472c0381885fbaadd0a0beffc7012b9cd",
+      "protected": true
+    },
+    {
+      "index": 91,
+      "name": "headlight_normal.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 2247,
+      "bytesAfter": 2247,
+      "hashBefore": "e0e51700b6e84484884ebff19df4cf11712a0ec9c21b6d8518b755620b2cc126",
+      "hashAfter": "e0e51700b6e84484884ebff19df4cf11712a0ec9c21b6d8518b755620b2cc126",
+      "protected": true
+    },
+    {
+      "index": 92,
+      "name": "black4.png",
+      "before": [
+        800,
+        600
+      ],
+      "after": [
+        1,
+        1
+      ],
+      "uniform": true,
+      "sampledConstant": true,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "constantPixel": [
+        0,
+        0,
+        0
+      ],
+      "bytesBefore": 1476,
+      "bytesAfter": 69,
+      "hashBefore": "0e78e1e00e1b64efefcadff280b26c47573f6b85aa1a36b6d7773abfbc2088f9",
+      "hashAfter": "1280e8de649805526731cc11672b0479f5ca25d9bd7ebf7a3375f8a9c966205e",
+      "protected": false
+    },
+    {
+      "index": 93,
+      "name": "A_H_M_1.png",
+      "before": [
+        1494,
+        720
+      ],
+      "after": [
+        1494,
+        720
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 465140,
+      "bytesAfter": 465140,
+      "hashBefore": "fcdcc237e94cea9fcf02040d32a2e2c017870c6571b0e6635ce62720398e9f23",
+      "hashAfter": "fcdcc237e94cea9fcf02040d32a2e2c017870c6571b0e6635ce62720398e9f23",
+      "protected": true
+    },
+    {
+      "index": 94,
+      "name": "A_H_M_1_NM.png",
+      "before": [
+        1494,
+        720
+      ],
+      "after": [
+        1494,
+        720
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 868198,
+      "bytesAfter": 868198,
+      "hashBefore": "c57ca15709da15c494265b3b02e3f7172fefdc77cc1b5c40c0fb18475d0c7244",
+      "hashAfter": "c57ca15709da15c494265b3b02e3f7172fefdc77cc1b5c40c0fb18475d0c7244",
+      "protected": true
+    },
+    {
+      "index": 95,
+      "name": "ENG_Carpet_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 11659,
+      "bytesAfter": 11659,
+      "hashBefore": "823b5621b6338c89d306bce96b17e967e06d5d6ad3f932c68729f6eb926d0a11",
+      "hashAfter": "823b5621b6338c89d306bce96b17e967e06d5d6ad3f932c68729f6eb926d0a11",
+      "protected": true
+    },
+    {
+      "index": 96,
+      "name": "ENG_Carpet_ambient_occlusion_rough0.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 7089,
+      "bytesAfter": 7089,
+      "hashBefore": "e0e9ee2dbc32294c3143e01e3c867de3103f336a77db48ab59616d8a932c1ce6",
+      "hashAfter": "e0e9ee2dbc32294c3143e01e3c867de3103f336a77db48ab59616d8a932c1ce6",
+      "protected": true
+    },
+    {
+      "index": 97,
+      "name": "EXT_CALIPER_AO_SHOCKWORKS.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 510068,
+      "bytesAfter": 510068,
+      "hashBefore": "52ab570e1fbd10b8c8f348e49e6e992377a75c048be9afd0a3dd9df3d2fa1a42",
+      "hashAfter": "52ab570e1fbd10b8c8f348e49e6e992377a75c048be9afd0a3dd9df3d2fa1a42",
+      "protected": true
+    },
+    {
+      "index": 98,
+      "name": "EXT_CALIPER_AO_SHOCKWORKS_rough12.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 252842,
+      "bytesAfter": 252842,
+      "hashBefore": "fbdb4fbd8cb5846c212561256dd104ab5ce83bbd404986f431d4487d4bb6017b",
+      "hashAfter": "fbdb4fbd8cb5846c212561256dd104ab5ce83bbd404986f431d4487d4bb6017b",
+      "protected": true
+    },
+    {
+      "index": 99,
+      "name": "bodyparts.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 182485,
+      "bytesAfter": 182485,
+      "hashBefore": "d8b230ad7e9867e205bccf25c20ffe773b98018b30239929fb5d2db276277586",
+      "hashAfter": "d8b230ad7e9867e205bccf25c20ffe773b98018b30239929fb5d2db276277586",
+      "protected": true
+    },
+    {
+      "index": 100,
+      "name": "bodyparts_map_rough0.png",
+      "before": [
+        512,
+        512
+      ],
+      "after": [
+        512,
+        512
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 15543,
+      "bytesAfter": 15543,
+      "hashBefore": "2cfcff815fdcd289c853860bcebbdbf6338eecef6a0613b656bd1b70e821c340",
+      "hashAfter": "2cfcff815fdcd289c853860bcebbdbf6338eecef6a0613b656bd1b70e821c340",
+      "protected": true
+    },
+    {
+      "index": 101,
+      "name": "advan_ad08r_dif_v2.png",
+      "before": [
+        4096,
+        896
+      ],
+      "after": [
+        4096,
+        896
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 2306417,
+      "bytesAfter": 2306417,
+      "hashBefore": "8071edf972f002c954e4fdbe741b3b02c683170963308aefd4c1e78ab3c17089",
+      "hashAfter": "8071edf972f002c954e4fdbe741b3b02c683170963308aefd4c1e78ab3c17089",
+      "protected": true
+    },
+    {
+      "index": 102,
+      "name": "advan_ad08r_nm.png",
+      "before": [
+        8192,
+        1792
+      ],
+      "after": [
+        8192,
+        1792
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 2569639,
+      "bytesAfter": 2569639,
+      "hashBefore": "daaef17d9ff4f031465c5ac5d34a9828a010045c500223ba18d0d5e75d870b6c",
+      "hashAfter": "daaef17d9ff4f031465c5ac5d34a9828a010045c500223ba18d0d5e75d870b6c",
+      "protected": true
+    },
+    {
+      "index": 103,
+      "name": "Rim_Chrome_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 72380,
+      "bytesAfter": 72380,
+      "hashBefore": "1739f54c187c8b1caa814d6dd327c5615ed858cc8fecb9ed9df5179251f35f65",
+      "hashAfter": "1739f54c187c8b1caa814d6dd327c5615ed858cc8fecb9ed9df5179251f35f65",
+      "protected": true
+    },
+    {
+      "index": 104,
+      "name": "Rim_Chrome_ambient_occlusion_rough1.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 30219,
+      "bytesAfter": 30219,
+      "hashBefore": "e3614a6b17a01eabc8f5c5b98ab6ae27c598761ffd93ada28351be1b5b349792",
+      "hashAfter": "e3614a6b17a01eabc8f5c5b98ab6ae27c598761ffd93ada28351be1b5b349792",
+      "protected": true
+    },
+    {
+      "index": 105,
+      "name": "T_Rim_D.png",
+      "before": [
+        256,
+        256
+      ],
+      "after": [
+        256,
+        256
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 6145,
+      "bytesAfter": 6145,
+      "hashBefore": "705cdb5410bf829bef2dd92cfd0f7e3b55c107a86b8a252d66f1cd3c58081165",
+      "hashAfter": "705cdb5410bf829bef2dd92cfd0f7e3b55c107a86b8a252d66f1cd3c58081165",
+      "protected": true
+    },
+    {
+      "index": 106,
+      "name": "T_Rim_N.png",
+      "before": [
+        256,
+        256
+      ],
+      "after": [
+        256,
+        256
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2
+      ],
+      "bytesBefore": 9888,
+      "bytesAfter": 9888,
+      "hashBefore": "c74f12fcfc1a2d5f227309751c8e699b8026b685ac00e3a96d148e398e67940c",
+      "hashAfter": "c74f12fcfc1a2d5f227309751c8e699b8026b685ac00e3a96d148e398e67940c",
+      "protected": true
+    },
+    {
+      "index": 107,
+      "name": "RIM_ambient_occlusion.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "bytesBefore": 282618,
+      "bytesAfter": 282618,
+      "hashBefore": "931af3702de5efcc93ad608b66452dd949473f7b23bc98ba0bc054d9d0880ecb",
+      "hashAfter": "931af3702de5efcc93ad608b66452dd949473f7b23bc98ba0bc054d9d0880ecb",
+      "protected": true
+    },
+    {
+      "index": 108,
+      "name": "RIM_ambient_occlusion_rough12.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ],
+      "uniform": false,
+      "sampledConstant": false,
+      "sampledChannels": [
+        1,
+        2
+      ],
+      "bytesBefore": 160941,
+      "bytesAfter": 160941,
+      "hashBefore": "d72fd88c88a427c32d0404c585cc3cb9e49aeef925f58d89ecf35c5d1a6d25f5",
+      "hashAfter": "d72fd88c88a427c32d0404c585cc3cb9e49aeef925f58d89ecf35c5d1a6d25f5",
+      "protected": true
+    }
+  ]
+}

@@ -255,6 +255,13 @@ input[type='range'] {
   color: var(--dim);
   font-size: 12px;
 }
+.tune-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:18px; }
+.tune-fields label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--dim); }
+.tune-fields input { width:100%; }
+#trafficSpeedFields input { width:85px; }
+#trafficSpeedFields { overflow-x:auto; margin-bottom:18px; }
+#radioEdit { border:0; padding:0; min-width:0; }
+#radioProgress { color:var(--accent); font-size:12px; }
 
 .seg {
   display: inline-flex;

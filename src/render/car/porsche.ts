@@ -4,6 +4,7 @@ import { MeshoptDecoder } from 'meshoptimizer';
 import { PorscheInstruments } from './porscheCockpit';
 import type { PlayerCar } from '../../sim/vehicle';
 import { Indicators, type CarParts, type ModelLoad } from './index';
+import { cloneInSlices } from './clone';
 
 export const PORSCHE_PAINT = 0xfee1f9;
 export const PORSCHE_NAME = 'Porsche 911 GT3 RS · IRL Spec 10';
@@ -65,9 +66,10 @@ export function buildPorsche(paint: number, own: boolean, full: boolean, report:
     update(car:PlayerCar,dt:number){instruments.update(car,dt,steering,steerRest);},
   }:null;
   if(cockpit){cockpit.eye.position.set(-.35,1.04,.12);body.add(cockpit.eye,cockpit.group);}
-  if(full)void loadPorsche(report).then(model=>{
+  const ready=full?loadPorsche(report).then(async model=>{
     if(disposed)return;
-    const imported=model.clone(true);
+    const imported=own?model.clone(true):await cloneInSlices(model,()=>disposed);
+    if(!imported||disposed)return;
     imported.traverse(o=>{
       if(own&&['exterior-detail','window-glass','stock-gauges'].includes(o.userData.porscheVisibility))cockpitHidden.push(o);
       const mesh=o as THREE.Mesh;if(!mesh.isMesh)return;
@@ -105,7 +107,10 @@ export function buildPorsche(paint: number, own: boolean, full: boolean, report:
           let cheap=simpleMaterials.get(mat);
           if(!cheap){
             const original=mat as THREE.MeshStandardMaterial;
-            cheap=new THREE.MeshLambertMaterial({name:mat.name+'_cockpit',color:original.color,map:original.map,side:original.side,transparent:original.transparent,opacity:original.opacity,depthWrite:original.depthWrite});
+             cheap=new THREE.MeshLambertMaterial({name:mat.name+'_cockpit',color:original.color,map:original.map,side:original.side,transparent:original.transparent,opacity:original.opacity,depthWrite:original.depthWrite});
+             // The source rubber uses a grey PBR base. Without its PBR maps it became a bright,
+             // protruding-looking instrument surround; keep the cockpit's recess matte black.
+             if(/rubbertrim/i.test(mat.name))cheap.color.setRGB(.016,.017,.018);
             cheap.emissive.setRGB(.004,.0045,.005);
             simpleMaterials.set(mat,cheap);
           }
@@ -133,8 +138,9 @@ export function buildPorsche(paint: number, own: boolean, full: boolean, report:
     }
     body.add(imported);wheelRoot.add(detachedWheels);
     applyCockpit();
-  }).catch(()=>{/* The loading screen offers retry; keep the rest of the scene alive. */});
+  }).catch(()=>{/* The loading screen offers retry; keep the rest of the scene alive. */}):Promise.resolve();
   return {
+    ready,
     dispose(){disposed=true;instruments?.dispose();tail.dispose();for(const material of copies.values())material.dispose();for(const material of simpleMaterials.values())material.dispose();},
     setCockpit(on){inCockpit=on;applyCockpit();},
     body,wheelRoot,tail,tailIdle:new THREE.Color(.8,.015,.008),tailBrake:new THREE.Color(4,.06,.025),indicators,cockpit,

@@ -19,6 +19,7 @@
  *   JOURNAL_MAX_MB stop journalling past this size (200)
  *   LOG_EVERY      seconds between status log lines (60)
  *   DB_PATH        SQLite file for the leaderboard and the diagnostics log (./data/traffic.db)
+ *   RADIO_DIR      persistent uploaded tracks (default: radio/ beside DB_PATH)
  *   ADMIN_PASSWORD password of the admin page (/admin.html); unset = no admin page
  */
 import { createWriteStream, mkdirSync, type WriteStream } from 'node:fs';
@@ -31,6 +32,10 @@ import type { Stimulus, WorldConfig } from '../src/online/world';
 import { Admin, TRAFFIC_SETTINGS } from './admin';
 import { Api, clientIp } from './api';
 import { Store } from './store';
+import { RadioStore } from './radio';
+import { currentTuning, type GlobalTuning } from '../src/sim/tuning';
+import { restoreTuning } from './restoreTuning';
+import { send } from './api';
 
 const env = process.env;
 const PORT = Number(env.PORT ?? 8787);
@@ -100,6 +105,7 @@ function record(s: Stimulus): void {
 const DB_PATH = env.DB_PATH ?? join('data', 'traffic.db');
 mkdirSync(dirname(DB_PATH), { recursive: true });
 const store = new Store(DB_PATH);
+const radio = new RadioStore(store, env.RADIO_DIR ?? join(dirname(DB_PATH), 'radio'));
 api = new Api(store, { origins: ORIGINS, log, version: env.GIT_SHA ?? 'dev' });
 
 process.on('uncaughtException', (e) => {
@@ -134,12 +140,22 @@ if (savedTraffic) {
   game.configure(savedTraffic);
   log('info', `traffic settings restored: ${JSON.stringify(savedTraffic)}`);
 }
+const savedTuning = store.setting<GlobalTuning>('tuning');
+if (savedTuning) {
+  try {
+    const restored = restoreTuning(savedTuning);
+    game.setTuning(restored);
+    if (Object.hasOwn(savedTuning, 'r34Revision')) store.setSetting('tuning', restored);
+  }
+  catch (error) { log('warn', `Invalid saved tuning, using shipped defaults: ${String(error)}`); }
+}
 
 const admin = new Admin({
   password: env.ADMIN_PASSWORD ?? '',
   origins: ORIGINS,
   game,
   store,
+  radio,
   health: () => health(false),
   diag: (level, message) => api?.diag(level, message),
 });
@@ -162,6 +178,8 @@ function health(reset: boolean) {
 
 const http = createServer((req, res) => {
   if (admin.handle(req, res)) return;
+  if (radio.handle(req, res)) return;
+  if (req.method === 'GET' && (req.url ?? '').split('?')[0] === '/api/tuning') { res.setHeader('access-control-allow-origin', '*'); send(res, 200, currentTuning()); return; }
   if (api?.handle(req, res)) return;
   const url = (req.url ?? '/').split('?')[0];
   if (url === '/health') {
@@ -239,7 +257,11 @@ function loop(): void {
     game.tick(now);
     const ms = now() - t0;
     // A tick over its whole budget (8.3 ms) is a real problem: note it with what was going on.
-    if (ms > tickMs) api?.diag('warn', 'slow tick', { ms: +ms.toFixed(2), players: game.playerCount, traffic: game.world.traffic.activeCount });
+    if (ms > tickMs) api?.diag('warn', 'slow tick', {
+      ms: +ms.toFixed(2), ...game.timing,
+      players: game.playerCount, traffic: game.world.traffic.activeCount,
+      heapMB: Math.round(process.memoryUsage().heapUsed / 1048576),
+    });
     next += tickMs;
     n++;
   }

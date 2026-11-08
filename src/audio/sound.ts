@@ -23,19 +23,20 @@ const MUTE_KEY = 'tcu.muted';
 const MIX_KEY = 'tcu.mix';
 
 /** Mixer channels: the master level and the three buses. */
-export type Channel = 'master' | 'engine' | 'world' | 'fx';
+export type Channel = 'master' | 'engine' | 'world' | 'fx' | 'radio';
 export const CHANNELS: readonly { id: Channel; name: string }[] = [
   { id: 'master', name: 'Общая' },
   { id: 'engine', name: 'Мотор' },
   { id: 'world', name: 'Дорога' },
   { id: 'fx', name: 'Эффекты' },
+  { id: 'radio', name: 'Радио' },
 ];
 type Bus = Exclude<Channel, 'master'>;
 /** Master at 100 % is this gain (headroom for the compressor). */
 const MASTER_GAIN = 0.8;
 
 function loadMix(): Record<Channel, number> {
-  const mix: Record<Channel, number> = { master: 1, engine: 1, world: 1, fx: 1 };
+  const mix: Record<Channel, number> = { master: 1, engine: 1, world: 1, fx: 1, radio: .45 };
   try {
     const saved = JSON.parse(localStorage.getItem(MIX_KEY) ?? '{}') as Partial<Record<Channel, unknown>>;
     for (const { id } of CHANNELS) {
@@ -73,6 +74,17 @@ export class Sound {
   private noise!: AudioBuffer;
   private bus!: Record<Bus, { dry: GainNode; send: GainNode }>;
   private readonly mix = loadMix();
+  private readonly mixListeners = new Set<() => void>();
+  private readonly radioSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
+
+  onMixChange(fn: () => void): void { this.mixListeners.add(fn); }
+  connectRadio(element: HTMLMediaElement): void {
+    this.unlock();
+    if (this.radioSources.has(element)) return;
+    const source = this.ctx!.createMediaElementSource(element);
+    source.connect(this.bus.radio.dry);
+    this.radioSources.set(element, source);
+  }
 
   // Inline-four voice (physics №3).
   private i4Osc!: OscillatorNode;
@@ -181,6 +193,7 @@ export class Sound {
       /* not persisted */
     }
     this.applyMaster();
+    for (const fn of this.mixListeners) fn();
     return this.muted;
   }
 
@@ -205,14 +218,17 @@ export class Sound {
     else if (this.ctx) {
       const now = this.ctx.currentTime;
       this.bus[ch].dry.gain.setTargetAtTime(this.mix[ch], now, 0.03);
-      this.bus[ch].send.gain.setTargetAtTime(this.mix[ch], now, 0.03);
+      this.bus[ch].send.gain.setTargetAtTime(ch === 'radio' ? 0 : this.mix[ch], now, 0.03);
     }
+    for (const fn of this.mixListeners) fn();
   }
 
   private applyMaster(): void {
     if (!this.ctx) return;
-    const v = this.muted || this.paused ? 0 : this.mix.master * MASTER_GAIN;
+    const v = this.muted ? 0 : this.mix.master * MASTER_GAIN;
     this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    if (this.dry) this.dry.gain.setTargetAtTime(this.paused ? 0 : 1, this.ctx.currentTime, .05);
+    if (this.paused && this.wet) this.wet.gain.setTargetAtTime(0, this.ctx.currentTime, .05);
   }
 
   // ---------------------------------------------------------------- graph
@@ -236,7 +252,7 @@ export class Sound {
     verb.connect(this.wet);
     this.send = this.gainNode(1, verb);
     const bus = (b: Bus) => ({ dry: this.gainNode(this.mix[b], this.dry), send: this.gainNode(this.mix[b], this.send) });
-    this.bus = { engine: bus('engine'), world: bus('world'), fx: bus('fx') };
+    this.bus = { engine: bus('engine'), world: bus('world'), fx: bus('fx'), radio: { dry: this.gainNode(this.mix.radio, this.master), send: this.gainNode(0, this.send) } };
     const E = this.bus.engine;
     const W = this.bus.world;
     if(this.carId===1)this.porsche=new PorscheEngine(ctx,E);
