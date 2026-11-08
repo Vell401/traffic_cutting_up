@@ -1,6 +1,5 @@
 import { carTune, scoreTune, trafficTune, SIM_HZ } from '../config';
 import { driftTune } from '../sim/vehicleDrift';
-import { r34Tune } from '../sim/vehicleR34';
 import { mercedesTune } from '../sim/vehicleMercedes';
 import { porscheTune } from '../sim/vehiclePorsche';
 import { SPAWN_D, SPAWN_GAP, SPAWN_S, ringScript } from '../sim/ring';
@@ -8,7 +7,7 @@ import { VEHICLES } from '../sim/vehicles';
 import type { TrafficPreset } from '../sim/director';
 
 /** Bumped on any change to the message formats. */
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 8;
 
 /**
  * Session settings the server decides and sends in `welcome`. The client never picks traffic: it is one
@@ -67,7 +66,7 @@ export function fnv1a(text: string): string {
 
 let cached = '';
 // Runtime admin settings travel separately. The compatibility hash describes the shipped code/defaults.
-const BASE_RULES = JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, r34Tune, mercedesTune, porscheTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] });
+const BASE_RULES = JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, mercedesTune, porscheTune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] });
 
 /**
  * Version of the game rules: a hash of every tunable that the server and the client's prediction must

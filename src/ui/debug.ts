@@ -3,7 +3,6 @@ import { scoreTune, trafficTune } from '../config';
 import { CAMERA_RIGS } from '../render/car';
 import { CARS } from '../sim/cars';
 import type { DriftTune } from '../sim/vehicleDrift';
-import type { R34Tune } from '../sim/vehicleR34';
 import type { Sim } from '../sim/world';
 
 export interface Debug {
@@ -47,17 +46,7 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   car.addBinding(carTune, 'tractionControl', { min: 0, max: 1, step: 0.01, label: 'traction ctrl' });
   car.addBinding(carTune, 'aeroDrag', { min: 0.1, max: 1, step: 0.01 });
   car.addBinding(carTune, 'brakeDecel', { min: 4, max: 16, step: 0.1 });
-  if (sim.player.physicsId === 2) {
-    const rt = carTune as R34Tune;
-    const drift = pane.addFolder({ title: 'R34 · Casual Drift' });
-    drift.addBinding(rt, 'driftAngle', { min: .2, max: 1, step: .01, label: 'drift angle, rad' });
-    drift.addBinding(rt, 'driftBuild', { min: .3, max: 5, step: .1, label: 'breakaway rate' });
-    drift.addBinding(rt, 'driftRecover', { min: .3, max: 8, step: .1, label: 'grip recovery' });
-    drift.addBinding(rt, 'counterSteer', { min: .1, max: 2, step: .05, label: 'countersteer' });
-    drift.addBinding(rt, 'yawResponse', { min: 2, max: 20, step: .5, label: 'yaw response' });
-    drift.addBinding(rt, 'escAssist', { min: 0, max: 1, step: .05, label: 'spin protection' });
-    drift.addBinding(rt, 'torqueNm', { min: 100, max: 1200, step: 10, label: 'torque, N·m' });
-  } else if (v2) {
+  if (v2) {
     // Physics №2 extras (ranges from its author; the lag and ESP range must stay above zero).
     const rt = carTune as DriftTune;
     const rwd = pane.addFolder({ title: sim.player.physicsId === 4 ? 'GT3 RS' : sim.player.physicsId === 3 ? 'AMG' : 'V8 RWD' });

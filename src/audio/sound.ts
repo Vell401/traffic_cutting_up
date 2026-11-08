@@ -498,15 +498,15 @@ export class Sound {
     const v = Math.max(0, p.vAlong);
     const rpmN = clamp(p.rpm / t.redline, 0, 1.05);
 
-    // R34 now has a turbo straight-six voice; AMG and sampled Porsche paths are unchanged.
+    // Physics №3 is the AMG's turbo inline four; №1 and №2 keep the six and the V8 voice.
     const isPorsche=this.carId===1;
     const sampled=isPorsche&&!!this.porsche?.ready;
     const four = !isPorsche&&p.physicsId === 3;
 
     // Engine.
     this.load += (p.throttle - this.load) * Math.min(1, dt * 10);
-    // Three firing pulses per crank revolution for the R34's four-stroke straight six.
-    const f = (p.rpm / 60) * 3;
+    // Firing frequency: three pulses per revolution for the straight six, four for the V8 (physics №2).
+    const f = (p.rpm / 60) * (p.physicsId === 2 ? 4 : 3);
     set(this.o1.frequency, f, 0.02);
     set(this.o2.frequency, f * 0.5, 0.02);
     set(this.intake.filter.frequency, f * 3);

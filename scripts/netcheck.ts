@@ -38,7 +38,7 @@ const CASES: Case[] = [
 const pct = (xs: number[], p: number) => (xs.length ? xs[Math.min(xs.length - 1, Math.floor(p * xs.length))] : 0);
 const cm = (m: number) => (m * 100).toFixed(1).padStart(6);
 
-console.log(`${seconds} s per case, 2 drivers (Grip + R34 Drift), server traffic as in a session\n`);
+console.log(`${seconds} s per case, 2 drivers (Grip + V8 RWD), server traffic as in a session\n`);
 console.log('case                    ahead   corrections  p50     p95     max (cm)   hits seen / runs ended');
 for (const c of CASES) {
   const net = new NetSession(11);
