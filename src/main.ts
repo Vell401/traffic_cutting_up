@@ -13,7 +13,7 @@ import { SKY_PRESETS, skyPreset, skySwatch } from './render/sky';
 import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
-import { PHYSICS, type PhysicsId } from './sim/physics';
+import type { PhysicsId } from './sim/physics';
 import { spawnS } from './sim/ring';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
@@ -32,7 +32,6 @@ import {
   loadMouseSens,
   loadName,
   loadPaint,
-  loadPhysics,
   loadQuality,
   loadSky,
   loadSteerMode,
@@ -43,7 +42,6 @@ import {
   saveMouseSens,
   saveName,
   savePaint,
-  savePhysics,
   saveQuality,
   saveSky,
   saveSteerMode,
@@ -81,7 +79,8 @@ const TEST = params.has('test');
 const ONLINE = !TEST && !params.has('solo');
 let showcase = 0;
 await loading.stage(18, 'Подготовка трассы и трафика');
-const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: loadCar() === 1 ? 4 : loadPhysics(), online: ONLINE });
+const initialCar = loadCar();
+const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: initialCar === 1 ? 4 : initialCar === 3 ? 3 : 2, online: ONLINE });
 sim.director.preset = loadTraffic();
 sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
@@ -434,7 +433,7 @@ function choice<T extends number>(
 choice('carSeg', 'carDesc', CARS, car, (id) => {
   car = id;
   saveCar(id);
-  selectPhysics(id === 1 ? 4 : id === 3 ? 3 : 2);
+  sim.setPhysics(id === 1 ? 4 : id === 3 ? 3 : 2);
   sound.setCar(id);
   paint = loadPaint(id);
   view.setPaint(paint);
@@ -471,13 +470,6 @@ for (const [name, color] of paints) {
 paintInput.addEventListener('input', () => choosePaint(parseInt(paintInput.value.slice(1),16)));
 for (const type of ['keydown','keyup'] as const) paintInput.addEventListener(type, e => e.stopPropagation());
 showPaint();
-function selectPhysics(id: PhysicsId): void {
-  savePhysics(id);sim.setPhysics(id);
-  for(const button of document.getElementById('physicsSeg')!.children)
-    button.classList.toggle('on',(button as HTMLElement).dataset.id===String(id));
-  document.getElementById('physicsDesc')!.textContent=PHYSICS.find(p=>p.id===id)?.desc??'';
-}
-choice('physicsSeg', 'physicsDesc', PHYSICS, sim.player.physicsId as PhysicsId, selectPhysics);
 // The menu card always fits the window: when its content is taller than the room, the whole card is
 // scaled down (CSS zoom keeps the layout and the clicks right). Re-fitted on resize, once the fonts
 // are in, and whenever something in it shows, hides or unfolds.
