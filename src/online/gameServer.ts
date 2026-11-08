@@ -229,6 +229,14 @@ export class GameServer {
     if (typeof msg.token === 'string') {
       for (const s of this.slots.values()) if (s.token === msg.token) slot = s;
     }
+    // A vehicle/physics change is a new run, not a cosmetic reconnect. Otherwise selecting
+    // AMG/Porsche after R34 would keep simulating the previous chassis behind the new body.
+    if (slot && slot.driver.physics !== physics) {
+      if (slot.conn && slot.conn !== conn) this.kick(slot.conn, 4000, 'vehicle changed');
+      this.world.leave(slot.driver.id);
+      this.slots.delete(slot.driver.id);
+      slot = undefined;
+    }
     if (slot) {
       if (slot.conn && slot.conn !== conn) this.kick(slot.conn, 4000, 'replaced');
       slot.conn = conn;
