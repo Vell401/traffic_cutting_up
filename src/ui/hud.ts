@@ -19,12 +19,15 @@ export class Hud {
   private readonly blinkL = $('blinkL');
   private readonly boostBar = $('boostBar');
   private boostWasOn = false;
+  private rpmShown = 0;
   private readonly blinkR = $('blinkR');
   private readonly rpmBar = $('rpmBar');
   private readonly popups = $('popups');
   private readonly banner = $('banner');
   private readonly shoulder = $('shoulder');
   private readonly modeTag = $('modeTag');
+  private readonly assistStatus = $('assistStatus');
+  private readonly tireSlip = $('tireSlip');
   private bannerT = 0;
   private modeT = 0;
   private last = { score: '', mult: '', best: '', kmh: '', gear: '', shoulder: false, combo: false };
@@ -49,12 +52,23 @@ export class Hud {
   update(dt: number): void {
     const sc = this.sim.score;
     const p = this.sim.player;
+    const assist = p as typeof p & { tractionControlEnabled?: boolean; espEnabled?: boolean };
+    if (assist.tractionControlEnabled !== undefined && assist.espEnabled !== undefined) {
+      this.assistStatus.textContent = `TC ${assist.tractionControlEnabled ? 'ON' : 'OFF'} · ESP ${assist.espEnabled ? 'ON' : 'OFF'}`;
+      this.assistStatus.classList.toggle('off', !assist.tractionControlEnabled || !assist.espEnabled);
+    }
+    const tire = p as typeof p & { slipRear?: number; slipAngleRear?: number };
+    const slip = Math.max(Math.abs(tire.slipRear ?? 0) / 0.3, Math.abs(tire.slipAngleRear ?? 0) / 0.18);
+    const slipLevel = Math.min(1, slip);
+    this.tireSlip.style.setProperty('--slip', slipLevel.toFixed(3));
+    this.tireSlip.classList.toggle('on', slipLevel > 0.12);
+    this.tireSlip.classList.toggle('hot', slipLevel > 0.72);
     this.set('score', this.score, fmt.format(Math.floor(sc.score)));
     this.set('mult', this.mult, `×${sc.mult.toFixed(sc.mult % 1 === 0 ? 0 : 2)}`);
     this.set('best', this.best, fmt.format(sc.best));
     this.set('kmh', this.kmh, String(Math.round(Math.max(0, p.vAlong) * 3.6)));
-    const gear = p.gear === 0 ? 'R' : String(p.gear);
-    this.set('gear', this.gear, p.manual && p.gear !== 0 ? `M${gear}` : gear);
+    const gear = p.gear === 0 ? 'R' : p.gear === -1 ? 'N' : String(p.gear);
+    this.set('gear', this.gear, p.manual && p.gear > 0 ? `M${gear}` : gear);
     this.boostBar.style.transform = `scaleX(${p.boost.toFixed(3)})`;
     if (p.boostOn !== this.boostWasOn) {
       this.boostWasOn = p.boostOn;
@@ -74,7 +88,8 @@ export class Hud {
       this.last.combo = active;
     }
     this.comboBar.style.transform = `scaleX(${active ? sc.comboT / scoreTune.comboTime : 0})`;
-    const rpm = Math.min(1, p.rpm / p.tune.redline);
+    this.rpmShown += (p.rpm - this.rpmShown) * (1 - Math.exp(-dt * 9));
+    const rpm = Math.min(1, this.rpmShown / p.tune.redline);
     this.rpmBar.style.transform = `scaleX(${rpm.toFixed(3)})`;
     this.rpmBar.classList.toggle('red', rpm > 0.93);
 

@@ -36,6 +36,94 @@ describe('Porsche steering and chassis',()=>{
     expect(c.vAlong*3.6).toBeGreaterThan(288);expect(c.vAlong*3.6).toBeLessThan(302);
     expect(c.gear).toBe(7);expect(Math.abs(c.d)).toBeLessThan(1e-8);
   });
+  it('limits launch wheelspin with traction control and allows it when switched off',()=>{
+    const run=(tc:boolean)=>{
+      const c=new PorscheCar();c.reset(0,0,0);c.tractionControlEnabled=tc;let maxSlip=0;
+      for(let i=0;i<180;i++){
+        c.step(1/120,{steer:0,throttle:1,brake:0},0);
+        maxSlip=Math.max(maxSlip,Math.abs(c.slipRear));
+      }
+      return maxSlip;
+    };
+    expect(run(false)).toBeGreaterThan(run(true)*1.5);
+  });
+  it('launches with rear wheelspin after free-revving neutral to redline',()=>{
+    const c=new PorscheCar();c.reset(0,0,0);c.manual=true;c.gear=-1;
+    const inp={steer:0,throttle:1,brake:0,manual:true,tractionControlEnabled:false,espEnabled:false};
+    for(let i=0;i<420;i++)c.step(1/120,inp,0);
+    expect(c.rpm).toBeGreaterThan(8000);
+    c.step(1/120,{...inp,shift:1},0);
+    expect(c.gear).toBe(1);
+    expect(c.rpm).toBeGreaterThan(7000);
+    let maxSlip=0,spinningSteps=0,maxWheelSpeed=0;
+    for(let i=0;i<90;i++){
+      c.step(1/120,{...inp,shift:0},0);
+      maxSlip=Math.max(maxSlip,c.slipRear);
+      maxWheelSpeed=Math.max(maxWheelSpeed,c.omegaR*c.tune.wheelRadius);
+      if(c.omegaR*c.tune.wheelRadius-c.vx>.5)spinningSteps++;
+    }
+    expect(maxSlip).toBeGreaterThan(.08);
+    expect(spinningSteps).toBeGreaterThan(15);
+    expect(maxWheelSpeed).toBeGreaterThan(c.vx*1.5);
+    expect(c.vx).toBeGreaterThan(.5);
+  });
+  it('keeps driving through sustained wheelspin after a neutral redline launch',()=>{
+    const c=new PorscheCar();c.reset(0,0,0);c.manual=true;c.gear=-1;
+    const inp={steer:0,throttle:1,brake:0,manual:true,tractionControlEnabled:false,espEnabled:false};
+    for(let i=0;i<420;i++)c.step(1/120,inp,0);
+    c.step(1/120,{...inp,shift:1},0);
+    let maxSpeed=0;
+    for(let i=0;i<600;i++){
+      c.step(1/120,{...inp,shift:0},0);
+      maxSpeed=Math.max(maxSpeed,c.vx*3.6);
+    }
+    expect(maxSpeed).toBeGreaterThan(10);
+    expect(c.vx*3.6).toBeGreaterThan(65);
+  });
+  it('eases rear wheelspin into second gear instead of snapping to grip',()=>{
+    const c=new PorscheCar();c.reset(0,0,0);c.manual=true;c.gear=-1;
+    const inp={steer:0,throttle:1,brake:0,manual:true,tractionControlEnabled:false,espEnabled:false};
+    for(let i=0;i<420;i++)c.step(1/120,inp,0);
+    c.step(1/120,{...inp,shift:1},0);
+    for(let i=0;i<10;i++)c.step(1/120,{...inp,shift:0},0);
+    expect(c.slipRear).toBeGreaterThan(.2);
+    const speedBefore=c.omegaR*c.tune.wheelRadius;
+    for(let i=0;i<3&&c.gear===1;i++)c.step(1/120,{...inp,shift:1},0);
+    expect(c.gear).toBe(2);
+    expect(c.slipRear).toBeGreaterThan(.05);
+    expect(c.omegaR*c.tune.wheelRadius).toBeGreaterThan(speedBefore*.5);
+    for(let i=0;i<18;i++)c.step(1/120,{...inp,shift:0},0);
+    expect(c.vx*3.6).toBeGreaterThan(8);
+    expect(c.slipRear).toBeGreaterThan(.02);
+  });
+  it('transfers free-rev inertia into the rear wheels when the clutch is released in first',()=>{
+    const c=new PorscheCar();c.reset(0,0,0);c.manual=true;c.gear=-1;
+    const inp={steer:0,throttle:1,brake:0,manual:true,tractionControlEnabled:false,espEnabled:false,clutch:true};
+    for(let i=0;i<420;i++)c.step(1/120,inp,0);
+    expect(c.rpm).toBeGreaterThan(8000);
+    c.step(1/120,{...inp,shift:1},0);
+    expect(c.gear).toBe(1);
+    c.step(1/120,{...inp,shift:0},0);
+    let maxSlip=0,maxWheelSpeed=0;
+    for(let i=0;i<60;i++){
+      c.step(1/120,{...inp,clutch:false},0);
+      maxSlip=Math.max(maxSlip,c.slipRear);
+      maxWheelSpeed=Math.max(maxWheelSpeed,c.omegaR*c.tune.wheelRadius);
+    }
+    expect(maxSlip).toBeGreaterThan(1);
+    expect(maxWheelSpeed).toBeGreaterThan(15);
+    expect(c.vx).toBeGreaterThan(.5);
+  });
+  it('locks the rear differential and disables stability control with the driver assists off',()=>{
+    const c=new PorscheCar();
+    c.tractionControlEnabled=false;
+    c.espEnabled=false;
+    expect(c.tractionControlEnabled).toBe(false);
+    expect(c.espEnabled).toBe(false);
+    c.reset(0,0,20/3.6);
+    for(let i=0;i<120;i++) c.step(1/120,{steer:.8,throttle:1,brake:0},0);
+    expect(c.esc).toBeLessThan(.05);
+  });
   it('responds faster than the heavy RWD car and settles after a high-speed lane change',()=>{
     const results=[];
     for(const id of [2,4] as const){

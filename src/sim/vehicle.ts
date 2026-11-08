@@ -14,8 +14,10 @@ export interface DriveInput {
   shift?: number;
   /** Turn signal: 0 off, 1 left, 2 right (cosmetic; others see it online). */
   blinker?: number;
-  /** Shift held: spend the boost reserve on extra push. */
+   /** C held: spend the boost reserve on extra push. */
   boost?: boolean;
+  /** Shift held: disconnect engine torque from the driven wheels. */
+  clutch?: boolean;
   /**
    * Mouse steering: the input is the wheel angle itself, a share of full lock at any speed (the
    * keyboard lock shrinks with speed to match the grip instead).
@@ -23,6 +25,8 @@ export interface DriveInput {
   direct?: boolean;
   /** Space held: the handbrake locks the rear wheels (and opens the drive to them). */
   handbrake?: boolean;
+  tractionControlEnabled?: boolean;
+  espEnabled?: boolean;
   /** H held: the horn (cosmetic; others hear it online). */
   horn?: boolean;
 }
@@ -246,6 +250,8 @@ export class PlayerCar {
     this.prevS = this.s;
     this.prevD = this.d;
     this.prevPsi = this.psi;
+    this.manual = inp.manual === true;
+    if (this.manual) this.applyManualShift(inp);
     if (this.reverse(dt, inp, kRoad)) return;
     const boostF = this.updateBoost(dt, inp);
 
@@ -272,11 +278,11 @@ export class PlayerCar {
     // Engine rpm in gear g is k / (top speed of g, km/h).
     const k = t.redline * v * 3.6;
     this.manual = inp.manual === true;
-    this.rpm = Math.max(t.idleRpm, k / gears[this.gear - 1]);
+    this.rpm = this.gear === -1 || inp.clutch ? t.idleRpm + this.throttle * (t.redline - t.idleRpm) : Math.max(t.idleRpm, k / gears[Math.max(0, this.gear - 1)]);
     if (this.manual) {
-      if (this.shiftT > 0) this.shiftT -= dt;
-      this.manualShift(inp.shift ?? 0, k);
-      this.rpm = Math.max(t.idleRpm, k / gears[this.gear - 1]);
+      if (this.shiftT > 0) this.shiftT = Math.max(0, this.shiftT - dt);
+      if ((inp.shift ?? 0) !== 0 && this.shiftT <= 0) this.manualShift(inp.shift!, k);
+      this.rpm = this.gear === -1 || inp.clutch ? t.idleRpm + this.throttle * (t.redline - t.idleRpm) : Math.max(t.idleRpm, k / gears[Math.max(0, this.gear - 1)]);
     } else if (this.shiftT > 0) {
       this.shiftT -= dt;
     } else if (this.rpm > t.redline * 0.97 && this.gear < gears.length && this.throttle > 0.1) {
@@ -289,7 +295,7 @@ export class PlayerCar {
     const Fzf = (m * G * t.cgToRear) / L;
     const Fzr = (m * G * t.cgToFront) / L;
     let drive = 0;
-    if (this.shiftT <= 0 && !limiter && !hb) {
+    if (this.gear !== -1 && !inp.clutch && this.shiftT <= 0 && !limiter && !hb) {
       // Manual: clutch slip holds the revs up in first, otherwise a too-high gear pulls weakly.
       const share = this.manual ? manualPowerShare(Math.max(this.rpm / t.redline, this.gear === 1 ? 0.55 : 0)) : 1;
       drive = this.throttle * Math.min((t.powerKW * 1000 * share) / Math.max(v, 6), this.tractionLimit(v, delta, Fzr, L));
@@ -370,11 +376,15 @@ export class PlayerCar {
    */
   protected reverse(dt: number, inp: DriveInput, kRoad: number): boolean {
     // Forward needs the car fully stopped before reverse goes in; out of reverse a nearly stopped car is enough.
-    const shift = inp.manual ? (inp.shift ?? 0) : 0;
-    if (this.gear !== 0 && this.vx < 1e-3 && ((inp.brake > 0.5 && inp.throttle < 0.05) || (this.gear === 1 && shift < 0))) {
+    if (inp.manual && this.gear === 0) {
+      this.controls(inp);
+      this.stepReverse(dt, inp, kRoad);
+      return true;
+    }
+    if (!inp.manual && this.gear !== 0 && this.vx < 1e-3 && (inp.brake > 0.5 && inp.throttle < 0.05)) {
       this.gear = 0;
       this.shiftT = 0;
-    } else if (this.gear === 0 && this.vx > -0.3 && ((inp.throttle > 0.1 && inp.brake < 0.05) || shift > 0)) {
+    } else if (!inp.manual && this.gear === 0 && this.vx > -0.3 && (inp.throttle > 0.1 && inp.brake < 0.05)) {
       this.gear = 1;
       this.vx = Math.max(this.vx, 0);
     }
@@ -386,6 +396,26 @@ export class PlayerCar {
     this.boost = Math.min(1, this.boost + dt / BOOST_REFILL);
     this.stepReverse(dt, inp, kRoad);
     return true;
+  }
+
+  protected applyManualShift(inp: DriveInput): void {
+    if (!inp.manual) return;
+    if (this.shiftT > 0) this.shiftT = Math.max(0, this.shiftT - 1 / 120);
+    if ((inp.shift ?? 0) === 0 || this.shiftT > 0) return;
+    const dir = inp.shift!;
+    const stopped = Math.abs(this.vx) < 0.3;
+    if (this.gear === 0 && !stopped) return;
+    if (this.gear === 0 && dir > 0) this.gear = -1;
+    else if (this.gear === 0 && dir < 0) return;
+    else if (this.gear === -1 && dir > 0) this.gear = 1;
+    else if (this.gear === -1 && dir < 0) this.gear = 0;
+    else if (this.gear === 1 && dir < 0) this.gear = -1;
+    else if (this.gear > 0) {
+      const k = this.tune.redline * Math.max(this.vx, 0) * 3.6;
+      this.manualShift(dir, k);
+      return;
+    } else return;
+    this.shiftT = this.tune.shiftTime;
   }
 
   /** Reverse: a slow kinematic bicycle backwards. The brake pedal drives, the throttle stops the car. */
@@ -445,14 +475,20 @@ export class PlayerCar {
   protected manualShift(dir: number, k: number): void {
     this.shiftRefused = false;
     const t = this.tune;
-    // Nearly stopped (after a crash, say): first gear goes in by itself, like a driver would, so
-    // the car never sits stalled in a high gear.
-    if (this.gear > 1 && k / t.gearTopKmh[0] < t.idleRpm && this.shiftT <= 0) {
-      this.gear = 1;
-      return;
-    }
     if (dir === 0 || this.shiftT > 0) return;
-    if (dir > 0 && this.gear < t.gearTopKmh.length) {
+    if (dir > 0 && this.gear === 0) {
+      this.gear = -1;
+      this.shiftT = t.shiftTime;
+    } else if (dir > 0 && this.gear === -1) {
+      this.gear = 1;
+      this.shiftT = t.shiftTime;
+    } else if (dir < 0 && this.gear === 1) {
+      this.gear = -1;
+      this.shiftT = t.shiftTime;
+    } else if (dir < 0 && this.gear === -1 && Math.abs(this.vx) < 0.3) {
+      this.gear = 0;
+      this.shiftT = t.shiftTime;
+    } else if (dir > 0 && this.gear > 0 && this.gear < t.gearTopKmh.length) {
       this.gear++;
       this.shiftT = t.shiftTime;
     } else if (dir < 0 && this.gear > 1) {

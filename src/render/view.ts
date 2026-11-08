@@ -100,7 +100,7 @@ export class View {
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
-    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.points, this.farGround.mesh, this.blimp.group);
+    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.smoke, this.sparks.points, this.farGround.mesh, this.blimp.group);
     this.post = new Post(r, this.scene, this.camera, quality);
     this.spawnPad = sim.online ? new SpawnPad(SPAWN_PLACES) : null;
     if (this.spawnPad) this.scene.add(this.spawnPad.group);
@@ -169,6 +169,10 @@ export class View {
     this.carPos.set(this.pt.x - this.ox, 0, this.pt.z - this.oz);
 
     this.playerView.update(dt, p, this.carPos, yaw);
+    const tire = p as typeof p & { slipRear?: number; slipAngleRear?: number };
+    const slip = Math.max(Math.abs(tire.slipRear ?? 0), Math.abs(tire.slipAngleRear ?? 0) * 2.2);
+    const smoke = Math.min(1, Math.max(0, (slip - 0.1) / 0.5)) * Math.min(1, p.speed / 4);
+    if (smoke > 0.08 && !p.ghost) this.emitTireSmoke(smoke);
     this.playerView.setGhost(p.ghost);
     if (sim.remotes.length > 0 || this.remoteViews.size > 0) this.updateRemotes(alpha, dt, s);
     this.carYaw = yaw;
@@ -346,6 +350,22 @@ export class View {
     const half = p.tune.width / 2;
     const v = p.vAlong * 0.8;
     this.sparks.emit(this.carWorldX + rx * half + fx * along, 0.35, this.carWorldZ + rz * half + fz * along, fx * v, fz * v, count, spread);
+  }
+
+  private emitTireSmoke(intensity: number): void {
+    const p = this.sim.player;
+    const fx = Math.sin(this.carYaw);
+    const fz = -Math.cos(this.carYaw);
+    const rx = Math.cos(this.carYaw);
+    const rz = Math.sin(this.carYaw);
+    const half = p.tune.width * 0.39;
+    const rear = -p.tune.length * 0.34;
+    const v = p.vAlong * 0.35;
+    for (const side of [-1, 1]) {
+      const x = this.carWorldX + fx * rear + rx * side * half;
+      const z = this.carWorldZ + fz * rear + rz * side * half;
+      this.sparks.emitSmoke(x, 0.16, z, fx * v, fz * v, intensity);
+    }
   }
 
   private sparkAtNose(count: number, spread: number): void {

@@ -317,7 +317,7 @@ function updateMouseHud(): void {
 
 // ---------------------------------------------------------------- gearbox and turn signals
 
-/** G switches the gearbox; Z / X shift down / up in manual (one shift per press, in the next step). */
+/** G switches the gearbox; Z / X shift down / up in manual (one shift per press, in the next step). Y toggles ESP. */
 let manualGears = loadManual();
 let pendingShift = 0;
 /** Turn signal: 0 off, 1 left, 2 right. Q / E toggle it; it cancels itself after the lane change. */
@@ -334,6 +334,9 @@ function setBlinker(side: number): void {
 /** Controls that are not pedals or steering, written into the input of the next step. */
 function withControls(d: DriveInput): DriveInput {
   d.manual = manualGears;
+  const player = sim.player as typeof sim.player & { tractionControlEnabled?: boolean; espEnabled?: boolean };
+  if (player.tractionControlEnabled !== undefined) d.tractionControlEnabled = player.tractionControlEnabled;
+  if (player.espEnabled !== undefined) d.espEnabled = player.espEnabled;
   d.blinker = blinker;
   d.shift = pendingShift;
   pendingShift = 0;
@@ -367,6 +370,20 @@ input.onPress = (code) => {
     view.setHighBeam(highBeam);
     document.getElementById('highBeam')!.hidden = !highBeam;
     hud.tag(highBeam ? 'ДАЛЬНИЙ СВЕТ' : 'БЛИЖНИЙ СВЕТ', 1.5);
+  }
+  else if (code === 'KeyT' && state === 'play') {
+    const player = sim.player;
+    if ('tractionControlEnabled' in player) {
+      player.tractionControlEnabled = !player.tractionControlEnabled;
+      hud.tag(player.tractionControlEnabled ? 'TRACTION CONTROL · ON' : 'TRACTION CONTROL · OFF', 2);
+    }
+  }
+  else if (code === 'KeyY' && state === 'play') {
+    const player = sim.player;
+    if ('espEnabled' in player) {
+      player.espEnabled = !player.espEnabled;
+      hud.tag(player.espEnabled ? 'ESP · ON' : 'ESP · OFF', 2);
+    }
   }
   else if (code === 'KeyM') {
     hud.tag(sound.toggleMute() ? 'SOUND OFF' : 'SOUND ON');

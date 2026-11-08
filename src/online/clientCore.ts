@@ -658,7 +658,7 @@ export class ClientCore {
       c.r = nd.r;
       c.steerIn = nd.steer;
       c.brake = (nd.flags & REMOTE_BRAKE) !== 0 ? 1 : 0;
-      c.gear = nd.gear || 1;
+      c.gear = nd.gear;
       c.ghost = (nd.flags & REMOTE_GHOST) !== 0;
       c.blinker = nd.flags & REMOTE_BLINK_LEFT ? 1 : nd.flags & REMOTE_BLINK_RIGHT ? 2 : 0;
       c.horn = (nd.flags & REMOTE_HORN) !== 0;
@@ -758,4 +758,3 @@ export class ClientCore {
     return this.drivers.size;
   }
 }
-

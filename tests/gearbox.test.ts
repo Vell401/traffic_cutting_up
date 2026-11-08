@@ -89,21 +89,73 @@ describe('input flags', () => {
       expect(q.flags & ~IN_ALL).toBe(0);
     }
   });
+  it('TC and ESP state survive online input quantization', () => {
+    const q = { steer: 0, throttle: 0, brake: 0, flags: 0 };
+    const input = { steer: 0, throttle: 0, brake: 0, manual: true, tractionControlEnabled: false, espEnabled: false };
+    const back = inputFromQ(quantizeInput(input, q), { steer: 0, throttle: 0, brake: 0, tractionControlEnabled: true, espEnabled: true });
+    expect(back.tractionControlEnabled).toBe(false);
+    expect(back.espEnabled).toBe(false);
+    const enabled = inputFromQ(quantizeInput({ ...input, tractionControlEnabled: true, espEnabled: true }, q), { steer: 0, throttle: 0, brake: 0, tractionControlEnabled: false, espEnabled: false });
+    expect(enabled.tractionControlEnabled).toBe(true);
+    expect(enabled.espEnabled).toBe(true);
+  });
+  it('clutch and C nitro survive online input quantization', () => {
+    const q: InputQ = { steer: 0, throttle: 0, brake: 0, flags: 0 };
+    const input: DriveInput = { steer: 0, throttle: 1, brake: 0, clutch: true, boost: true };
+    const back = inputFromQ(quantizeInput(input, q), { steer: 0, throttle: 0, brake: 0, clutch: false, boost: false });
+    expect(back.clutch).toBe(true);
+    expect(back.boost).toBe(true);
+  });
 });
 
 describe('manual gearbox, nearly stopped', () => {
   for (const physics of [1, 2, 3, 4] as const) {
-    it(`physics ${physics}: first gear goes in by itself, the car pulls away`, () => {
+    it(`physics ${physics}: selected gear is retained until the driver shifts`, () => {
       const car = createCar(physics);
       car.reset(0, 0, 3 / 3.6);
       car.gear = 5;
       const inp: DriveInput = { steer: 0, throttle: 1, brake: 0, manual: true };
       car.step(DT, inp, 0);
-      expect(car.gear).toBe(1);
+      expect(car.gear).toBe(5);
+      inp.shift = -1;
+      car.step(DT, inp, 0);
+      expect(car.gear).toBe(4);
+      inp.shift = 0;
+    });
+
+    it(`physics ${physics}: shifts through neutral and reverse only on request`, () => {
+      const car = createCar(physics);
+      car.reset(0, 0, 0);
+      car.gear = 1;
+      const inp: DriveInput = { steer: 0, throttle: 0, brake: 0, manual: true, shift: -1 };
+      car.step(DT, inp, 0);
+      expect(car.gear).toBe(-1);
+      inp.shift = 0;
       run(car, inp, 2);
-      expect(kmh(car)).toBeGreaterThan(30);
+      expect(car.gear).toBe(-1);
+      inp.shift = -1;
+      car.step(DT, inp, 0);
+      expect(car.gear).toBe(0);
+      run(car, { ...inp, shift: 0 }, 0.2);
+      inp.shift = 1;
+      car.step(DT, inp, 0);
+      expect(car.gear).toBe(-1);
     });
   }
+});
+
+describe('manual neutral while moving', () => {
+  it('revves in neutral and can select first gear while rolling', () => {
+    const car = createCar(4);
+    car.reset(0, 0, 40 / 3.6);
+    car.gear = -1;
+    const neutral: DriveInput = { steer: 0, throttle: 1, brake: 0, manual: true };
+    car.step(DT, neutral, 0);
+    expect(car.rpm).toBeGreaterThan(car.tune.idleRpm);
+    const selectFirst = { ...neutral, shift: 1 };
+    car.step(DT, selectFirst, 0);
+    expect(car.gear).toBe(1);
+  });
 });
 
 describe('AWD pulling away (physics 3)', () => {

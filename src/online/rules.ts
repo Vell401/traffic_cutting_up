@@ -7,7 +7,7 @@ import { VEHICLES } from '../sim/vehicles';
 import type { TrafficPreset } from '../sim/director';
 
 /** Bumped on any change to the message formats. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /**
  * Session settings the server decides and sends in `welcome`. The client never picks traffic: it is one

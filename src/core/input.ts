@@ -31,7 +31,8 @@ export class Input {
     let steer = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
     let throttle = k.has('KeyW') || k.has('ArrowUp') ? 1 : 0;
     let brake = k.has('KeyS') || k.has('ArrowDown') ? 1 : 0;
-    let boost = k.has('ShiftLeft') || k.has('ShiftRight');
+    let clutch = k.has('ShiftLeft') || k.has('ShiftRight');
+    let boost = k.has('ControlLeft') || k.has('ControlRight');
     let handbrake = k.has('Space');
     let horn = k.has('KeyH');
     let analog = false;
@@ -75,6 +76,7 @@ export class Input {
     this.drive.brake = brake;
     this.drive.analog = analog;
     this.drive.boost = boost;
+    this.drive.clutch = clutch;
     this.drive.direct = direct;
     this.drive.handbrake = handbrake;
     this.drive.horn = horn;

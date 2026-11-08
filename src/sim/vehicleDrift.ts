@@ -227,8 +227,11 @@ export class DriftCar extends PlayerCar {
   override readonly physicsId: number = 2;
   declare readonly tune: DriftTune;
 
-  /** Shift request of the current step (manual gearbox). */
-  private shiftReq = 0;
+  /** Runtime traction-control state; shared tune remains immutable across cars/runs. */
+  tractionControlEnabled = true;
+  /** Runtime stability-control state; shared tune remains immutable across cars/runs. */
+  espEnabled = true;
+
   /** Boost push of the current step, N. */
   private boostF = 0;
   /** Rear / front wheel angular speed, rad/s. */
@@ -240,6 +243,11 @@ export class DriftCar extends PlayerCar {
   esc = 0;
   /** Signed ESP command (sign of the slide it fights), ramped by escRate. */
   private escCmd = 0;
+  private neutralRpm = 900;
+  private clutchCatchT = 0;
+  private shiftClutchT = 0;
+  private clutchHeld = false;
+  private clutchLaunchRpm = 900;
 
   /** Lagged body accelerations driving the load transfer, m/s². */
   private axLag = 0;
@@ -276,6 +284,11 @@ export class DriftCar extends PlayerCar {
     out[o++] = this.cosD;
     out[o++] = this.sinD;
     out[o++] = this.innerGrip;
+    out[o++] = this.neutralRpm;
+    out[o++] = this.clutchCatchT;
+    out[o++] = this.shiftClutchT;
+    out[o++] = this.clutchHeld ? 1 : 0;
+    out[o++] = this.clutchLaunchRpm;
     return o;
   }
 
@@ -295,11 +308,16 @@ export class DriftCar extends PlayerCar {
     this.cosD = src[o++];
     this.sinD = src[o++];
     this.innerGrip = src[o++];
+    this.neutralRpm = src[o++];
+    this.clutchCatchT = src[o++];
+    this.shiftClutchT = src[o++];
+    this.clutchHeld = src[o++] !== 0;
+    this.clutchLaunchRpm = src[o++];
     return o;
   }
 
   override get stateSize(): number {
-    return super.stateSize + 14;
+    return super.stateSize + 19;
   }
 
   override reset(s: number, d: number, speed: number): void {
@@ -308,8 +326,13 @@ export class DriftCar extends PlayerCar {
     this.omegaR = this.omegaF = speed / t.wheelRadius;
     this.axLag = this.ayLag = 0;
     this.slipRear = this.slipAngleRear = this.esc = this.escCmd = 0;
+    this.neutralRpm = t.idleRpm;
+    this.clutchCatchT = 0;
+    this.shiftClutchT = 0;
+    this.clutchHeld = false;
+    this.clutchLaunchRpm = t.idleRpm;
     this.accLong = this.accLat = 0;
-    this.rpm = Math.max(t.idleRpm, (t.redline * speed * 3.6) / t.gearTopKmh[this.gear - 1]);
+    this.rpm = this.gear === -1 ? t.idleRpm : Math.max(t.idleRpm, (t.redline * speed * 3.6) / t.gearTopKmh[Math.max(0, this.gear - 1)]);
   }
 
   override step(dt: number, inp: DriveInput, kRoad: number): void {
@@ -321,6 +344,23 @@ export class DriftCar extends PlayerCar {
     const L = t.cgToFront + t.cgToRear;
     const v = Math.max(this.vx, 0);
     this.rampSteer(dt, inp, clamp(t.steerRateSpeed / Math.max(v, 1), 0.4, 1));
+    this.manual = inp.manual === true;
+    const prevGear = this.gear;
+    const wasClutchHeld = this.clutchHeld;
+    if (inp.tractionControlEnabled !== undefined) this.tractionControlEnabled = inp.tractionControlEnabled;
+    if (inp.espEnabled !== undefined) this.espEnabled = inp.espEnabled;
+    if (this.manual && this.shiftT > 0) this.shiftT = Math.max(0, this.shiftT - dt);
+    if (this.manual) {
+      if ((inp.shift ?? 0) !== 0 && this.shiftT <= 0) this.applyManualShift(inp);
+    }
+    this.clutchHeld = inp.clutch === true;
+    if ((prevGear === -1 && this.gear > 0) || (wasClutchHeld && !this.clutchHeld && this.gear > 0)) {
+      this.clutchCatchT = 0.18;
+      this.clutchLaunchRpm = this.neutralRpm;
+    }
+    if (prevGear > 0 && this.gear > prevGear) {
+      this.shiftClutchT = 0.18;
+    }
     if (this.reverse(dt, inp, kRoad)) {
       this.omegaR = this.omegaF = this.vx / t.wheelRadius;
       this.slipRear = this.slipAngleRear = this.esc = this.escCmd = 0;
@@ -332,9 +372,7 @@ export class DriftCar extends PlayerCar {
     this.boostF = this.updateBoost(dt, inp);
     this.throttle = clamp(inp.throttle, 0, 1);
     this.brake = clamp(inp.brake, 0, 1);
-    this.manual = inp.manual === true;
     this.controls(inp);
-    this.shiftReq = inp.shift ?? 0;
 
     // Steering lock: grip-matched like №1 (plus the understeer gradient) so full input reaches about
     // the grip limit at any speed, but measured from the direction the rear axle travels when it
@@ -376,19 +414,31 @@ export class DriftCar extends PlayerCar {
   private drivetrain(dt: number): void {
     const t = this.tune;
     const gears = t.gearTopKmh;
+    if (this.gear === -1 || this.clutchHeld) {
+      // The disconnected engine free-revs with inertia instead of snapping to pedal position.
+      const target = t.idleRpm + this.throttle * (t.redline - t.idleRpm);
+      this.neutralRpm = Math.max(t.idleRpm, this.neutralRpm + (target - this.neutralRpm) * Math.min(1, dt * 8));
+      this.rpm = this.neutralRpm;
+      this.driveTq = this.dragTq = 0;
+      this.inertiaR = t.wheelInertiaRear + t.engineInertia;
+      return;
+    }
+    if (this.gear <= 0) {
+      this.rpm = t.idleRpm;
+      this.driveTq = this.dragTq = 0;
+      this.inertiaR = t.wheelInertiaRear;
+      return;
+    }
     // Engine rpm the rear wheel speed asks for is k / (gear top speed).
     const k = t.redline * this.omegaR * t.wheelRadius * 3.6;
     let rpmW = k / gears[this.gear - 1];
     // Upshift point follows the pedal: 97 % of the redline flat out, earlier when cruising.
-    if (this.manual) {
-      if (this.shiftT > 0) this.shiftT -= dt;
-      this.manualShift(this.shiftReq, k);
-    } else if (this.shiftT > 0) {
-      this.shiftT -= dt;
-    } else if (rpmW > t.redline * (0.68 + 0.29 * this.throttle) && this.gear < gears.length && this.throttle > 0.1) {
+    if (this.shiftT > 0) {
+      this.shiftT = Math.max(0, this.shiftT - dt);
+    } else if (!this.manual && rpmW > t.redline * (0.68 + 0.29 * this.throttle) && this.gear < gears.length && this.throttle > 0.1) {
       this.gear++;
       this.shiftT = t.shiftTime;
-    } else if (this.gear > 1) {
+    } else if (!this.manual && this.gear > 1) {
       const lower = k / gears[this.gear - 2];
       if (lower < t.redline * 0.6) {
         this.gear--;
@@ -399,16 +449,28 @@ export class DriftCar extends PlayerCar {
     }
     rpmW = k / gears[this.gear - 1];
     let rpm = Math.max(t.idleRpm, rpmW);
+    const catchClutch = this.clutchCatchT > 0;
+    const catchShift = this.shiftClutchT > 0;
+    if (catchClutch) rpm = Math.max(rpm, this.clutchLaunchRpm);
     if (this.gear === 1) rpm = Math.max(rpm, t.idleRpm + this.throttle * (t.launchRpm - t.idleRpm));
     this.rpm = Math.min(rpm, t.redline);
 
     // Engine rad/s per wheel rad/s in this gear.
     const ratio = (t.redline * RPM * t.wheelRadius * 3.6) / gears[this.gear - 1];
     const shifting = this.shiftT > 0;
-    const cut = shifting || rpmW >= t.redline;
-    this.driveTq = cut ? 0 : this.throttle * this.engineTorque(this.rpm) * t.driveEff * ratio;
+    const cut = (shifting && !catchClutch) || (rpmW >= t.redline && !this.clutchHeld && !catchClutch);
+    const catchDuration = 0.18;
+    const clutchEngagement = catchClutch ? 1 - this.clutchCatchT / 0.18 : 1;
+    const shiftEngagement = catchShift ? 1 - this.shiftClutchT / 0.18 : 1;
+    const clutchTq = catchClutch
+      ? t.engineInertia * ratio * Math.max(0, this.clutchLaunchRpm * RPM - rpmW * RPM) / catchDuration
+      : 0;
+    this.driveTq = (cut ? 0 : this.throttle * this.engineTorque(this.rpm) * t.driveEff * ratio * clutchEngagement * shiftEngagement) + clutchTq;
     this.dragTq = shifting ? 0 : (1 - this.throttle) * t.engineBrakeNm * (this.rpm / t.redline) * ratio;
-    this.inertiaR = t.wheelInertiaRear + t.engineInertia * ratio * ratio;
+    this.inertiaR = t.wheelInertiaRear + t.engineInertia * ratio * ratio * (catchShift ? shiftEngagement : clutchEngagement);
+    this.neutralRpm = this.rpm;
+    if (catchClutch) this.clutchCatchT = Math.max(0, this.clutchCatchT - dt);
+    if (catchShift) this.shiftClutchT = Math.max(0, this.shiftClutchT - dt);
   }
 
   private substep(h: number, kRoad: number, lagK: number): void {
@@ -430,24 +492,47 @@ export class DriftCar extends PlayerCar {
     const gripF = this.axleGrip(fzF, dLat * t.rollFront, t.gripFront, (mg * b) / L / 2);
     const gripR = this.axleGrip(fzR, dLat * (1 - t.rollFront), t.gripRear, (mg * a) / L / 2);
     // Open diff: drive limited by twice the inner wheel; the LSD locks most of that back.
-    const gripRx = gripR + (Math.min(gripR, 2 * this.innerGrip) - gripR) * (1 - t.lsdLock);
+    // With TC disabled the driver is asking for a locked rear axle for power slides.
+    const lsdLock = this.tractionControlEnabled ? t.lsdLock : 1;
+    const gripRx = gripR + (Math.min(gripR, 2 * this.innerGrip) - gripR) * (1 - lsdLock);
     const resist = t.aeroDrag * v * v + t.rollingRes * v;
 
     if (vx < t.lowSpeed) {
-      // Kinematic bicycle near a standstill.
+      // Keep the low-speed bicycle stable, but let excess axle torque spin the driven wheels.
       const hb = this.handbrake;
-      const driveGrip = (hb ? 0 : gripRx) + (t.frontDrive > 0 ? gripF : 0);
-      const fx = Math.min((this.driveTq * (hb ? t.frontDrive : 1)) / R, 0.95 * driveGrip) - resist + this.boostF;
+      const rearGrip = hb ? 0 : gripRx;
+      const frontGrip = t.frontDrive > 0 ? gripF : 0;
+      const rearDrive = hb ? this.driveTq * t.frontDrive : this.driveTq * (1 - t.frontDrive);
+      const frontDrive = hb ? 0 : this.driveTq * t.frontDrive;
+      const kappaR = (this.omegaR * R - vx) / Math.max(vx, t.slipSpeed);
+      const slipNorm = kappaR / t.slipRatioPeak;
+      const rearTireForce = rearGrip * Math.sign(kappaR) * Math.sin(
+        t.tireC * Math.atan(Math.tan(Math.PI / (2 * t.tireC)) * Math.abs(slipNorm)),
+      );
+      // Tyres still transmit force while the engine is on the limiter: wheelspin must
+      // be able to pull the car, and an over-spun wheel must be slowed by the road.
+      const rearFx = hb ? 0 : 0.95 * rearTireForce;
+      const frontFx = Math.min(frontDrive / R, 0.95 * frontGrip);
+      const fx = rearFx + frontFx - resist + this.boostF;
       this.vx += (fx / m) * h;
       this.vx = Math.max(0, this.vx - (this.brake * (t.brakeDecel + t.brakeAssist) + (hb ? HANDBRAKE_DECEL : 0)) * h);
       this.vy = 0;
       this.r = (this.vx * this.sinD) / (this.cosD * L);
-      this.omegaR = this.omegaF = this.vx / R;
+      const tc = this.tractionControlEnabled ? t.tractionControl : 0;
+      const kLim = tc > 0 ? Math.min(t.tcSlip / tc, t.slipRatioPeak * 0.25) : Infinity;
+      const tireTorqueR = rearFx * R;
+      const tireTorqueF = Math.min(frontDrive, 0.95 * frontGrip * R);
+      this.omegaR = Math.max(this.vx / R, this.omegaR + ((rearDrive - tireTorqueR) / this.inertiaR) * h);
+      this.omegaF = Math.max(this.vx / R, this.omegaF + ((frontDrive - tireTorqueF) / t.wheelInertiaFront) * h);
+      const launchSpin = this.gear > 0 && !this.tractionControlEnabled && !this.clutchHeld;
+      if (!launchSpin) this.omegaR = Math.min(this.omegaR, (this.vx + kLim * t.slipSpeed) / R);
+      if (t.frontDrive > 0) this.omegaF = Math.min(this.omegaF, (this.vx + kLim * t.frontTc * t.slipSpeed) / R);
       this.axLag += (fx / m - this.axLag) * lagK;
       this.ayLag += (this.vx * this.r - this.ayLag) * lagK;
       this.accLong = fx / m;
       this.accLat = 0;
-      this.slipRear = this.slipAngleRear = this.esc = this.escCmd = 0;
+      this.slipRear = (this.omegaR * R - this.vx) / t.slipSpeed;
+      this.slipAngleRear = this.esc = this.escCmd = 0;
     } else {
       const cosd = this.cosD;
       const sind = this.sinD;
@@ -455,8 +540,8 @@ export class DriftCar extends PlayerCar {
       const vwF = vx * cosd + vyF * sind;
       const alphaF = Math.atan2(vyF, vx) - this.steerAngle;
       const alphaR = Math.atan2(this.vy - b * this.r, vx);
-      const denF = Math.max(vwF, t.slipSpeed);
-      const denR = Math.max(vx, t.slipSpeed);
+       const denF = Math.max(vwF, t.slipSpeed);
+       const denR = Math.max(vx, t.slipSpeed);
       const kapF = (this.omegaF * R - vwF) / denF;
       const kapR = (this.omegaR * R - vx) / denR;
       this.tire(kapF, alphaF, gripF * t.longGrip, gripF, 1);
@@ -481,7 +566,7 @@ export class DriftCar extends PlayerCar {
       const pred = alphaR + t.escLead * slipRate;
       const thr = t.escSlip * clamp(t.escSpeed / vx, 0.5, 1) * (this.escCmd !== 0 ? t.escRelease : 1);
       // The handbrake is a request to slide: ESP stands back while it is up.
-      const want = this.handbrake ? 0 : Math.sign(pred) * t.escAssist * clamp((Math.abs(pred) - thr) / t.escRange, 0, 1);
+       const want = !this.espEnabled || this.handbrake ? 0 : Math.sign(pred) * t.escAssist * clamp((Math.abs(pred) - thr) / t.escRange, 0, 1);
       this.escCmd = moveTo(this.escCmd, want, t.escRate * h);
       const u = Math.abs(this.escCmd);
       const mEsp = this.escCmd * t.escMoment;
@@ -495,7 +580,7 @@ export class DriftCar extends PlayerCar {
       this.r += (mz / Iz) * h;
 
       // Wheels: semi-implicit in the tyre's slip stiffness (dFx/dω ≥ 0), explicit past the peak.
-      const tc = t.tractionControl;
+      const tc = this.tractionControlEnabled ? t.tractionControl : 0;
       let kLim = tc > 0 ? t.tcSlip / tc : 1e3;
       kLim += (0.03 - kLim) * u;
       const brakeTq = this.brake * m * t.brakeDecel * R;
@@ -516,7 +601,10 @@ export class DriftCar extends PlayerCar {
       // (lateral g) it is held back (by cbcCut) so the tail stays behind the car.
       const turning = clamp(Math.abs(this.ayLag) / CBC_AY, 0, 1);
       const rearSlipMin = hb ? 1 : coasting ? t.dragSlip : t.ebdSlip * (1 - t.cbcCut * turning);
-      this.omegaR = clamp(wr, (vx - rearSlipMin * denR) / R, (vx + kLim * denR) / R);
+      const launchSpin = !this.tractionControlEnabled && !this.clutchHeld;
+      this.omegaR = launchSpin
+        ? Math.max(wr, (vx - rearSlipMin * denR) / R)
+        : clamp(wr, (vx - rearSlipMin * denR) / R, (vx + kLim * denR) / R);
       const kf = Math.max(0, kF / t.slipRatioPeak) * (R / denF);
       const iff = t.wheelInertiaFront + h * R * kf;
       let wf = this.omegaF + (h * (driveFront * (1 - t.escCut * u) - dragFront - R * fxF)) / iff;

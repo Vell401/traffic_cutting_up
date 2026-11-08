@@ -76,6 +76,7 @@ export function drawPorschePCM(g: CanvasRenderingContext2D): void {
 export const PORSCHE_DASHBOARD_BUDGET={backgroundWidth:1024,backgroundHeight:288,pcmWidth:768,pcmHeight:256,readoutWidth:512,readoutHeight:128,readoutHz:12} as const;
 
 export class PorscheInstruments {
+  private rpmShown = 0;
   readonly group=new THREE.Group();
   readonly cluster: THREE.CanvasTexture;
   readonly pcm: THREE.CanvasTexture;
@@ -124,6 +125,7 @@ export class PorscheInstruments {
     face.add(new THREE.Mesh(patches,new THREE.MeshBasicMaterial({map:this.readouts,toneMapped:false})));
   }
   update(car:PlayerCar,dt:number,steering?:THREE.Object3D,rest?:THREE.Quaternion):void{
+    this.rpmShown += (car.rpm-this.rpmShown)*(1-Math.exp(-dt*9));
     this.seconds+=dt;this.km+=Math.abs(car.vAlong)*dt/1000;this.timer+=dt;
     this.steeringAngle=damp(this.steeringAngle,porscheSteeringAngle(car.steerAngle),24,dt);
     if(steering&&rest)steering.quaternion.copy(rest).multiply(this.turn.setFromAxisAngle(PORSCHE_STEERING_AXIS,this.steeringAngle));
@@ -133,19 +135,19 @@ export class PorscheInstruments {
       this.timer=0;const key=`${speed}/${car.gear}/${car.manual}/${oil}/${lateral}/${trip}`;
       if(key!==this.lastReadout){
         this.lastReadout=key;const g=this.context;g.fillStyle='#080c0c';g.fillRect(0,0,512,128);
-        text(g,String(speed),82,35,66,WHITE,'600');text(g,car.gear===0?'R':String(car.gear),207,37,42,WHITE,'600');text(g,car.manual?'M':'PDK',207,81,16,MUTED);
+        text(g,String(speed),82,35,66,WHITE,'600');text(g,car.gear===0?'R':car.gear===-1?'N':String(car.gear),207,37,42,WHITE,'600');text(g,car.manual?'M':'PDK',207,81,16,MUTED);
         text(g,'km/h',82,84,21,MUTED);text(g,`${oil}°`,280,25,36,WHITE,'600');text(g,`${lateral} g`,396,25,35,WHITE,'600');text(g,`${trip} km`,360,84,23,WHITE);
         this.readouts.needsUpdate=true;
       }
     }
-    const gauges=[[1024,282,249,car.rpm/10000],[532,286,191,speed/350],[167,282,145,clamp(1.4+car.rpm/2300,0,5)/5],[1881,282,145,clamp(.8-this.km/600,.05,.8)]];
+    const gauges=[[1024,282,249,this.rpmShown/10000],[532,286,191,speed/350],[167,282,145,clamp(1.4+this.rpmShown/2300,0,5)/5],[1881,282,145,clamp(.8-this.km/600,.05,.8)]];
     for(let i=0;i<4;i++){
       const [x,y,r,f]=gauges[i],a=START+SWEEP*clamp(f,0,1),dx=Math.cos(a),dy=Math.sin(a);
       const points=[x-dy*4-dx*15,y+dx*4-dy*15,x+dx*(r-30),y+dy*(r-30),x+dy*4-dx*15,y-dx*4-dy*15];
       for(let v=0;v<3;v++)this.positions.setXYZ(i*3+v,(points[v*2]/2048-.5)*.441,(.5-points[v*2+1]/576)*.124,.00015);
     }
     this.positions.needsUpdate=true;
-    let mask=0;for(let i=0;i<7;i++)if(car.rpm>6800+i*280)mask|=1<<i;
+    let mask=0;for(let i=0;i<7;i++)if(this.rpmShown>6800+i*280)mask|=1<<i;
     if(this.seconds%.72<.36){if(car.blinker===1)mask|=128;if(car.blinker===2)mask|=256;}
     if(mask!==this.lastLights){this.lastLights=mask;for(let i=0;i<9;i++){
       this.color.set(mask&(1<<i)?i<7&&i>4?RED:GREEN:i<7?'#1d2520':'#18231b');

@@ -186,8 +186,13 @@ export const IN_BOOST = 64;
 export const IN_DIRECT = 128;
 export const IN_HANDBRAKE = 256;
 export const IN_HORN = 512;
+export const IN_TC_ON = 1024;
+export const IN_ESP_ON = 2048;
+export const IN_ASSIST_STATE = 4096;
+export const IN_CLUTCH = 8192;
+export const IN_ASSIST_AND_CLUTCH = 16384;
 /** Every input flag bit a client may set (the server masks the rest off). */
-export const IN_ALL = 1023;
+export const IN_ALL = 32767;
 
 /** Bytes of one input step in an INPUT message. */
 export const INPUT_BYTES = 6;
@@ -213,7 +218,12 @@ export function quantizeInput(inp: DriveInput, out: InputQ): InputQ {
     (inp.boost ? IN_BOOST : 0) |
     (inp.direct ? IN_DIRECT : 0) |
     (inp.handbrake ? IN_HANDBRAKE : 0) |
-    (inp.horn ? IN_HORN : 0);
+    (inp.horn ? IN_HORN : 0) |
+    (inp.tractionControlEnabled !== undefined || inp.espEnabled !== undefined ? IN_ASSIST_STATE : 0) |
+    (inp.clutch !== undefined ? IN_ASSIST_AND_CLUTCH : 0) |
+    (inp.tractionControlEnabled === true ? IN_TC_ON : 0) |
+    (inp.espEnabled === true ? IN_ESP_ON : 0);
+  if (inp.clutch) out.flags |= IN_CLUTCH;
   return out;
 }
 
@@ -230,6 +240,11 @@ export function inputFromQ(q: InputQ, out: DriveInput): DriveInput {
   out.direct = (q.flags & IN_DIRECT) !== 0;
   out.handbrake = (q.flags & IN_HANDBRAKE) !== 0;
   out.horn = (q.flags & IN_HORN) !== 0;
+  if (q.flags & IN_ASSIST_AND_CLUTCH) out.clutch = (q.flags & IN_CLUTCH) !== 0;
+  if (q.flags & IN_ASSIST_STATE) {
+    out.tractionControlEnabled = (q.flags & IN_TC_ON) !== 0;
+    out.espEnabled = (q.flags & IN_ESP_ON) !== 0;
+  }
   return out;
 }
 
@@ -388,7 +403,7 @@ export function writeDriver(w: Writer, id: number, flags: number, s: number, d: 
   w.f32(vy);
   w.f32(r);
   w.i8(clampInt(steer * 127, -127, 127));
-  w.u8(gear);
+  w.u8(gear === -1 ? 255 : gear);
 }
 
 /** 26 bytes per traffic car. */
@@ -465,7 +480,8 @@ export function readSnapshot(r: Reader, out: Snapshot): boolean {
     d.vy = r.f32();
     d.r = r.f32();
     d.steer = r.i8() / 127;
-    d.gear = r.u8();
+    const gear = r.u8();
+    d.gear = gear === 255 ? -1 : gear;
   }
   out.driverCount = nd;
 

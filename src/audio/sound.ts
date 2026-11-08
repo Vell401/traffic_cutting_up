@@ -557,11 +557,13 @@ export class Sound {
     // Tyres: squeal when sliding or near the grip limit, a little under hard braking.
     const beta = Math.abs(Math.atan2(p.vy, Math.max(p.vx, 1)));
     const latUse = Math.abs(p.accLat) / (t.gripFront * G);
-    let sq = clamp((beta - 0.06) / 0.1, 0, 1) * 0.7 + clamp((latUse - 0.92) / 0.1, 0, 1) * 0.3;
+    let sq = clamp((beta - 0.06) / 0.1, 0, 1) * 0.65 + clamp((latUse - 0.92) / 0.1, 0, 1) * 0.25;
+    const wheelSlip = 'slipRear' in p ? Math.abs((p as typeof p & { slipRear: number }).slipRear) : 0;
+    sq = Math.max(sq, clamp((wheelSlip - 0.06) / 0.22, 0, 1));
     if (p.brake > 0.85 && v > 15) sq += 0.25;
-    if (v < 5) sq = 0;
-    set(this.squeal.filter.frequency, 820 + beta * 500);
-    set(this.squeal.gain.gain, 0.09 * Math.min(1, sq), 0.06);
+    if (v < 1.5) sq = 0;
+    set(this.squeal.filter.frequency, 1050 + beta * 900 + wheelSlip * 420);
+    set(this.squeal.gain.gain, 0.24 * Math.min(1, sq), 0.045);
 
     // Rumble strips just outside the edge lines: a buzz at speed / strip spacing.
     const onStrip = Math.abs(p.d) + p.halfExtentD() > ROAD_HALF + 0.25;
