@@ -70,6 +70,7 @@ export const magicFormula = (alpha: number, B: number, C: number): number => Mat
 export class PlayerCar {
   /** Physics variant number shown in the menu (1 = grip arcade). */
   readonly physicsId: number = 1;
+  protected get throttleDrivenReverse(): boolean { return true; }
 
   constructor(readonly tune: CarTune = carTune) {}
 
@@ -384,7 +385,9 @@ export class PlayerCar {
     if (!inp.manual && this.gear !== 0 && this.vx < 1e-3 && (inp.brake > 0.5 && inp.throttle < 0.05)) {
       this.gear = 0;
       this.shiftT = 0;
-    } else if (!inp.manual && this.gear === 0 && this.vx > -0.3 && (inp.brake > 0.1 && inp.throttle < 0.05)) {
+    } else if (!inp.manual && this.gear === 0 && this.vx > -0.3 && (
+      this.throttleDrivenReverse ? inp.brake > 0.1 && inp.throttle < 0.05 : inp.throttle > 0.1 && inp.brake < 0.05
+    )) {
       this.gear = 1;
       this.vx = Math.max(this.vx, 0);
     }
@@ -424,8 +427,8 @@ export class PlayerCar {
     const L = t.cgToFront + t.cgToRear;
     this.rampSteer(dt, inp);
     this.steerAngle = this.steerIn * t.maxSteerLow;
-    this.throttle = clamp(inp.throttle, 0, 1);
-    this.brake = clamp(inp.brake, 0, 1);
+    this.throttle = clamp(this.throttleDrivenReverse ? inp.throttle : inp.brake, 0, 1);
+    this.brake = clamp(this.throttleDrivenReverse ? inp.brake : inp.throttle, 0, 1);
     const v0 = this.vx;
     let vx = this.vx;
     if (vx > -REVERSE_MAX) vx = Math.max(-REVERSE_MAX, vx - this.throttle * REVERSE_ACC * dt);

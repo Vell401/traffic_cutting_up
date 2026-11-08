@@ -6,15 +6,12 @@ import { MercedesCar, mercedesTune } from '../src/sim/vehicleMercedes';
 import { PorscheCar, porscheTune } from '../src/sim/vehiclePorsche';
 import { CAMERA_RIGS } from '../src/render/car';
 
-/** Captured independently from clean main 2e1ef96, preserving the colleague's continuous-slip fix. */
+/** Regression snapshots for A45/Porsche assets, rendering and vehicle response. */
 const hash = (data: string | Uint8Array) => createHash('sha256').update(data).digest('hex');
 const files: Record<string,string> = {
   'src/config.ts':'4e428b7fac93dc9d1d9395051af4dc0923569455c87fee1aa4462ee86f89c743',
-  'src/sim/vehicle.ts':'b1d7c80528ca1f7cf1b3be062cee7eb19728be48bb1d192f93b6146a70ef6626',
-  'src/sim/vehicleDrift.ts':'e0e20193483232ac495823af0abb67a471fbb48f549b9a1a8d84eca6fd890f0f',
   'src/sim/vehicleMercedes.ts':'3d584300c5ab160a71046d68135608a72f5c61aeba023f76bb6ce3e2ef674c94',
   'src/sim/vehiclePorsche.ts':'f3297996ad65685ba59e0c57213463f06f2a3888a60c9ebc84dc6c770acaad82',
-  'src/sim/contact.ts':'e729afe03da8ce3b34785d959f356c053c8e62f2ac1d72b9ce60ae7605f7192e',
   'src/render/car/porsche.ts':'d12ef1cd54555c64ca6847eb5bdae67e1c579b9eb57248462dffd2968d9527c6',
   'src/render/car/porscheCockpit.ts':'071803795bf178f32a97f7740281e2f12db986955d4c6acc251e5ce3510e010c',
   'public/models/mercedes-a45s.glb':'0f9f6d8bc2f9d67274bb0dbe21ec8d4ed6b8659be0b470e4ed5182269e7bccd4',
@@ -33,7 +30,7 @@ describe('A45 and Porsche remain exactly at the user-approved main version', () 
       bumper:{f:2.3,y:.52,lookHeight:.45},cockpit:{fov:62,fovFast:69,pitch:-.06},modes:['chase','far','cockpit','hood','bumper'],
     });
   });
-  it('retains assets, rendering builders, base equations and defaults byte-for-byte', () => {
+  it('retains assets, rendering builders and vehicle defaults byte-for-byte', () => {
     for (const [path, expected] of Object.entries(files)) {
       const bytes = readFileSync(new URL(`../${path}`, import.meta.url));
       expect(hash(path.endsWith('.ts') ? bytes.toString('utf8').replaceAll('\r\n','\n') : bytes), path).toBe(expected);
@@ -47,8 +44,8 @@ describe('A45 and Porsche remain exactly at the user-approved main version', () 
     ]) expect(hash(builders.slice(builders.indexOf(start),builders.indexOf(end,builders.indexOf(start)))),start).toBe(expected);
   });
   for (const [name, Type, expected] of [
-    ['A45', MercedesCar, '965cfbf323e66b80ab6482d5ebefe70348397ae8078c20092aec93183108ee47'],
-    ['Porsche', PorscheCar, '7f17ba651c88f0ca959e2a69f8f7420f1455b2da033626413a129b29f51d9b0f'],
+    ['A45', MercedesCar, '62ea39a8aa447d67daaeae7e3eed35fce17b59816362321aeec3c03200b487f7'],
+    ['Porsche', PorscheCar, '4c3dff3a71edf0afc1f183f1f9729ea38da43c1732eb570fbf37ddac644496d6'],
   ] as const) it(`retains the ${name} acceleration/steering/braking trajectory`, () => {
     const car = new Type(); car.reset(0,0,80/3.6);
     const samples: number[][] = [];

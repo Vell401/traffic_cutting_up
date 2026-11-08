@@ -223,6 +223,7 @@ export const driftTune: DriftTune = {
  */
 export class DriftCar extends PlayerCar {
   override readonly physicsId: number = 2;
+  protected override get throttleDrivenReverse(): boolean { return false; }
   declare readonly tune: DriftTune;
 
   /** Runtime traction-control state; shared tune remains immutable across cars/runs. */
