@@ -327,6 +327,31 @@ describe('DriftCar (physics №2, V8 RWD)', () => {
     expect(Math.abs(car.vx - 2.5)).toBeLessThan(1.5);
   });
 
+  it('uses continuous tire and wheel dynamics through 2.5 m/s, including powered turns', () => {
+    const run = (speed: number, tc: boolean) => {
+      const car = new DriftCar();
+      car.reset(0, 0, speed);
+      car.tractionControlEnabled = tc;
+      car.espEnabled = false;
+      car.omegaR = (speed + 0.8) / driftTune.wheelRadius;
+      car.step(DT, { steer: 0.7, throttle: 0.65, brake: 0, analog: true }, 0);
+      return car;
+    };
+    for (const tc of [true, false]) {
+      const below = run(2.49, tc);
+      const above = run(2.51, tc);
+      expect(Math.abs(below.accLong - above.accLong)).toBeLessThan(0.1);
+      expect(Math.abs(below.accLat - above.accLat)).toBeLessThan(0.1);
+      expect(Math.abs(below.omegaR - above.omegaR)).toBeLessThan(0.5);
+      expect(Math.abs(below.slipRear - above.slipRear)).toBeLessThan(0.02);
+      expect(below.r * above.r).toBeGreaterThan(0);
+    }
+    const assisted = run(2.5, true);
+    const unassisted = run(2.5, false);
+    expect(unassisted.tune.lsdLock).toBe(assisted.tune.lsdLock);
+    expect(Math.abs(unassisted.accLat - assisted.accLat)).toBeLessThan(0.1);
+  });
+
   it('I: is held inside the barriers and reports the hit once', () => {
     const car = new DriftCar();
     car.reset(0, 6, 180 / 3.6);
