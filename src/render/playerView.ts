@@ -28,6 +28,7 @@ export class PlayerView {
   blinkLit = false;
   /** The cockpit's materials (they stay solid when the car is a ghost). */
   private readonly inside = new Set<THREE.Material>();
+  get ready(): Promise<void> { return this.parts.ready ?? Promise.resolve(); }
 
   /** own: the player's own car (real spot light, cockpit); others get just the lamps. */
   constructor(

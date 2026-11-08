@@ -67,6 +67,8 @@ export class Director {
   readonly laneBias = [1, 1, 1, 1];
   /** Spawn density of each mode relative to the base (online the admin page may change them). */
   readonly modeDensity: Record<TrafficMode, number> = { ...MODE_DENSITY };
+  /** Absolute online targets; unlike solo multipliers these do not drift with difficulty. */
+  readonly modePerKm: Partial<Record<TrafficMode, number>> = {};
   private modeLeft = FIRST_MODE_LEN;
 
   constructor(
@@ -94,6 +96,7 @@ export class Director {
 
   /** Cars per kilometre per lane a mode spawns at the current preset and difficulty. */
   densityOf(mode: TrafficMode): number {
+    if (this.modePerKm[mode] !== undefined) return this.modePerKm[mode]!;
     const k = this.preset === 2 ? DENSE_DENSITY : 1;
     return trafficTune.density * k * (0.75 + 0.6 * this.intensity) * this.modeDensity[mode];
   }

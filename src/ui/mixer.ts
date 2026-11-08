@@ -31,7 +31,11 @@ export class Mixer {
       this.muteBtn.blur();
     });
     // Arrows and Space move a focused slider; they must not steer or start a run.
-    for (const type of ['keydown', 'keyup'] as const) this.root.addEventListener(type, (e) => e.stopPropagation());
+    for (const type of ['keydown', 'keyup'] as const) this.root.addEventListener(type, (e) => {
+      // Esc still closes the pause card after adjusting a focused slider.
+      if (e.code === 'Escape' || e.code === 'KeyP') (e.target as HTMLElement).blur();
+      else e.stopPropagation();
+    });
     this.sync();
   }
 

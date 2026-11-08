@@ -6,7 +6,9 @@ import { VEHICLES, type VehicleSpec } from './vehicles';
 import type { PlayerCar } from './vehicle';
 
 /** Cars around one driver (and what a client draws). The server's pool holds this many per driver. */
-export const MAX_TRAFFIC = 112;
+export const MAX_TRAFFIC = 384;
+/** Physical target limit exposed by the online admin, cars per km of lane. */
+export const MAX_PER_KM = 80;
 /** Traffic lives in [driver.s - BEHIND, driver.s + AHEAD]; new cars appear far ahead, hidden by fog. */
 export const BEHIND = 220;
 export const AHEAD = 850;
@@ -38,6 +40,8 @@ export class TrafficCar {
   gen = 0;
   /** Index in Traffic's s-sorted order (neighbour search), -1 when not in it. */
   ord = -1;
+  /** Scratch distance for snapshot selection (avoids rebuilding a Map for every recipient). */
+  snapshotDistance = 0;
 
   s = 0;
   d = 0;
@@ -129,6 +133,11 @@ export class Traffic {
   /** Target number of cars in one driver's window. */
   targetCount(): number {
     return Math.min(MAX_TRAFFIC - 6, Math.round((this.director.density() * LANES * (BEHIND + AHEAD)) / 1000));
+  }
+
+  /** Grow on an admin limit change, retaining existing ids and cars. */
+  reserve(capacity: number): void {
+    for (let i = this.cars.length; i < capacity; i++) this.cars.push(new TrafficCar(i));
   }
 
   /** Signed distance from b to a along the road (the short way round on a ring). */
@@ -525,7 +534,8 @@ export class Traffic {
     const dir = this.director;
     const spec = dir.pickSpec();
     const lane = dir.pickLane(dir.lanesFor(spec));
-    if (!this.laneFree(lane, s, spec.len, 22)) return false;
+    const clearance = Math.max(5, Math.min(22, 700 / Math.max(1, dir.density()) - spec.len));
+    if (!this.laneFree(lane, s, spec.len, clearance)) return false;
     const v0 = this.laneSpeed(lane, spec);
     if (fromBehind && v0 < p.vAlong + 3) return false;
     return this.spawnAt(spec, s, lane, v0, laneCenter(lane) + this.pickLaneOffset(spec)) !== null;

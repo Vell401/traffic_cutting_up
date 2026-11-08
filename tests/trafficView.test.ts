@@ -72,7 +72,7 @@ describe('game traffic assets', () => {
     c.active = false; tick(); expect(body('sedan',1).visible).toBe(false);
     expect(mesh('traffic/shadows').count).toBe(0);
   });
-  it('fits a full 112-car pool, including twelve wheels per semi, in three geometry batches', () => {
+  it('fits the expanded full car pool, including twelve wheels per semi, in three geometry batches', () => {
     sim.traffic.cars.forEach(c => { c.active = true; c.spec = VEHICLES[5]; c.gen++; place(c,20); });
     tick();
     expect(body('semi').count).toBe(MAX_TRAFFIC);

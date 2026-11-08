@@ -511,6 +511,8 @@ body.test .leaders {
 /* ---------- Mixer (start menu and pause) ---------- */
 .mixer {
   position: fixed;
+  /* The later fullscreen pause overlay must not intercept mixer clicks. */
+  z-index: 2;
   right: 28px;
   bottom: 150px;
   width: 236px;

@@ -239,7 +239,11 @@ function loop(): void {
     game.tick(now);
     const ms = now() - t0;
     // A tick over its whole budget (8.3 ms) is a real problem: note it with what was going on.
-    if (ms > tickMs) api?.diag('warn', 'slow tick', { ms: +ms.toFixed(2), players: game.playerCount, traffic: game.world.traffic.activeCount });
+    if (ms > tickMs) api?.diag('warn', 'slow tick', {
+      ms: +ms.toFixed(2), ...game.timing,
+      players: game.playerCount, traffic: game.world.traffic.activeCount,
+      heapMB: Math.round(process.memoryUsage().heapUsed / 1048576),
+    });
     next += tickMs;
     n++;
   }

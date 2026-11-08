@@ -53,6 +53,7 @@ npm run build      # typecheck + production-сборка в dist/
 npm run server     # игровой сервер на :8787 (dev-сайт проксирует к нему /ws и /health)
 npm run bot        # 2 бота-водителя на локальный сервер
 npm run netcheck   # отчёт о качестве езды при задержках 0–150 мс, джиттере, низком FPS, авариях
+npm run perfcheck  # нагрузка симуляции и рассылки снимков: до 50 игроков / 3840 машин трафика
 npm run build:server  # dist-server/main.js для VPS; продакшен: пуш в main сам выкатывается на VPS (docs/deploy.md)
 ```
 

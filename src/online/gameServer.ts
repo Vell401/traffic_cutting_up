@@ -144,6 +144,8 @@ export class GameServer {
   /** Totals for /health and the periodic log line. */
   readonly totals = { snapshots: 0, snapshotBytes: 0, skipped: 0, kicked: 0, joins: 0 };
   readonly steps: StepStats = { count: 0, total: 0, max: 0 };
+  /** Last tick phase timings, including serialization/socket work (not just physics). */
+  readonly timing = { simulationMs: 0, snapshotMs: 0, housekeepingMs: 0 };
   private readonly onRun: ServerOptions['onRun'] | null;
   /** Addresses the admin turned away, until (ms since epoch). */
   readonly bans = new Map<string, number>();
@@ -329,7 +331,7 @@ export class GameServer {
 
   // ----------------------------------------------------------------------- ticking
 
-  /** One world tick, then the snapshots (every snapshotEvery ticks) and housekeeping (once a second). */
+  /** One world tick, a staggered share of snapshots and housekeeping (once a second). */
   tick(now: () => number = () => 0): void {
     const w = this.world;
     const t0 = now();
@@ -340,12 +342,19 @@ export class GameServer {
     st.total += ms;
     if (ms > st.max) st.max = ms;
 
-    if (w.tick % w.rules.snapshotEvery === 0) this.sendSnapshots();
+    this.timing.simulationMs = ms;
+    const t1 = now();
+    this.sendSnapshots();
+    const t2 = now();
     if (w.tick % w.rules.tickHz === 0) this.housekeeping();
+    this.timing.snapshotMs = t2 - t1;
+    this.timing.housekeepingMs = now() - t2;
   }
 
   private sendSnapshots(): void {
     for (const slot of this.slots.values()) {
+      // Still 30 snapshots/s per driver; avoid a burst of 50 serializations every fourth tick.
+      if (this.world.tick % this.world.rules.snapshotEvery !== slot.driver.id % this.world.rules.snapshotEvery) continue;
       const conn = slot.conn;
       if (!conn || conn.closed) continue;
       const backlog = conn.peer.buffered;

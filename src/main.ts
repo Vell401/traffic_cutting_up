@@ -736,7 +736,14 @@ view.renderer.setAnimationLoop((now: number) => {
   sound.setCockpit(view.cameraMode === 'cockpit');
   sound.update(state === 'pause' ? 0 : dt);
   metrics.frame(frameMs, t1 - t0, t2 - t1, n);
-  diagFrame(frameMs);
+  const performanceActive = !loading.active && !document.hidden && state === 'play' && !onlineMenu;
+  view.adaptResolution(frameMs, t2 - t0, performanceActive);
+  diagFrame(frameMs, t1 - t0, t2 - t1, () => ({
+    calls: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles,
+    dpr: view.renderer.getPixelRatio(), width: canvas.width, height: canvas.height,
+    traffic: sim.traffic.activeCount, players: sim.remotes.length, camera: view.cameraMode,
+    pingMs: session?.core.stats.rtt,
+  }), performanceActive);
   watchCorrections(now);
   if (TEST && state === 'play') announceSection();
   if (debugOn) debug?.update();
@@ -744,6 +751,12 @@ view.renderer.setAnimationLoop((now: number) => {
 
 await loading.stage(45, 'Загрузка выбранного автомобиля');
 await waitForCar(car, (fraction, unpacking) => loading.set(45 + fraction * 45, unpacking ? 'Подготовка материалов автомобиля' : 'Загрузка автомобиля'));
+if (ONLINE) {
+  await loading.stage(91, 'Подготовка машин других игроков');
+  // Parsing a 36 MB GLB after somebody joins stalls the main thread even with async HTTP.
+  for (const id of [1, 3] as const) await waitForCar(id);
+  await view.prepareOnlineCars();
+}
 await loading.stage(95, 'Подготовка первого кадра');
 view.render(1, 0);
 await view.prepareCar();

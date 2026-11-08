@@ -24,6 +24,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { GameServer } from '../src/online/gameServer';
 import { TRAFFIC_MODES, type WorldConfig } from '../src/online/world';
 import type { TrafficMode } from '../src/sim/director';
+import { MAX_PER_KM } from '../src/sim/traffic';
 import { Limiter, clientIp, ownJson, readJson, send } from './api';
 import type { RunMode, Store } from './store';
 
@@ -34,9 +35,9 @@ export const TRAFFIC_SETTINGS = 'traffic';
 /** The traffic settings to keep: everything the admin page can change about traffic, as it is now. */
 export function trafficSettings(game: GameServer): WorldConfig {
   const t = game.trafficState();
-  const modeDensity: Partial<Record<TrafficMode, number>> = {};
-  for (const d of t.densities) modeDensity[d.mode] = d.scale;
-  return { trafficOn: t.on, traffic: t.preset, intensity: t.intensity, mode: t.held ? t.mode : 'auto', modeDensity };
+  const densities: Partial<Record<TrafficMode, number>> = {};
+  for (const d of t.densities) densities[d.mode] = d.perKm;
+  return { trafficOn: t.on, traffic: t.preset, intensity: t.intensity, mode: t.held ? t.mode : 'auto', densities };
 }
 const MAX_SESSIONS = 50;
 
@@ -175,7 +176,7 @@ export class Admin {
         if (typeof b.intensity === 'number' && b.intensity >= 0 && b.intensity <= 1) cfg.intensity = b.intensity;
         if (b.mode === 'auto' || TRAFFIC_MODES.includes(b.mode as never)) cfg.mode = b.mode as WorldConfig['mode'];
         const pk = b.modePerKm as { mode?: unknown; perKm?: unknown } | undefined;
-        if (pk && TRAFFIC_MODES.includes(pk.mode as never) && typeof pk.perKm === 'number' && pk.perKm >= 0 && pk.perKm <= 40) {
+        if (pk && TRAFFIC_MODES.includes(pk.mode as never) && typeof pk.perKm === 'number' && Number.isFinite(pk.perKm) && pk.perKm >= 0 && pk.perKm <= MAX_PER_KM) {
           cfg.modePerKm = { mode: pk.mode as TrafficMode, perKm: pk.perKm };
         }
         if (Object.keys(cfg).length === 0) return send(res, 400, { ok: false });

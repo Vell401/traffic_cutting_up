@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Admin } from '../server/admin';
+import { Admin, trafficSettings } from '../server/admin';
 import { Api } from '../server/api';
 import { GameServer } from '../src/online/gameServer';
 import { PROTOCOL_VERSION, rulesHash } from '../src/online/rules';
@@ -175,13 +175,31 @@ describe('admin API', () => {
     // One mode's spawn density in cars per km of lane; kept in the database for the next start.
     const d = (await (await req('traffic', { modePerKm: { mode: 'dense', perKm: 30 } })).json()) as { traffic: { densities: { mode: string; perKm: number }[] } };
     expect(d.traffic.densities.find((x) => x.mode === 'dense')!.perKm).toBeCloseTo(30, 6);
-    const saved = store.setting<{ traffic: number; mode: string; modeDensity: Record<string, number> }>('traffic')!;
+    const saved = store.setting<{ traffic: number; mode: string; densities: Record<string, number> }>('traffic')!;
     expect(saved).toMatchObject({ traffic: 2, mode: 'trucks' });
-    expect(saved.modeDensity.dense).toBeGreaterThan(1.45);
+    expect(saved.densities.dense).toBe(30);
     expect((await req('players', { maxPlayers: 12 })).status).toBe(200);
     expect(game.world.rules.maxPlayers).toBe(12);
     expect((await req('players', { maxPlayers: 500 })).status).toBe(400);
     expect(diag.some((m) => m.includes('traffic') && m.includes('10.0.0.9'))).toBe(true);
+  });
+
+  it('accepts the full density range, preserves zero, and restores absolute targets after restart', async () => {
+    for (const value of [0, 80]) {
+      const res = await req('traffic', { modePerKm: { mode: 'sparse', perKm: value } });
+      expect(res.status).toBe(200);
+      expect(game.trafficState().densities.find(d => d.mode === 'sparse')!.perKm).toBe(value);
+    }
+    for (const perKm of [-1, 80.1, '80', null]) {
+      expect((await req('traffic', { modePerKm: { mode: 'sparse', perKm } })).status).toBe(400);
+    }
+    game.configure({ traffic: 1, intensity: 0 });
+    expect(game.trafficState().densities.find(d => d.mode === 'sparse')!.perKm).toBe(80);
+    const restored = new GameServer({ seed: 8 });
+    restored.configure(trafficSettings(game));
+    expect(restored.trafficState().densities).toEqual(game.trafficState().densities);
+    restored.configure({ mode: 'sparse' });
+    expect(restored.world.traffic.targetCount()).toBeGreaterThan(106);
   });
 
   it('kicks a driver, keeps the address out while banned, lets it back after unban', async () => {
