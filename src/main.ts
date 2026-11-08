@@ -179,7 +179,7 @@ function startOnline(): void {
   if (session && session.state !== 'failed') return;
   loading.begin('online', 'Выходим на общее кольцо');
   loading.set(20, 'Соединение с сервером');
-  const name = nameInput.value.trim().slice(0, 16) || 'Driver';
+  const name = playerName();
   saveName(name);
   nameInput.blur();
   const ohud = (onlineHud ??= new OnlineHud(sim));
@@ -248,8 +248,10 @@ async function probeServer(): Promise<void> {
 }
 
 // The driver's name: online it is shown to others, both modes put it on the leaderboard.
-const playerName = (): string => nameInput.value.trim().slice(0, 16) || 'Driver';
-nameInput.value = loadName();
+// A cleared field falls back to the saved (or first random) name, never a shared "Driver".
+const defaultName = loadName();
+const playerName = (): string => nameInput.value.trim().slice(0, 16) || defaultName;
+nameInput.value = defaultName;
 nameInput.addEventListener('keydown', (e) => {
   if (e.code === 'Enter') start();
   e.stopPropagation(); // typing a name must not drive, pause or switch cameras

@@ -97,11 +97,19 @@ export function saveCameraMode(car: number, mode: string): void {
 }
 
 /** Online driver name. */
+/**
+ * The player's name. A first-time player gets a random one (driver + 5 digits), saved at once, so
+ * their runs reach the leaderboard under a name of their own even if they never type one.
+ */
 export function loadName(): string {
   try {
-    return localStorage.getItem('tcu.name') ?? '';
+    const saved = localStorage.getItem('tcu.name')?.trim();
+    if (saved) return saved;
+    const name = `driver${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+    localStorage.setItem('tcu.name', name);
+    return name;
   } catch {
-    return '';
+    return `driver${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
   }
 }
 
