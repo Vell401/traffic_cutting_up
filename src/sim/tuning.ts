@@ -1,5 +1,5 @@
 import { carTune, trafficTune } from '../config';
-import { driftTune } from './vehicleDrift';
+import { r34Tune } from './vehicleR34';
 import { mercedesTune } from './vehicleMercedes';
 import { porscheTune } from './vehiclePorsche';
 
@@ -26,20 +26,30 @@ export const TUNE_FIELDS = [
   { key: 'engineBrakeNm', label: 'Торможение двигателем, Н·м', min: 0, max: 300, step: 1 },
   { key: 'driveEff', label: 'КПД трансмиссии', min: .5, max: 1, step: .01 },
   { key: 'shiftTime', label: 'Время переключения, с', min: .04, max: .8, step: .005 },
+  { key: 'driftAngle', label: 'R34 · рабочий угол заноса, рад', min: .2, max: 1, step: .01 },
+  { key: 'driftBuild', label: 'R34 · скорость развития заноса', min: .3, max: 5, step: .1 },
+  { key: 'driftRecover', label: 'R34 · возврат зацепа', min: .3, max: 8, step: .1 },
+  { key: 'counterSteer', label: 'R34 · сила контрруления', min: .1, max: 2, step: .05 },
+  { key: 'yawResponse', label: 'R34 · отзывчивость поворота', min: 2, max: 20, step: .5 },
 ] as const;
 export type TuneKey = typeof TUNE_FIELDS[number]['key'];
 export type CarTuning = Partial<Record<TuneKey, number>>;
 export interface GlobalTuning {
+  /** Missing in the old sedan preset. Only R34 is migrated when its handling is replaced. */
+  r34Revision?: number;
   cars: Record<string, CarTuning>;
   traffic: { lanes: [number, number][]; truckMin: number; truckMax: number; wallMin: number; wallMax: number };
 }
 export const TUNE_CARS = [
   { id: '3', name: 'Mercedes-AMG A45 S' }, { id: '4', name: 'Porsche 911 GT3 RS' },
-  { id: '2', name: 'R34 · V8 RWD' }, { id: '1', name: 'Grip (совместимость)' },
+  { id: '2', name: 'R34 · Drift' }, { id: '1', name: 'Grip (совместимость)' },
 ];
-const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': driftTune, '3': mercedesTune, '4': porscheTune };
+const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': r34Tune, '3': mercedesTune, '4': porscheTune };
+// counterSteer also exists in DriftTune; the new R34 controls must not extend the other saved schemas.
+const r34OnlyFields = new Set<TuneKey>(['driftAngle', 'driftBuild', 'driftRecover', 'counterSteer', 'yawResponse']);
 const baseline: GlobalTuning = {
-  cars: Object.fromEntries(Object.entries(tunes).map(([id, tune]) => [id, Object.fromEntries(TUNE_FIELDS.flatMap(f => typeof tune[f.key] === 'number' ? [[f.key, tune[f.key]]] : []))])),
+  r34Revision: 1,
+  cars: Object.fromEntries(Object.entries(tunes).map(([id, tune]) => [id, Object.fromEntries(TUNE_FIELDS.flatMap(f => (id === '2' || !r34OnlyFields.has(f.key)) && typeof tune[f.key] === 'number' ? [[f.key, tune[f.key]]] : []))])),
   traffic: { lanes: trafficTune.laneSpeedKmh.map(v => [...v] as [number, number]), truckMin: 80, truckMax: 92, wallMin: 86, wallMax: 100 },
 };
 export const trafficSpeed = { truckMin: 80, truckMax: 92, wallMin: 86, wallMax: 100 };
@@ -54,7 +64,7 @@ export function currentTuning(): GlobalTuning {
 /** Strict, atomic validation: reject unknown keys and never partially apply a bad form. */
 export function validateTuning(value: unknown): GlobalTuning {
   const v = value as GlobalTuning;
-  if (!v || typeof v !== 'object' || !v.cars || !v.traffic || Object.keys(v).some(k => !['cars', 'traffic'].includes(k))) throw new Error('Неверные настройки');
+  if (!v || typeof v !== 'object' || !v.cars || !v.traffic || v.r34Revision !== 1 || Object.keys(v).some(k => !['cars', 'traffic', 'r34Revision'].includes(k))) throw new Error('Неверные настройки');
   if (Object.keys(v.cars).some(id => !Object.hasOwn(baseline.cars, id))) throw new Error('Неизвестная машина');
   for (const [id, fields] of Object.entries(baseline.cars)) {
     const car = v.cars[id];
@@ -75,4 +85,15 @@ export function applyTuning(value: GlobalTuning): void {
   for (const [id, fields] of Object.entries(v.cars)) Object.assign(tunes[id], fields);
   trafficTune.laneSpeedKmh = v.traffic.lanes;
   Object.assign(trafficSpeed, { truckMin: v.traffic.truckMin, truckMax: v.traffic.truckMax, wallMin: v.traffic.wallMin, wallMax: v.traffic.wallMax });
+}
+
+/** Upgrade only the retired R34/sedan preset; retain every other custom car/traffic value verbatim. */
+export function migrateR34Tuning(value: unknown): GlobalTuning {
+  const v = structuredClone(value) as GlobalTuning;
+  if (!v || typeof v !== 'object' || !v.cars || typeof v.cars !== 'object') throw new Error('Неверные сохранённые настройки');
+  if (v.r34Revision === undefined) {
+    v.cars['2'] = defaultTuning().cars['2'];
+    v.r34Revision = 1;
+  }
+  return validateTuning(v);
 }

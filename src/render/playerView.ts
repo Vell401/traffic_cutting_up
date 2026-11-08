@@ -160,7 +160,7 @@ export class PlayerView {
     this.pitch = damp(this.pitch, clamp(car.accLong * 0.004, -0.04, 0.03), 8, dt);
     this.roll = damp(this.roll, clamp(car.accLat * 0.005, -0.05, 0.05), 8, dt);
     p.body.rotation.set(this.pitch, 0, this.roll);
-    if (!this.cockpitOn) p.wheels.update(this.car===1?car.steerAngle:car.steerIn * 0.32, car.wheelSpin % (Math.PI * 2));
+    if (!this.cockpitOn) p.wheels.update(this.car===1||this.car===2?car.steerAngle:car.steerIn * 0.32, car.wheelSpin % (Math.PI * 2));
     p.tail.color.copy(car.brake > 0.05 ? p.tailBrake : p.tailIdle);
     // Turn signals: a new side starts lit, like a real relay.
     if (car.blinker !== this.blinkSide) {
@@ -169,13 +169,14 @@ export class PlayerView {
     } else this.blinkT += dt;
     this.blinkLit = this.blinkSide !== 0 && this.blinkT % BLINK_PERIOD < BLINK_LIT;
     p.indicators.set(this.blinkLit && this.blinkSide === 1, this.blinkLit && this.blinkSide === 2, car.brake > 0.05);
-    if (this.cockpitOn||this.car===1) p.cockpit?.update(car, dt);
+    if (p.updateCabin) p.updateCabin(car, dt);
+    else if (this.cockpitOn||this.car===1) p.cockpit?.update(car, dt);
   }
 
   /** Take it out of the scene and free its materials (geometry is shared between cars of a model). */
   dispose(): void {
     this.parts.dispose?.();
     this.root.removeFromParent();
-    for (const m of this.ownMaterials(true)) m.dispose();
+    for (const m of this.ownMaterials(true)) if (!this.parts.managedMaterials?.has(m)) m.dispose();
   }
 }

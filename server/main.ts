@@ -33,7 +33,7 @@ import { Admin, TRAFFIC_SETTINGS } from './admin';
 import { Api, clientIp } from './api';
 import { Store } from './store';
 import { RadioStore } from './radio';
-import { currentTuning, type GlobalTuning } from '../src/sim/tuning';
+import { currentTuning, migrateR34Tuning, type GlobalTuning } from '../src/sim/tuning';
 import { send } from './api';
 
 const env = process.env;
@@ -141,7 +141,14 @@ if (savedTraffic) {
 }
 const savedTuning = store.setting<GlobalTuning>('tuning');
 if (savedTuning) {
-  try { game.setTuning(savedTuning); }
+  try {
+    const restored = migrateR34Tuning(savedTuning);
+    game.setTuning(restored);
+    if (savedTuning.r34Revision !== restored.r34Revision) {
+      store.setSetting('tuning', restored);
+      log('info', 'R34 migrated to its new drift preset; other vehicle settings retained');
+    }
+  }
   catch (error) { log('warn', `Invalid saved tuning, using shipped defaults: ${String(error)}`); }
 }
 
