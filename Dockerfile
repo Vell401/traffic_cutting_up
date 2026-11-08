@@ -7,9 +7,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
-# A commit that does not typecheck or fails a test stops here and never reaches the server
-# (the workflow's test job runs the same checks first; this guards a deploy by hand too).
-RUN npm run typecheck && npx vitest run && npm run build && npm run build:server
+# A commit that does not typecheck or fails a test stops here and never reaches the server.
+# SKIP_TESTS=1 (the deploy workflow): the workflow's test job has just run the whole suite on this
+# commit on GitHub's runners, so the small VPS (2 cores, 2 GB, no swap) does not run it again: the
+# suite failed there under that load (Porsche commit) although it passed in CI. By hand it runs here.
+ARG SKIP_TESTS=0
+RUN npm run typecheck \
+  && if [ "$SKIP_TESTS" = 1 ]; then echo "tests: passed in the workflow's test job"; else npx vitest run; fi \
+  && npm run build \
+  && npm run build:server
 # The commit goes in last: an unchanged tree still reuses every layer above.
 ARG GIT_SHA=dev
 RUN printf '{"version":"%s"}' "$GIT_SHA" > dist/version.json

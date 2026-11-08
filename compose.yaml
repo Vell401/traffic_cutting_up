@@ -11,6 +11,8 @@ services:
       target: server
       args:
         GIT_SHA: ${GIT_SHA:-dev}
+        # 1 from the deploy workflow (its test job already ran the suite); a build by hand runs it.
+        SKIP_TESTS: ${SKIP_TESTS:-0}
     image: traffic-game
     restart: unless-stopped
     environment:
@@ -36,6 +38,8 @@ services:
       target: web
       args:
         GIT_SHA: ${GIT_SHA:-dev}
+        # 1 from the deploy workflow (its test job already ran the suite); a build by hand runs it.
+        SKIP_TESTS: ${SKIP_TESTS:-0}
     image: traffic-web
     restart: unless-stopped
     depends_on:

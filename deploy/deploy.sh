@@ -5,12 +5,14 @@
 #
 #   SITE_ADDRESS  address the site is opened by (default: the server's first IP)
 #   CERT_DIR      where the self-signed certificate lives (default /opt/traffic/certs)
+#   SKIP_TESTS    1: do not run the test suite in the image build (the workflow tested the commit)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export SITE_ADDRESS="${SITE_ADDRESS:-$(hostname -I | awk '{print $1}')}"
 export CERT_DIR="${CERT_DIR:-/opt/traffic/certs}"
 export GIT_SHA="${GIT_SHA:-$(git rev-parse --short=7 HEAD)}"
+export SKIP_TESTS="${SKIP_TESTS:-0}"
 BASE="https://$SITE_ADDRESS"
 IMAGES=(traffic-game traffic-web)
 echo "deploying $GIT_SHA to $BASE"

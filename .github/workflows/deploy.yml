@@ -35,6 +35,8 @@ jobs:
         env:
           # Repository variable (Settings → Secrets and variables → Actions → Variables); empty = the server's IP.
           SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+          # The test job above has run the whole suite on this commit: the image build skips it.
+          SKIP_TESTS: "1"
           # Repository secret (Settings → Secrets and variables → Actions → Secrets): the admin page's
           # password. Unset = no admin page.
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
