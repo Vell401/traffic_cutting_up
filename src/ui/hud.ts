@@ -53,7 +53,12 @@ export class Hud {
     const sc = this.sim.score;
     const p = this.sim.player;
     const assist = p as typeof p & { tractionControlEnabled?: boolean; espEnabled?: boolean };
-    if (assist.tractionControlEnabled !== undefined && assist.espEnabled !== undefined) {
+    if (p.physicsId === 2) {
+      const rack = p.tune as typeof p.tune & { steerAssist?: number };
+      const autoSteer = (rack.steerAssist ?? 0) > 0;
+      this.assistStatus.textContent = `AUTO STEER ${autoSteer ? 'ON' : 'OFF'} · TC ${p.tune.tractionControl > 0 ? 'ON' : 'OFF'}`;
+      this.assistStatus.classList.toggle('off', !autoSteer);
+    } else if (assist.tractionControlEnabled !== undefined && assist.espEnabled !== undefined) {
       this.assistStatus.textContent = `TC ${assist.tractionControlEnabled ? 'ON' : 'OFF'} · ESP ${assist.espEnabled ? 'ON' : 'OFF'}`;
       this.assistStatus.classList.toggle('off', !assist.tractionControlEnabled || !assist.espEnabled);
     }
@@ -66,7 +71,7 @@ export class Hud {
     this.set('score', this.score, fmt.format(Math.floor(sc.score)));
     this.set('mult', this.mult, `×${sc.mult.toFixed(sc.mult % 1 === 0 ? 0 : 2)}`);
     this.set('best', this.best, fmt.format(sc.best));
-    this.set('kmh', this.kmh, String(Math.round(Math.max(0, p.vAlong) * 3.6)));
+    this.set('kmh', this.kmh, String(Math.round((p.physicsId === 2 ? p.speed : Math.max(0, p.vAlong)) * 3.6)));
     const gear = p.gear === 0 ? 'R' : p.gear === -1 ? 'N' : String(p.gear);
     this.set('gear', this.gear, p.manual && p.gear > 0 ? `M${gear}` : gear);
     this.boostBar.style.transform = `scaleX(${p.boost.toFixed(3)})`;

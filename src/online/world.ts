@@ -630,7 +630,8 @@ export class OnlineWorld {
         (c.brake > 0.05 ? REMOTE_BRAKE : 0) |
         (c.blinker === 1 ? REMOTE_BLINK_LEFT : c.blinker === 2 ? REMOTE_BLINK_RIGHT : 0) |
         (c.horn ? REMOTE_HORN : 0);
-      writeDriver(w, o.id, flags, this.traffic.wrap(c.s), c.d, c.psi, c.vx, c.vy, c.r, c.steerIn, c.gear);
+      const steerVisual = o.body === 2 ? c.steerAngle / 1.1 : c.steerIn;
+      writeDriver(w, o.id, flags, this.traffic.wrap(c.s), c.d, c.psi, c.vx, c.vy, c.r, steerVisual, c.gear);
     }
 
     // Traffic in view, nearest first if there is more than a client draws.

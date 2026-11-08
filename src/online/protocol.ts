@@ -310,6 +310,7 @@ export interface SnapDriver {
   vx: number;
   vy: number;
   r: number;
+  /** R34 body: actual road-wheel radians / 1.1. All other bodies keep their original input encoding. */
   steer: number;
   gear: number;
 }

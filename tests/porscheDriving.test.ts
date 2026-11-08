@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe,it,expect } from 'vitest';
 import { Quaternion,Vector3 } from 'three';
 import { PorscheCar } from '../src/sim/vehiclePorsche';
-import { createCar } from '../src/sim/physics';
+import { DriftCar } from '../src/sim/vehicleDrift';
 import { PORSCHE_STEERING_AXIS,porscheSteeringAngle } from '../src/render/car/porscheCockpit';
 import { PORSCHE_AUDIO_CLIPS,rpmBlend } from '../src/audio/porscheEngine';
 import { OnlineWorld } from '../src/online/world';
@@ -126,8 +126,9 @@ describe('Porsche steering and chassis',()=>{
   });
   it('responds faster than the heavy RWD car and settles after a high-speed lane change',()=>{
     const results=[];
-    for(const id of [2,4] as const){
-      const c=createCar(id);c.reset(0,0,220/3.6);let offset=0,slip=0;
+    // Keep the original heavy-sedan reference. Registry ID 2 now selects a different R34 chassis.
+    for(const c of [new DriftCar(),new PorscheCar()]){
+      c.reset(0,0,220/3.6);let offset=0,slip=0;
       for(let i=0;i<300;i++){
         c.step(1/120,{steer:i<30?1:0,throttle:.3,brake:0},0);
         slip=Math.max(slip,Math.abs(Math.atan2(c.vy,c.vx)));

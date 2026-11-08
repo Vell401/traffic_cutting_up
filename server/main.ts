@@ -145,7 +145,7 @@ if (savedTuning) {
   try {
     const restored = restoreTuning(savedTuning);
     game.setTuning(restored);
-    if (Object.hasOwn(savedTuning, 'r34Revision')) store.setSetting('tuning', restored);
+    if (savedTuning.r34Revision !== restored.r34Revision) store.setSetting('tuning', restored);
   }
   catch (error) { log('warn', `Invalid saved tuning, using shipped defaults: ${String(error)}`); }
 }

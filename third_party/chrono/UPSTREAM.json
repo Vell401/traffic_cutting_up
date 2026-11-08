@@ -1,0 +1,14 @@
+{
+  "project": "Project Chrono",
+  "repository": "https://github.com/projectchrono/chrono",
+  "revision": "bdfd07c2edee80361acffbe01df392c36c6d8ef6",
+  "license": "BSD-3-Clause (upstream wording retained in LICENSE)",
+  "sourceDirectory": "src/chrono_vehicle/wheeled_vehicle/tire/",
+  "files": {
+    "ChTMeasyTire.cpp": "d61525e043ab1ace6b19170428de84a683e5e23731fa2b74a88eeef17107c8a2",
+    "ChTMeasyTire.h": "ca0e0346cdf0feff5ccb9535226b221289fb153863a35da93ac1bedc65bdd689",
+    "LICENSE": "5f625eb4c9e0ddf86db9d1ed9b6adb5b30296ea81919282b2f38c977136bf079"
+  },
+  "port": "src/sim/r34/chronoTMeasy.ts",
+  "scope": "TMeasy horizontal tyre forces, load interpolation, passenger-car coefficients and aligning moment; not the full Chrono vehicle engine"
+}

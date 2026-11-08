@@ -3,6 +3,8 @@ import { scoreTune, trafficTune } from '../config';
 import { CAMERA_RIGS } from '../render/car';
 import { CARS } from '../sim/cars';
 import type { DriftTune } from '../sim/vehicleDrift';
+import type { R34Tune } from '../sim/vehicleR34';
+import { R34_TUNE_FIELDS } from '../sim/r34TuningFields';
 import type { Sim } from '../sim/world';
 
 export interface Debug {
@@ -22,7 +24,8 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   const pane = new Pane({ title: 'Tuning  ( ` )' });
   pane.element.parentElement!.style.zIndex = '20';
 
-  const tele = { kmh: 0, slipDeg: 0, latG: 0, psiDeg: 0, cars: 0, drawCalls: 0, tris: 0 };
+  const tele = { kmh: 0, slipDeg: 0, latG: 0, psiDeg: 0, cars: 0, drawCalls: 0, tris: 0,
+    progressKmh: 0, rearWheelKmh: 0, steeringInput: 0, rackDeg: 0, yawDeg: 0, frontFy: 0, rearFy: 0 };
   const t = pane.addFolder({ title: 'Telemetry' });
   t.addBinding(tele, 'kmh', { readonly: true, format: (v: number) => v.toFixed(0) });
   t.addBinding(tele, 'slipDeg', { readonly: true, label: 'slip °', format: (v: number) => v.toFixed(1) });
@@ -31,6 +34,13 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   t.addBinding(tele, 'cars', { readonly: true, format: (v: number) => v.toFixed(0) });
   t.addBinding(tele, 'drawCalls', { readonly: true, label: 'draw calls', format: (v: number) => v.toFixed(0) });
   t.addBinding(tele, 'tris', { readonly: true, label: 'triangles', format: (v: number) => v.toFixed(0) });
+  if (sim.player.physicsId === 2) {
+    const drift = pane.addFolder({ title: 'R34 · physical feedback', expanded: false });
+    for (const [key, label] of [
+      ['progressKmh', 'road km/h'], ['rearWheelKmh', 'rear wheels km/h'], ['steeringInput', 'steering input'],
+      ['rackDeg', 'road wheels °'], ['yawDeg', 'yaw °/s'], ['frontFy', 'front Fy, N'], ['rearFy', 'rear Fy, N'],
+    ] as const) drift.addBinding(tele, key, { readonly: true, label, format: (v: number) => v.toFixed(2) });
+  }
 
   // Bound to the car picked in the menu (each physics variant has its own tune object).
   const carTune = sim.player.tune;
@@ -39,14 +49,21 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
   car.addBinding(carTune, 'powerKW', { min: 100, max: 700, step: 10 });
   car.addBinding(carTune, 'gripFront', { min: 0.6, max: 1.8, step: 0.01 });
   car.addBinding(carTune, 'gripRear', { min: 0.6, max: 1.8, step: 0.01 });
-  car.addBinding(carTune, 'steerGripScale', { min: 0.5, max: 2, step: 0.01, label: 'steer lock ×grip' });
-  car.addBinding(carTune, 'steerRate', { min: 1, max: 30, step: 0.5 });
-  car.addBinding(carTune, 'steerReturn', { min: 1, max: 40, step: 0.5 });
+  car.addBinding(carTune, 'steerGripScale', { min: 0.5, max: 2, step: 0.01, label: sim.player.physicsId === 2 ? 'key demand ×' : 'steer lock ×grip' });
+  car.addBinding(carTune, 'steerRate', { min: 1, max: 30, step: 0.5, ...(sim.player.physicsId === 2 ? { label: 'raw/reverse steer rate' } : {}) });
+  car.addBinding(carTune, 'steerReturn', { min: 1, max: 40, step: 0.5, ...(sim.player.physicsId === 2 ? { label: 'raw/reverse return' } : {}) });
   if (!v2) car.addBinding(carTune, 'yawAssist', { min: 0, max: 1, step: 0.01 });
   car.addBinding(carTune, 'tractionControl', { min: 0, max: 1, step: 0.01, label: 'traction ctrl' });
   car.addBinding(carTune, 'aeroDrag', { min: 0.1, max: 1, step: 0.01 });
   car.addBinding(carTune, 'brakeDecel', { min: 4, max: 16, step: 0.1 });
-  if (v2) {
+  if (sim.player.physicsId === 2) {
+    const rt = carTune as R34Tune;
+    const r34 = pane.addFolder({ title: 'R34 · Tyres / Keyboard steering' });
+    for (const f of R34_TUNE_FIELDS) if (f.key in rt) r34.addBinding(rt, f.key, { min: f.min, max: f.max, step: f.step, label: f.key });
+    r34.addBinding(rt, 'maxSteerLow', { min: .2, max: 1.1, step: .01, label: 'mechanical lock, rad' });
+    r34.addBinding(rt, 'torqueNm', { min: 100, max: 1200, step: 10, label: 'torque, N·m' });
+    r34.addBinding(rt, 'lsdLock', { min: 0, max: 1, step: .01, label: 'LSD lock' });
+  } else if (v2) {
     // Physics №2 extras (ranges from its author; the lag and ESP range must stay above zero).
     const rt = carTune as DriftTune;
     const rwd = pane.addFolder({ title: sim.player.physicsId === 4 ? 'GT3 RS' : sim.player.physicsId === 3 ? 'AMG' : 'V8 RWD' });
@@ -99,8 +116,16 @@ export async function createDebug(renderer: WebGLRenderer, sim: Sim): Promise<De
       stats.update();
       if (++frame % 6 !== 0) return;
       const p = sim.player;
-      tele.kmh = p.vAlong * 3.6;
-      tele.slipDeg = (Math.atan2(p.vy, Math.max(p.vx, 1)) * 180) / Math.PI;
+      tele.kmh = (p.physicsId === 2 ? p.speed : p.vAlong) * 3.6;
+      tele.slipDeg = (Math.atan2(p.vy, p.physicsId === 2 ? p.vx : Math.max(p.vx, 1)) * 180) / Math.PI;
+      if (p.physicsId === 2) {
+        const r34 = p as typeof p & { rearWheelspin?: number; forceFront?: number; forceRear?: number };
+        tele.progressKmh = p.vAlong * 3.6;
+        tele.rearWheelKmh = (p.vx + (r34.rearWheelspin ?? 0)) * 3.6;
+        tele.steeringInput = p.steerIn; tele.rackDeg = p.steerAngle * 180 / Math.PI;
+        tele.yawDeg = p.r * 180 / Math.PI;
+        tele.frontFy = r34.forceFront ?? 0; tele.rearFy = r34.forceRear ?? 0;
+      }
       tele.latG = p.accLat / 9.81;
       tele.psiDeg = (p.psi * 180) / Math.PI;
       tele.cars = sim.traffic.activeCount;

@@ -6,13 +6,11 @@ import { report } from '../../diag';
 import type { CarId } from '../../sim/cars';
 import type { PlayerCar } from '../../sim/vehicle';
 import { sideExtrude } from '../carModels';
-import { liveryPaint } from './livery';
-import { CHROME, EMIT, GRILLE, IND_L, IND_R, PAINT, RIND_L, RIND_R, SHELL, TAIL, TRIM, r34Geometry } from './r34';
-import { buildR34Cockpit, type Cockpit } from './r34Interior';
-import { LENGTH, TRACK_HALF, AXLES, TYRE_W, WHEEL_R, WIDTH } from './r34Shape';
-import { WheelSet, caliper, sportRim, sportTyre, type WheelPos } from './wheels';
+import type { Cockpit } from './r34Interior';
+import { WheelSet, sportRim, sportTyre, type WheelPos } from './wheels';
 import { buildPorsche, loadPorsche, porscheReady, PORSCHE_NAME } from './porsche';
 import { cloneInSlices } from './clone';
+import { buildR34Parts } from './r34Build';
 
 export type { Cockpit } from './r34Interior';
 
@@ -299,6 +297,8 @@ export interface CarParts {
   /** Imported scene attached (remote construction is sliced, not done in the render loop). */
   ready?: Promise<void>;
   dispose?(): void;
+  managedMaterials?: ReadonlySet<THREE.Material>;
+  updateCabin?(car: PlayerCar, dt: number): void;
   setCockpit?(on:boolean):void;
   setPaint(color: number): void;
   /** Pitches and rolls with the suspension. */
@@ -312,37 +312,11 @@ export interface CarParts {
   /** Headlight beams: height and front (z) of the lamps, car space, and their distance from the centre line. */
   lamp: THREE.Vector3;
   lampX: number;
-  indicators: Indicators;
-  /** Interior and eye (own R34 only). */
+  indicators: Pick<Indicators, 'set'>;
+  /** Optional local first-person camera/instruments. */
   cockpit: Cockpit | null;
 }
 
-let honeycomb: THREE.CanvasTexture | null = null;
-function honeycombTexture(): THREE.CanvasTexture {
-  if (honeycomb) return honeycomb;
-  const cv = document.createElement('canvas');
-  cv.width = 64;
-  cv.height = 64;
-  const g = cv.getContext('2d')!;
-  g.fillStyle = '#3a3c41';
-  g.fillRect(0, 0, 64, 64);
-  g.fillStyle = '#050506';
-  const hex = (cx: number, cy: number, r: number) => {
-    g.beginPath();
-    for (let k = 0; k < 6; k++) {
-      const a = (Math.PI / 3) * k + Math.PI / 6;
-      g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-    }
-    g.fill();
-  };
-  for (let row = -1; row < 5; row++) for (let col = -1; col < 5; col++) hex(col * 16 + (row % 2 ? 8 : 0), row * 14 + 6, 7.4);
-  honeycomb = new THREE.CanvasTexture(cv);
-  honeycomb.wrapS = honeycomb.wrapT = THREE.RepeatWrapping;
-  honeycomb.colorSpace = THREE.SRGBColorSpace;
-  return honeycomb;
-}
-
-let r34Wheel: { tyre: THREE.BufferGeometry; rim: THREE.BufferGeometry; caliper: THREE.BufferGeometry } | null = null;
 let mercedesModel: THREE.Group | null = null;
 let mercedesLoading = false;
 const mercedesWaiters = new Set<(model: THREE.Group) => void>();
@@ -507,12 +481,11 @@ class A45Cockpit implements Cockpit {
 }
 
 const TAIL_IDLE = new THREE.Color(1.2, 0.05, 0.03);
-const R34_REAR_OFF = new THREE.Color(0.75, 0.03, 0.02);
 const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
 
 /**
- * Build a car body. `paint` is the driver's chosen body colour. R34 livery keeps its contrasting
- * stripes. `own`: our car (gets the cockpit when the model has one). `full`: load the heavy
+ * Build a car body. `paint` is the driver's chosen body colour.
+ * `own`: our car (gets the cockpit when the model has one). `full`: load the heavy
  * imported model where there is one (every real car, ours or another driver's; not the hidden
  * spares a session builds up front for shader warm-up).
  */
@@ -667,78 +640,5 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
 }
 
 function buildR34(paint: number, L: number, W: number, own: boolean): CarParts {
-  const geo = r34Geometry();
-  const body = new THREE.Group();
-  // Real proportions fitted to the hitbox (≈ +6 % width: a wide-body stance).
-  const scale = new THREE.Vector3(W / WIDTH, 1, L / LENGTH);
-  const model = new THREE.Group();
-  model.scale.copy(scale);
-  body.add(model);
-
-  const tail = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 0.06, 0.035), vertexColors: true });
-  const mats: (THREE.Material | null)[] = [];
-  mats[PAINT] = liveryPaint(paint, 0x172238);
-  mats[TRIM] = new THREE.MeshStandardMaterial({ color: 0x0d0e10, roughness: 0.62 });
-  mats[CHROME] = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 1, roughness: 0.16 });
-  mats[EMIT] = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
-  mats[TAIL] = tail;
-  mats[GRILLE] = new THREE.MeshStandardMaterial({ color: 0x9a9da3, map: honeycombTexture(), roughness: 0.8, metalness: 0.2 });
-  mats[SHELL] = null;
-  const indicators = new Indicators();
-  const indL = new THREE.MeshBasicMaterial();
-  const indR = new THREE.MeshBasicMaterial();
-  const rearL = new THREE.MeshBasicMaterial();
-  const rearR = new THREE.MeshBasicMaterial();
-  indicators.add(indL, -1);
-  indicators.add(indR, 1);
-  // The centres of the inner round tail lamps: red like the rest of the lamp, amber when blinking.
-  indicators.add(rearL, -1, R34_REAR_OFF);
-  indicators.add(rearR, 1, R34_REAR_OFF);
-  mats[IND_L] = indL;
-  mats[IND_R] = indR;
-  mats[RIND_L] = rearL;
-  mats[RIND_R] = rearR;
-  geo.parts.forEach((g, i) => {
-    const m = mats[i];
-    if (m && g.index && g.index.count > 0) model.add(new THREE.Mesh(g, m));
-  });
-
-  r34Wheel ??= { tyre: sportTyre(WHEEL_R, TYRE_W, 0.2286), rim: sportRim(0.2286, TYRE_W), caliper: caliper() };
-  const pos: WheelPos[] = [];
-  AXLES.forEach((f, k) => {
-    for (const side of [-1, 1]) pos.push({ x: side * TRACK_HALF[k], y: WHEEL_R, z: -f, front: k === 0 });
-  });
-  const wheels = new WheelSet(
-    {
-      tyre: r34Wheel.tyre,
-      rim: r34Wheel.rim,
-      fixed: r34Wheel.caliper,
-      tyreMat: new THREE.MeshStandardMaterial({ color: 0x0f0f10, roughness: 0.9 }),
-      rimMat: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.92, roughness: 0.26 }),
-      fixedMat: new THREE.MeshStandardMaterial({ color: 0xc8161b, roughness: 0.45, metalness: 0.2 }),
-    },
-    pos,
-  );
-  const wheelRoot = new THREE.Group();
-  wheelRoot.scale.copy(scale);
-  wheelRoot.add(wheels.group);
-
-  let cockpit: Cockpit | null = null;
-  if (own) {
-    cockpit = buildR34Cockpit(geo.parts[SHELL]);
-    model.add(cockpit.group);
-  }
-  return {
-    body,
-    setPaint: color => { (mats[PAINT] as THREE.MeshStandardMaterial).color.setHex(color); },
-    wheels,
-    wheelRoot,
-    tail,
-    tailIdle: new THREE.Color(1.4, 0.06, 0.035),
-    tailBrake: new THREE.Color(3.4, 0.1, 0.05),
-    lamp: geo.lamp.clone().multiply(scale).setZ(geo.lamp.z * scale.z - 0.06),
-    lampX: 0.6 * scale.x,
-    cockpit,
-    indicators,
-  };
+  return buildR34Parts(paint, L, W, own);
 }

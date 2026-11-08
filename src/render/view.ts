@@ -20,6 +20,7 @@ import { makeRadialTexture } from './textures';
 import { TrafficView } from './trafficView';
 import { RemoteCar, revealMaterials } from './remoteCar';
 import { ResolutionBudget } from './resolution';
+import { r34ChaseYaw, r34SmokeIntensity } from './r34Feedback';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
@@ -165,9 +166,11 @@ export class View {
     this.carPos.set(this.pt.x - this.ox, 0, this.pt.z - this.oz);
 
     this.playerView.update(dt, p, this.carPos, yaw);
-    const tire = p as typeof p & { slipRear?: number; slipAngleRear?: number };
+    const tire = p as typeof p & { slipRear?: number; slipAngleRear?: number; rearWheelspin?: number };
     const slip = Math.max(Math.abs(tire.slipRear ?? 0), Math.abs(tire.slipAngleRear ?? 0) * 2.2);
-    const smoke = Math.min(1, Math.max(0, (slip - 0.1) / 0.5)) * Math.min(1, p.speed / 4);
+    const r34 = this.playerView.car === 2 && p.physicsId === 2;
+    const smoke = r34 ? r34SmokeIntensity(slip, p.speed, tire.rearWheelspin ?? 0)
+      : Math.min(1, Math.max(0, (slip - 0.1) / 0.5)) * Math.min(1, p.speed / 4);
     if (smoke > 0.08 && !p.ghost) this.emitTireSmoke(smoke);
     this.playerView.setGhost(p.ghost);
     if (sim.remotes.length > 0 || this.remoteViews.size > 0) this.updateRemotes(alpha, dt, s);
@@ -188,7 +191,9 @@ export class View {
       cockpit = this.anchor;
     }
     this.chase.boost = p.boostOn;
-    this.chase.update(dt, this.camera, this.carPos, yaw, p.vAlong * 3.6, cockpit);
+    const cameraYaw = r34 && !this.chase.rigid && !this.chase.lookBack ? r34ChaseYaw(yaw, p.vx, p.vy) : yaw;
+    const cameraKmh = (r34 ? p.speed : p.vAlong) * 3.6;
+    this.chase.update(dt, this.camera, this.carPos, cameraYaw, cameraKmh, cockpit);
     this.sky.position.copy(this.camera.position);
     this.farGround.update(sim.road, s, this.camera.position);
     this.blimp.update(sim.road, s, this.ox, this.oz, this.time);
@@ -196,7 +201,7 @@ export class View {
 
     if (!this.warmedUp) this.warmUp();
     this.renderer.info.reset();
-    this.post.render(dt, p.vAlong * 3.6);
+    this.post.render(dt, cameraKmh);
   }
 
   /** Other online drivers: cheap silhouettes first, detailed bodies only nearby. */

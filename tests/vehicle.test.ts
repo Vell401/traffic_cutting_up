@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WALL_D } from '../src/config';
 import { REVERSE_MAX, PlayerCar, type DriveInput } from '../src/sim/vehicle';
 import { createCar } from '../src/sim/physics';
+import { DriftCar } from '../src/sim/vehicleDrift';
 
 const DT = 1 / 120;
 const run = (car: PlayerCar, input: DriveInput, seconds: number, k = 0, each?: () => void) => {
@@ -120,11 +121,14 @@ describe('PlayerCar', () => {
   });
 });
 
-describe('handbrake, mouse steering, horn (all physics)', () => {
+describe('legacy handbrake references, mouse steering and horn', () => {
   for (const id of [1, 2, 3, 4] as const) {
-    it(`physics ${id}: the handbrake slows the car and lets the rear swing out`, () => {
+    it(`${id === 2 ? 'legacy V8 reference' : `physics ${id}`}: the handbrake slows the car and lets the rear swing out`, () => {
+      // Preserve the old sedan's exact regression; R34's tyre-limited brake/lock/slide laws are
+      // tested separately in r34Driving.test.ts and r34ForceAcceptance.test.ts, not against V8 constants.
+      const reference = () => id === 2 ? new DriftCar() : createCar(id);
       const make = () => {
-        const car = createCar(id);
+        const car = reference();
         car.reset(0, 0, 100 / 3.6);
         run(car, { steer: 0, throttle: 0.3, brake: 0 }, 0.5);
         return car;
@@ -139,15 +143,18 @@ describe('handbrake, mouse steering, horn (all physics)', () => {
       expect(kmh(hb)).toBeLessThan(kmh(plain) - 8);
       expect(yawHb).toBeGreaterThan(yawPlain * 1.15);
       // Held at a standstill it stops the car.
-      const stop = createCar(id);
+      const stop = reference();
       stop.reset(0, 0, 8);
       run(stop, { steer: 0, throttle: 0, brake: 0, handbrake: true }, 3);
       expect(kmh(stop)).toBeLessThan(1);
     });
 
-    it(`physics ${id}: the mouse turns the wheels themselves, full lock at any speed`, () => {
-      const keys = createCar(id);
-      const mouse = createCar(id);
+    it(`${id === 2 ? 'legacy V8 reference' : `physics ${id}`}: the mouse turns the wheels themselves, full lock at any speed`, () => {
+      // The old speed-limited analog-lock comparison is not a law for the new physical
+      // R34 rack. Its actual direct-input/factory contract is in r34Input.test.ts.
+      const reference = () => id === 2 ? new DriftCar() : createCar(id);
+      const keys = reference();
+      const mouse = reference();
       keys.reset(0, 0, 200 / 3.6);
       mouse.reset(0, 0, 200 / 3.6);
       keys.step(DT, { steer: 0.5, throttle: 0, brake: 0, analog: true }, 0);

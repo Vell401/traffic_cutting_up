@@ -15,6 +15,7 @@
     "start:server": "node dist-server/main.js",
     "netcheck": "tsx scripts/netcheck.ts",
     "perfcheck": "tsx scripts/perfcheck.ts",
+    "perfcheck:r34": "tsx scripts/r34Perfcheck.ts",
     "bot": "tsx scripts/bot.ts",
     "build:traffic-lab": "node scripts/build-traffic-lab.mjs"
   },

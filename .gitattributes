@@ -2,3 +2,7 @@
 *.sh text eol=lf
 Dockerfile text eol=lf
 deploy/docker/Caddyfile text eol=lf
+# Pinned third-party sources are byte-for-byte upstream copies (manifest SHA-256),
+# including upstream whitespace; do not reformat or normalize those files.
+third_party/chrono/* -text -whitespace
+third_party/sketchbook/* -text -whitespace

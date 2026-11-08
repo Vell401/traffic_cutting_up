@@ -1,6 +1,6 @@
 import './admin.css';
 import { CARS } from '../sim/cars';
-import { TUNE_CARS, TUNE_FIELDS, type GlobalTuning, type TuneKey } from '../sim/tuning';
+import { TUNE_CARS, tuningFields, type GlobalTuning, type TuneKey } from '../sim/tuning';
 import { RADIO_MAX_TRACK_BYTES, type RadioLibrary } from '../audio/radioTypes';
 
 /*
@@ -19,7 +19,7 @@ const MODE_NAMES: Record<string, string> = {
   walls: 'Стенки',
   platoons: 'Колонны',
 };
-const PHYSICS_NAMES: Record<number, string> = { 1: 'Grip', 2: 'V8 RWD', 3: 'AMG 4MATIC+' };
+const PHYSICS_NAMES: Record<number, string> = { 1: 'Grip', 2: 'R34 RWD', 3: 'AMG 4MATIC+' };
 const STATE_NAMES: Record<string, string> = { active: 'на трассе', away: 'отошёл', offline: 'нет связи' };
 
 interface Driver {
@@ -508,7 +508,7 @@ function renderTuning(s: State): void {
   (document.getElementById('tuneCar') as HTMLSelectElement).value = tuneCar;
   if (!tuneDirty && !document.getElementById('carTuneFields')!.contains(document.activeElement)) {
     const fields = s.tuning.cars[tuneCar];
-    document.getElementById('carTuneFields')!.innerHTML = TUNE_FIELDS.filter(f => fields[f.key] !== undefined).map(f =>
+    document.getElementById('carTuneFields')!.innerHTML = tuningFields(tuneCar).filter(f => fields[f.key] !== undefined).map(f =>
       `<label>${esc(f.label)}<input type="number" name="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${fields[f.key]}" required /><span class="note">Дефолт: ${s.defaults.cars[tuneCar][f.key]}</span></label>`).join('');
   }
   if (!speedDirty && !document.getElementById('trafficSpeedFields')!.contains(document.activeElement)) {

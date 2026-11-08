@@ -664,6 +664,7 @@ export class ClientCore {
       c.vy = nd.vy;
       c.r = nd.r;
       c.steerIn = nd.steer;
+      if (nd.remote.carId === 2) c.steerAngle = nd.steer * 1.1;
       c.brake = (nd.flags & REMOTE_BRAKE) !== 0 ? 1 : 0;
       c.gear = nd.gear;
       c.ghost = (nd.flags & REMOTE_GHOST) !== 0;

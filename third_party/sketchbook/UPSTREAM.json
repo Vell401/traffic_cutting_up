@@ -1,0 +1,21 @@
+{
+  "project": "Sketchbook",
+  "repository": "https://github.com/swift502/Sketchbook",
+  "revision": "62f4b7986fd1ce1e4f91daba89ef032c20a6ce55",
+  "license": "MIT",
+  "port": "src/sim/r34/sketchbookSteering.ts",
+  "files": {
+    "Car.ts": "aba9eb55616e39ee52b28d1caf482eb3bb9eb042be1e0e4ac014d2c5a84f761d",
+    "SpringSimulator.ts": "edb9242d9172a1267f4c53ddb9cd3592ea4ef03d25447d3b75f9af7d0d33ceef",
+    "SimulatorBase.ts": "c9a1d30767c7dcb997d9ae1742e1ce96c4d28fe950e189f33625919a80f6dc95",
+    "SimulationFrame.ts": "5311ea37801ce59afd87d8bf7545136b286fbf7311c366daf13a3150e402d0c1",
+    "FunctionLibrary.ts": "0e92b4b87f4a72db21d5bc5958778f25adc7f626f3724beff53ca38b4d30076a",
+    "LICENSE": "f9f0faf3551775a17e11b52d704130e28af652af54bab47b70b5a185693b005f"
+  },
+  "sourcePaths": {
+    "Car.ts": "src/ts/vehicles/Car.ts",
+    "FunctionLibrary.ts": "src/ts/core/FunctionLibrary.ts",
+    "springFiles": "src/ts/physics/spring_simulation/"
+  },
+  "scope": "Keyboard steering demand and spring-response foundation; air-control and body edits are excluded; release is adapted to R34 auto-countersteering"
+}

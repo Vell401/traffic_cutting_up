@@ -1,5 +1,6 @@
 import { carTune, trafficTune } from '../config';
-import { driftTune } from './vehicleDrift';
+import { r34Tune } from './vehicleR34';
+import { R34_TUNE_FIELDS } from './r34TuningFields';
 import { mercedesTune } from './vehicleMercedes';
 import { porscheTune } from './vehiclePorsche';
 
@@ -27,19 +28,39 @@ export const TUNE_FIELDS = [
   { key: 'driveEff', label: 'КПД трансмиссии', min: .5, max: 1, step: .01 },
   { key: 'shiftTime', label: 'Время переключения, с', min: .04, max: .8, step: .005 },
 ] as const;
-export type TuneKey = typeof TUNE_FIELDS[number]['key'];
+export type TuneKey = typeof TUNE_FIELDS[number]['key'] | typeof R34_TUNE_FIELDS[number]['key'];
 export type CarTuning = Partial<Record<TuneKey, number>>;
 export interface GlobalTuning {
+  r34Revision?: number;
   cars: Record<string, CarTuning>;
   traffic: { lanes: [number, number][]; truckMin: number; truckMax: number; wallMin: number; wallMax: number };
 }
 export const TUNE_CARS = [
   { id: '3', name: 'Mercedes-AMG A45 S' }, { id: '4', name: 'Porsche 911 GT3 RS' },
-  { id: '2', name: 'R34 · V8 RWD' }, { id: '1', name: 'Grip (совместимость)' },
+  { id: '2', name: 'R34 · RWD / Auto Countersteer' }, { id: '1', name: 'Grip (совместимость)' },
 ];
-const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': driftTune, '3': mercedesTune, '4': porscheTune };
+/** Other cars retain their exact original control set and ranges. */
+export function tuningFields(id: string) {
+  if (id !== '2') return TUNE_FIELDS;
+  // Imported physical coefficients (including 55° in radians) need not be multiples
+  // of a UI step. Never make the browser reject an unchanged R34 baseline form.
+  const legacyOnly = new Set<string>(['brakeAssist', 'frontDrive', 'escAssist']);
+  return [...TUNE_FIELDS.filter(f => !legacyOnly.has(f.key)).map(f => {
+    if (f.key === 'maxSteerLow') return { ...f, max: 1.1 };
+    if (f.key === 'steerGripScale') return { ...f, label: 'R34 · клавиатурный выворот ×' };
+    if (f.key === 'steerRate') return { ...f, label: 'R34 · скорость руля без ассиста / в R' };
+    if (f.key === 'steerReturn') return { ...f, label: 'R34 · возврат руля без ассиста / в R' };
+    return f;
+  }), ...R34_TUNE_FIELDS].map(f => {
+    const value = (r34Tune as unknown as Record<string, unknown>)[f.key];
+    const steps = typeof value === 'number' ? (value - f.min) / f.step : 0;
+    return Math.abs(steps - Math.round(steps)) > 1e-7 ? { ...f, step: 'any' as const } : f;
+  });
+}
+const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': r34Tune, '3': mercedesTune, '4': porscheTune };
 const baseline: GlobalTuning = {
-  cars: Object.fromEntries(Object.entries(tunes).map(([id, tune]) => [id, Object.fromEntries(TUNE_FIELDS.flatMap(f => typeof tune[f.key] === 'number' ? [[f.key, tune[f.key]]] : []))])),
+  r34Revision: 3,
+  cars: Object.fromEntries(Object.entries(tunes).map(([id, tune]) => [id, Object.fromEntries(tuningFields(id).flatMap(f => typeof tune[f.key] === 'number' ? [[f.key, tune[f.key]]] : []))])),
   traffic: { lanes: trafficTune.laneSpeedKmh.map(v => [...v] as [number, number]), truckMin: 80, truckMax: 92, wallMin: 86, wallMax: 100 },
 };
 export const trafficSpeed = { truckMin: 80, truckMax: 92, wallMin: 86, wallMax: 100 };
@@ -54,13 +75,13 @@ export function currentTuning(): GlobalTuning {
 /** Strict, atomic validation: reject unknown keys and never partially apply a bad form. */
 export function validateTuning(value: unknown): GlobalTuning {
   const v = value as GlobalTuning;
-  if (!v || typeof v !== 'object' || !v.cars || !v.traffic || Object.keys(v).some(k => !['cars', 'traffic'].includes(k))) throw new Error('Неверные настройки');
+  if (!v || typeof v !== 'object' || !v.cars || !v.traffic || v.r34Revision !== 3 || Object.keys(v).some(k => !['cars', 'traffic', 'r34Revision'].includes(k))) throw new Error('Неверные настройки');
   if (Object.keys(v.cars).some(id => !Object.hasOwn(baseline.cars, id))) throw new Error('Неизвестная машина');
   for (const [id, fields] of Object.entries(baseline.cars)) {
     const car = v.cars[id];
     if (!car || typeof car !== 'object' || Object.keys(car).length !== Object.keys(fields).length) throw new Error('Неполные настройки машины');
     for (const [key] of Object.entries(car)) {
-      const field = TUNE_FIELDS.find(f => f.key === key);
+      const field = tuningFields(id).find(f => f.key === key);
       const n = car[key as TuneKey];
       if (!Object.hasOwn(fields, key) || !field || typeof n !== 'number' || !Number.isFinite(n) || n < field.min || n > field.max) throw new Error(`Недопустимое значение: ${key}`);
     }
