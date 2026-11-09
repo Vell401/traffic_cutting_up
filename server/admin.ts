@@ -29,6 +29,8 @@ import { Limiter, clientIp, ownJson, readJson, send } from './api';
 import type { RunMode, Store } from './store';
 import { defaultTuning, validateTuning } from '../src/sim/tuning';
 import type { RadioStore } from './radio';
+import { queryLimit } from './api';
+import { parseRequestTarget } from './requestTarget';
 
 const SESSION_MS = 12 * 3600_000;
 /** Settings key of the traffic configuration the admin page set last. */
@@ -71,7 +73,12 @@ export class Admin {
 
   /** Handles /api/admin/*; false for any other path. */
   handle(req: IncomingMessage, res: ServerResponse): boolean {
-    const url = new URL(req.url ?? '/', 'http://x');
+    const url = parseRequestTarget(req.url ?? '/');
+    if (!url) {
+      res.setHeader('connection', 'close');
+      send(res, 400, { ok: false, error: 'Invalid request target' });
+      return true;
+    }
     if (!url.pathname.startsWith('/api/admin/')) return false;
     if (!this.enabled) {
       send(res, 404, { ok: false, error: 'admin is off (ADMIN_PASSWORD not set)' });
@@ -111,11 +118,11 @@ export class Admin {
       if (path === 'state') send(res, 200, this.state());
       else if (path === 'logs') {
         const source = url.searchParams.get('source');
-        const rows = this.o.store.recentLogs(Number(url.searchParams.get('limit')) || 200, source === 'client' || source === 'server' ? source : undefined);
+        const rows = this.o.store.recentLogs(queryLimit(url.searchParams.get('limit'), 200, 5000), source === 'client' || source === 'server' ? source : undefined);
         send(res, 200, { ok: true, rows });
       } else if (path === 'board') {
         const mode: RunMode = url.searchParams.get('mode') === 'online' ? 'online' : 'solo';
-        send(res, 200, { ok: true, mode, entries: this.o.store.leaderboard(mode, Number(url.searchParams.get('limit')) || 50) });
+        send(res, 200, { ok: true, map: this.o.game.world.map.id, mode, entries: this.o.store.leaderboard(mode, queryLimit(url.searchParams.get('limit'), 50, 100)) });
       } else send(res, 404, { ok: false });
       return true;
     }
@@ -174,6 +181,8 @@ export class Admin {
     const now = Date.now();
     return {
       ok: true,
+      map: g.world.map.id,
+      mapRevision: g.world.map.revision,
       server: this.o.health(),
       rules: { maxPlayers: g.world.rules.maxPlayers, tickHz: g.world.rules.tickHz, ringKm: +(g.world.ringLen / 1000).toFixed(2) },
       traffic: g.trafficState(),

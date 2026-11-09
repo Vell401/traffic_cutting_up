@@ -54,7 +54,8 @@ describe('live authoritative settings', () => {
     expect(JSON.parse(got.at(-1)!).tuning.cars['3'].powerKW).toBe(700);
     expect(rulesHash()).toBe(hash);
     const sim = new Sim(Math.random, { online: true, physics: 3 });
-    const core = new ClientCore(sim, { send() {} }); core.ready = true;
+    const core = new ClientCore(sim, { send() {} });
+    core.receive(got.find(t => t.includes('"welcome"'))!, 0); core.ready = true;
     core.receive(got.at(-1)!, 0);
     expect(core.ready).toBe(false); expect(sim.player.tune.powerKW).toBe(700);
   });

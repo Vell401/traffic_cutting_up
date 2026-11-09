@@ -425,7 +425,7 @@ function geometry() {
   return cached;
 }
 export interface R34Exterior {
-  body: THREE.Group; wheelRoot: THREE.Group; wheels: { update(steer: number, spin: number): void }; tail: THREE.MeshBasicMaterial; tailIdle: THREE.Color; tailBrake: THREE.Color;
+  body: THREE.Group; wheelRoot: THREE.Group; wheels: { update(steer: number, spin: number, perWheelAngles?: readonly number[]): void }; tail: THREE.MeshBasicMaterial; tailIdle: THREE.Color; tailBrake: THREE.Color;
   indicators: { set(left: boolean, right: boolean, brake: boolean): void }; setPaint(color: number): void; setCockpit(on: boolean): void; dispose(): void;
 }
 export function buildR34Exterior(paint: number): R34Exterior {
@@ -441,18 +441,22 @@ export function buildR34Exterior(paint: number): R34Exterior {
   }
   const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), spinQ = new THREE.Quaternion(), position = new THREE.Vector3(), scale = new THREE.Vector3(1, 1, 1), xAxis = new THREE.Vector3(1, 0, 0), yAxis = new THREE.Vector3(0, 1, 0);
   const leftFixed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
-  const wheels = { update(steer: number, spin: number) {
+  const wheels = { update(steer: number, spin: number, perWheelAngles?: readonly number[]) {
     for (let i = 0; i < 4; i++) {
       const front = i < 2, left = i % 2 === 0;
       position.set(left ? -.763 : .763, R, front ? AXLES[0] : AXLES[1]);
       // Mirror the fixed brakes without moving the left caliper to the opposite side of the axle.
       rotation.setFromAxisAngle(yAxis, front ? -steer : 0); if (left) rotation.multiply(leftFixed);
-      matrix.compose(position, rotation, scale); fixed.forEach(m => m.setMatrixAt(i, matrix));
+      matrix.compose(position, rotation, scale); for (const mesh of fixed) mesh.setMatrixAt(i, matrix);
       rotation.setFromAxisAngle(yAxis, (front ? -steer : 0) + (left ? Math.PI : 0));
-      spinQ.setFromAxisAngle(xAxis, left ? spin : -spin); rotation.multiply(spinQ); matrix.compose(position, rotation, scale); rolling.forEach(m => m.setMatrixAt(i, matrix));
+      const angle = perWheelAngles?.[i] ?? spin;
+      spinQ.setFromAxisAngle(xAxis, left ? angle : -angle); rotation.multiply(spinQ); matrix.compose(position, rotation, scale); for (const mesh of rolling) mesh.setMatrixAt(i, matrix);
     }
-    for (const mesh of [...rolling, ...fixed]) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); }
+    for (const mesh of rolling) mesh.instanceMatrix.needsUpdate = true;
+    for (const mesh of fixed) mesh.instanceMatrix.needsUpdate = true;
   } }; wheels.update(0, 0);
+  // One conservative envelope covers any steer/roll phase, including offset caliper/decal centres.
+  for (const mesh of [...rolling, ...fixed]) { mesh.computeBoundingSphere(); mesh.boundingSphere!.radius += R; }
   const tailIdle = new THREE.Color(.75, .008, .004), tailBrake = new THREE.Color(3.3, .035, .014), off = new THREE.Color(.12, .035, .001), on = new THREE.Color(4, 1.5, .025); let disposed = false;
   return { body, wheelRoot, wheels, tail: look.tail, tailIdle, tailBrake, indicators: { set(left, right, brake) { look.left.color.copy(left ? on : off); look.right.color.copy(right ? on : off); look.tail.color.copy(brake ? tailBrake : tailIdle); } }, setPaint(color) { look.paint.color.setHex(color); }, setCockpit(on) { roof.visible = !on; }, dispose() { if (!disposed) { disposed = true; look.dispose(); [...rolling, ...fixed].forEach(m => m.dispose()); body.removeFromParent(); wheelRoot.removeFromParent(); } } };
 }

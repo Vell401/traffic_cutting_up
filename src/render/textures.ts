@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { LANES, LANE_W, ROAD_HALF, WALL_D, laneCenter } from '../config';
+import type { MapTheme } from './miami';
 
 /** Distance along the road covered by one repeat of the road texture (dash period). */
 export const ROAD_TEX_PERIOD = 20;
@@ -176,6 +177,17 @@ const SIGNS: [string, string, string][] = [
   ['INDUSTRIAL ZONE', '8 km', '↑'],
   ['WEST LOOP', 'JCT 3 km', '↑'],
 ];
+/** Original coastal place names; atlas dimensions and emergency symbols stay identical. */
+export const MIAMI_SIGNS: readonly [string, string, string][] = [
+  ['PALM COAST', 'OCEAN DRIVE', '↑'],
+  ['BLUE BAY', 'CAUSEWAY', '↑'],
+  ['CORAL QUAY', 'MARINA', '↗'],
+  ['DECO DISTRICT', 'COAST ROAD', '↑'],
+  ['SUNSET ISLES', 'BAY LOOP', '↑'],
+  ['PEARL HARBOR', 'YACHT CLUB', '↗'],
+  ['SEABREEZE', 'WATERFRONT', '↑'],
+  ['LAGOON TUNNEL', 'KEEP LANES', '↑'],
+];
 export const SIGN_COLS = 2;
 export const SIGN_ROWS = 6;
 /** Cells 0..7 are overhead destination boards; the tunnel signs follow. */
@@ -288,22 +300,26 @@ function drawFire(g: Ctx, x: number, y: number, w: number, h: number, k: number)
 }
 
 /** Atlas of sign boards (2 × 6 cells, 512 × 256 each): destination boards, then tunnel signs. */
-export function makeSignAtlas(anisotropy: number, scale = 1): THREE.CanvasTexture {
+export function makeSignAtlas(anisotropy: number, scale = 1, theme: MapTheme = 'highway'): THREE.CanvasTexture {
   const CW = 512 * scale;
   const CH = 256 * scale;
   const cv = document.createElement('canvas');
   cv.width = CW * SIGN_COLS;
   cv.height = CH * SIGN_ROWS;
   const g = cv.getContext('2d')!;
-  SIGNS.forEach(([title, sub, arrow], i) => {
+  (theme === 'miami' ? MIAMI_SIGNS : SIGNS).forEach(([title, sub, arrow], i) => {
     const x = (i % SIGN_COLS) * CW;
     const y = Math.floor(i / SIGN_COLS) * CH;
     const k = scale;
-    g.fillStyle = '#0f5b37';
+    g.fillStyle = theme === 'miami' ? '#14535d' : '#0f5b37';
     g.fillRect(x, y, CW, CH);
     g.strokeStyle = '#e8efe9';
     g.lineWidth = 8 * k;
     g.strokeRect(x + 14 * k, y + 14 * k, CW - 28 * k, CH - 28 * k);
+    if (theme === 'miami') {
+      g.fillStyle = i % 2 ? '#d999aa' : '#9ed5ce';
+      g.fillRect(x + 22 * k, y + CH - 26 * k, CW - 44 * k, 5 * k);
+    }
     g.fillStyle = '#f2f5f2';
     g.textBaseline = 'middle';
     g.font = `700 ${58 * k}px "Segoe UI", Arial, sans-serif`;

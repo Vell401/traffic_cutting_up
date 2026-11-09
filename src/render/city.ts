@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MOON_DIR } from './sky';
+import type { MapTheme } from './miami';
 
 /**
  * Night city facades without textures: windows come from a procedural grid in facade metres
@@ -7,10 +8,10 @@ import { MOON_DIR } from './sky';
  * lit share (aWin.w; negative = roof, no windows). Lit windows punch through the fog a little,
  * so the skyline reads as distant city lights.
  */
-export function makeCityMaterial(): THREE.ShaderMaterial {
+export function makeCityMaterial(theme: MapTheme = 'highway'): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     fog: true,
-    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { moonDir: { value: MOON_DIR } }]),
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { moonDir: { value: MOON_DIR }, coastal: { value: theme === 'miami' ? 1 : 0 } }]),
     vertexShader: /* glsl */ `
       attribute vec4 aWin;
       attribute vec3 color;
@@ -31,6 +32,7 @@ export function makeCityMaterial(): THREE.ShaderMaterial {
       uniform float fogNear;
       uniform float fogFar;
       uniform vec3 moonDir;
+      uniform float coastal;
       varying vec4 vWin;
       varying vec3 vColor;
       varying vec3 vNormal;
@@ -57,7 +59,7 @@ export function makeCityMaterial(): THREE.ShaderMaterial {
           lit = win * step(h, vWin.w) * step(1.0, vWin.y);
           vec3 warm = vec3(1.0, 0.68, 0.38);
           vec3 cool = vec3(0.7, 0.82, 1.0);
-          vec3 wc = mix(warm, cool, step(0.72, hash(cell.yx * 1.31 + seed)));
+          vec3 wc = mix(warm, cool, step(0.72 + coastal * 0.2, hash(cell.yx * 1.31 + seed)));
           float bright = 0.5 + 1.1 * hash(cell * 1.7 + seed * 3.1);
           col = mix(col, vColor * 0.4 + vec3(0.015), win * (1.0 - lit));
           col += wc * bright * lit * 1.4;

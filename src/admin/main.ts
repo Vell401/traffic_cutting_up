@@ -2,6 +2,9 @@ import './admin.css';
 import { CARS } from '../sim/cars';
 import { TUNE_CARS, tuningFields, type GlobalTuning, type TuneKey } from '../sim/tuning';
 import { RADIO_MAX_TRACK_BYTES, type RadioLibrary } from '../audio/radioTypes';
+import { adminTabNavigation, mountAdminTabs, type AdminTab } from './tabs';
+import { adminInstance, adminMapNavigation, matchesAdminInstance } from './instance';
+import { SERVER_OPTIONS } from '../ui/serverPicker';
 
 /*
  * Admin page of the online server (/admin.html): status, traffic, players (kick, ban), announcements,
@@ -9,8 +12,28 @@ import { RADIO_MAX_TRACK_BYTES, type RadioLibrary } from '../audio/radioTypes';
  * token kept for this tab only.
  */
 
-const API = '/api/admin';
-const TOKEN_KEY = 'tcu.admin';
+const INSTANCE = adminInstance(new URLSearchParams(location.search));
+const API = INSTANCE.api;
+const TOKEN_KEY = INSTANCE.tokenKey;
+let instanceVerified = false;
+
+function instancePicker(): string {
+  return `<select id="adminInstance" aria-label="Карта сервера">${SERVER_OPTIONS.map(server => `<option value="${server.map}"${server.map === INSTANCE.map ? ' selected' : ''}>${server.name}</option>`).join('')}</select>`;
+}
+
+function bindInstancePicker(): void {
+  const picker = document.getElementById('adminInstance') as HTMLSelectElement;
+  picker.addEventListener('change', () => {
+    const map = picker.value;
+    if (map !== 'highway' && map !== 'miami') return;
+    if ((tuneDirty || speedDirty || uploading) && !confirm('Сменить сервер? Несохранённые настройки и текущая загрузка будут потеряны.')) {
+      picker.value = INSTANCE.map;
+      return;
+    }
+    resetDashboard();
+    location.href = adminMapNavigation(new URL(location.href), map).href;
+  });
+}
 const MODE_NAMES: Record<string, string> = {
   normal: 'Обычный',
   sparse: 'Свободный',
@@ -50,6 +73,7 @@ interface Traffic {
   capacity: number;
 }
 interface State {
+  map: string;
   server: { version: string; uptimeS: number; rssMB: number; connections: number; stepAvgMs: number; stepMaxMs: number; tick: number; seed: number; rules: string };
   rules: { maxPlayers: number; tickHz: number; ringKm: number };
   traffic: Traffic;
@@ -102,22 +126,36 @@ function setToken(t: string): void {
 }
 
 class LoginNeeded extends Error {}
+class RequestCancelled extends Error {}
+const silentError = (e: unknown) => e instanceof LoginNeeded || e instanceof RequestCancelled || (e as Error).name === 'AbortError';
+let dashboardEpoch = 0;
+let sessionRequests = new AbortController();
 
-async function call<T>(path: string, body?: object): Promise<T> {
-  const res = await fetch(`${API}/${path}`, {
-    method: body ? 'POST' : 'GET',
-    headers: { ...(body ? { 'content-type': 'application/json' } : {}), authorization: `Bearer ${token}` },
-    body: body ? JSON.stringify(body) : undefined,
-    cache: 'no-store',
-  });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (res.status === 401 && path !== 'login') {
-    setToken('');
-    showLogin('Сессия закончилась, войдите снова');
-    throw new LoginNeeded();
+async function call<T>(path: string, body?: object, signal = sessionRequests.signal): Promise<T> {
+  if (body && path !== 'login' && path !== 'logout' && !instanceVerified) throw new Error('Карта сервера ещё не подтверждена');
+  const epoch = dashboardEpoch;
+  try {
+    const res = await fetch(`${API}/${path}`, {
+      method: body ? 'POST' : 'GET',
+      headers: { ...(body ? { 'content-type': 'application/json' } : {}), authorization: `Bearer ${token}` },
+      body: body ? JSON.stringify(body) : undefined,
+      cache: 'no-store',
+      signal,
+    });
+    const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+    // A response (including a 401) from an old dashboard must not affect a new login.
+    if (epoch !== dashboardEpoch || signal.aborted) throw new RequestCancelled();
+    if (res.status === 401 && path !== 'login') {
+      setToken('');
+      showLogin('Сессия закончилась, войдите снова');
+      throw new LoginNeeded();
+    }
+    if (!res.ok) throw new Error(data.error ?? `Ошибка ${res.status}`);
+    return data;
+  } catch (e) {
+    if (epoch !== dashboardEpoch || signal.aborted) throw new RequestCancelled();
+    throw e;
   }
-  if (!res.ok) throw new Error(data.error ?? `Ошибка ${res.status}`);
-  return data;
 }
 
 let toastTimer = 0;
@@ -136,13 +174,15 @@ function toast(text: string, bad = false): void {
 }
 
 /** Run an admin action: a toast with the outcome, then a fresh state. */
-async function act(path: string, body: object, done: string): Promise<void> {
+async function act(path: string, body: object, done: string): Promise<boolean> {
   try {
     await call(path, body);
     toast(done);
     void refresh();
+    return true;
   } catch (e) {
-    if (!(e instanceof LoginNeeded)) toast((e as Error).message, true);
+    if (!silentError(e)) toast((e as Error).message, true);
+    return false;
   }
 }
 
@@ -151,17 +191,19 @@ async function act(path: string, body: object, done: string): Promise<void> {
 let refreshTimer = 0;
 
 function showLogin(message = ''): void {
-  clearInterval(refreshTimer);
+  resetDashboard();
   app.innerHTML = `
     <div class="login">
       <form>
         <img src="/favicon.svg" alt="" />
         <h1>Админка сервера</h1>
+        <label>Сервер ${instancePicker()}</label>
         <input type="password" name="password" placeholder="Пароль" autocomplete="current-password" autofocus />
         <button class="primary" type="submit">Войти</button>
         <div class="err">${esc(message)}</div>
       </form>
     </div>`;
+  bindInstancePicker();
   const form = app.querySelector('form')!;
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -172,7 +214,7 @@ function showLogin(message = ''): void {
       setToken(r.token);
       showDashboard();
     } catch (e2) {
-      err.textContent = (e2 as Error).message;
+      if (!silentError(e2)) err.textContent = (e2 as Error).message;
     }
   });
 }
@@ -185,39 +227,78 @@ let logSource: '' | 'server' | 'client' = '';
 let tuneCar = '3';
 let tuneDirty = false;
 let speedDirty = false;
+let tuneDraftRevision = 0;
+let speedDraftRevision = 0;
 let radioSelected = '';
 let radioSignature = '';
 let uploading = false;
 let uploadRequest: XMLHttpRequest | null = null;
 let refreshRevision = 0;
+let refreshRequest: Promise<void> | null = null;
+let refreshPending = false;
 let dashboardVersion = '';
+let tabs: ReturnType<typeof mountAdminTabs> | null = null;
+let activeTab: AdminTab = 'overview';
+let boardRequest: AbortController | null = null;
+let logRequest: AbortController | null = null;
+let boardRevision = 0;
+let logRevision = 0;
+
+function resetDashboard(): void {
+  instanceVerified = false;
+  clearInterval(refreshTimer);
+  ++dashboardEpoch;
+  ++refreshRevision;
+  refreshRequest = null;
+  refreshPending = false;
+  ++boardRevision;
+  ++logRevision;
+  sessionRequests.abort();
+  sessionRequests = new AbortController();
+  boardRequest?.abort(); boardRequest = null;
+  logRequest?.abort(); logRequest = null;
+  uploadRequest?.abort(); uploadRequest = null;
+  uploading = false;
+  tabs?.destroy(); tabs = null;
+  state = null;
+  tuneDirty = speedDirty = false;
+  ++tuneDraftRevision;
+  ++speedDraftRevision;
+  radioSignature = ''; radioSelected = '';
+  boardMode = 'solo'; logSource = ''; tuneCar = '3';
+  dashboardVersion = '';
+}
+
+function selectPanel(tab: AdminTab): void {
+  activeTab = tab;
+  // Filter requests are expendable; forms, file inputs and an upload are not.
+  boardRequest?.abort(); ++boardRevision;
+  logRequest?.abort(); ++logRevision;
+  if (state) render(state);
+  if (instanceVerified && tab === 'leaderboard') void loadBoard();
+  if (instanceVerified && tab === 'logs') void loadLogs();
+}
 
 function showDashboard(): void {
-  dashboardVersion = '';
+  resetDashboard();
   app.innerHTML = `
     <header class="top">
       <img src="/favicon.svg" alt="" />
       <div>
         <h1>Traffic Cutting Up · админка</h1>
+        <label>Сервер ${instancePicker()}</label>
         <div class="meta" id="meta"></div>
       </div>
       <div class="grow"></div>
       <span class="live" id="live"></span>
       <button id="adminUpdate" hidden>Админка обновлена · Перезагрузить</button>
-      <a href="/"><button>К игре</button></a>
+      <a href="/?map=${INSTANCE.map}"><button>К игре</button></a>
       <button id="logout">Выйти</button>
     </header>
-    <div class="wrap">
+    <div class="wrap" inert>
+      ${adminTabNavigation()}
+      <div class="admin-tab-panel" id="admin-panel-overview" hidden>
       <section class="tiles" id="tiles"></section>
-      <div class="cols">
-        <section class="panel">
-          <h2>Трафик</h2>
-          <div class="row"><label>Трафик на кольце</label><button class="switch" id="trafficOn" title="Выключение убирает все машины"></button><span class="note" id="trafficCars"></span></div>
-          <div class="row"><label>Режим</label><select id="mode"></select><span class="note" id="modeNow"></span></div>
-          <table class="dens" id="densities"></table>
-          <div class="note" id="trafficNote"></div>
-          <div class="note">«Авто» — режимы меняются сами, остальные закрепляются до смены. Числа задают целевое количество машин без дополнительных множителей. Фактическое количество зависит от свободного места: машины не появляются перед носом у игроков. Enter или уход с поля сохраняет; настройки переживают перезапуск.</div>
-        </section>
         <section class="panel">
           <h2>Сервер</h2>
           <div class="row"><label>Мест на сервере</label><input type="number" min="1" max="64" id="maxPlayers" style="width:90px" /><button id="saveMax">Сохранить</button></div>
@@ -225,7 +306,22 @@ function showDashboard(): void {
           <div class="row"><label>Баны</label><div class="grow" id="bans"></div></div>
           <div class="note" id="srvNote"></div>
         </section>
+      <section class="panel">
+        <h2>Игроки <span class="grow"></span><span class="note" id="playersNote"></span></h2>
+        <div class="scroll"><table id="players"></table></div>
+      </section>
       </div>
+      <div class="admin-tab-panel" id="admin-panel-traffic" hidden>
+        <section class="panel">
+          <h2>Трафик</h2>
+          <div class="row"><label>Трафик на кольце</label><button class="switch" id="trafficOn" title="Выключение убирает все машины"></button><span class="note" id="trafficCars"></span></div>
+          <div class="row"><label>Режим</label><select id="mode"></select><span class="note" id="modeNow"></span></div>
+          <div class="scroll"><table class="dens" id="densities"></table></div>
+          <div class="note" id="trafficNote"></div>
+          <div class="note">«Авто» — режимы меняются сами, остальные закрепляются до смены. Числа задают целевое количество машин без дополнительных множителей. Фактическое количество зависит от свободного места: машины не появляются перед носом у игроков. Enter или уход с поля сохраняет; настройки переживают перезапуск.</div>
+        </section>
+      </div>
+      <div class="admin-tab-panel" id="admin-panel-tuning" hidden>
       <div class="cols">
         <section class="panel">
           <h2>Машины · глобальная физика</h2>
@@ -239,6 +335,8 @@ function showDashboard(): void {
           <div class="note">Диапазоны желаемой скорости, км/ч. Первая полоса — левая. Грузовики ограничены отдельно. Уже едущие машины плавно меняют скорость; в пробках скорость может быть ниже. Начальные значения сохранены как эталон.</div>
         </section>
       </div>
+      </div>
+      <div class="admin-tab-panel" id="admin-panel-radio" hidden>
       <section class="panel" id="radioAdmin">
         <h2>Радио · плейлисты</h2>
         <div class="row"><input id="playlistName" maxlength="100" placeholder="Название плейлиста" /><button id="createPlaylist">Создать плейлист</button><button id="renamePlaylist">Переименовать выбранный</button></div>
@@ -248,15 +346,14 @@ function showDashboard(): void {
         <div class="row"><span id="radioProgress" role="status"></span><button id="cancelRadioUpload" hidden>Отменить загрузку</button></div>
         <div class="note">MP3, OGG, WAV, M4A, FLAC — до 40 МБ на трек, 200 треков в плейлисте, 1 ГБ на библиотеку. Декодирование формата зависит от браузера. Загружайте только записи, которые разрешено использовать. Файлы и плейлисты переживают перезапуск и деплой.</div>
       </section>
-      <section class="panel">
-        <h2>Игроки <span class="grow"></span><span class="note" id="playersNote"></span></h2>
-        <div class="scroll"><table id="players"></table></div>
-      </section>
-      <div class="cols">
+      </div>
+      <div class="admin-tab-panel" id="admin-panel-leaderboard" hidden>
         <section class="panel">
           <h2>Лидерборд <span class="grow"></span><div class="seg" id="boardTabs"><button data-v="solo">Одиночный</button><button data-v="online">Онлайн</button></div></h2>
           <div class="scroll"><table id="board"></table></div>
         </section>
+      </div>
+      <div class="admin-tab-panel" id="admin-panel-logs" hidden>
         <section class="panel">
           <h2>Журнал <span class="grow"></span><div class="seg" id="logTabs"><button data-v="">Все</button><button data-v="server">Сервер</button><button data-v="client">Страницы</button></div><button class="small" id="logRefresh">Обновить</button></h2>
           <div class="logs"><table id="logs"></table></div>
@@ -267,7 +364,8 @@ function showDashboard(): void {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   $('adminUpdate').addEventListener('click', () => location.reload());
   $('logout').addEventListener('click', () => {
-    void call('logout', {}).catch(() => {});
+    // Let the logout reach the server even while dashboard requests are cancelled.
+    void call('logout', {}, new AbortController().signal).catch(() => {});
     setToken('');
     showLogin();
   });
@@ -303,7 +401,7 @@ function showDashboard(): void {
     const input = $<HTMLInputElement>('sayText');
     const text = input.value.trim();
     if (!text) return;
-    void act('say', { text }, 'Объявление отправлено').then(() => (input.value = ''));
+    void act('say', { text }, 'Объявление отправлено').then(ok => { if (ok) input.value = ''; });
   };
   $('say').addEventListener('click', say);
   $('sayText').addEventListener('keydown', (e) => {
@@ -333,7 +431,7 @@ function showDashboard(): void {
     if (!b) return;
     const name = b.dataset.name!;
     if (confirm(`Удалить все заезды «${name}» из таблицы (${boardMode === 'solo' ? 'одиночный' : 'онлайн'})?`)) {
-      void act('board/remove', { mode: boardMode, name }, `Заезды ${name} удалены`).then(loadBoard);
+      void act('board/remove', { mode: boardMode, name }, `Заезды ${name} удалены`).then(ok => { if (ok) void loadBoard(); });
     }
   });
   for (const b of $('logTabs').querySelectorAll('button')) {
@@ -346,32 +444,69 @@ function showDashboard(): void {
   initTuningControls();
   initRadioControls();
 
+  let storage: Storage | undefined;
+  try { storage = sessionStorage; } catch { /* optional preference */ }
+  tabs = mountAdminTabs(app, {
+    server: new URL(API, location.href).href,
+    login: token,
+    storage,
+    onChange: selectPanel,
+  });
+  bindInstancePicker();
+
   void refresh();
-  void loadBoard();
-  void loadLogs();
   clearInterval(refreshTimer);
   let ticks = 0;
   refreshTimer = window.setInterval(() => {
     void refresh();
     // The log moves slower: every 10 s.
-    if (++ticks % 5 === 0) void loadLogs();
+    if (++ticks % 5 === 0 && activeTab === 'logs') void loadLogs();
   }, 2000);
 }
 
-async function refresh(): Promise<void> {
+function refresh(): Promise<void> {
+  // Slow responses still count: timer ticks coalesce instead of invalidating them.
+  if (refreshRequest) {
+    refreshPending = true;
+    return refreshRequest;
+  }
+  const request = refreshState().finally(() => {
+    // A cancelled dashboard must not clear or restart the new session's poll.
+    if (refreshRequest !== request) return;
+    refreshRequest = null;
+    if (refreshPending) {
+      refreshPending = false;
+      void refresh();
+    }
+  });
+  refreshRequest = request;
+  return request;
+}
+
+async function refreshState(): Promise<void> {
   const revision = ++refreshRevision;
   const live = document.getElementById('live');
   try {
     const next = await call<State>('state');
     if (revision !== refreshRevision || !document.getElementById('tiles')) return;
+    if (!matchesAdminInstance(next.map, INSTANCE.map)) {
+      instanceVerified = false;
+      document.querySelector<HTMLElement>('.wrap')!.inert = true;
+      throw new Error(`Ответ другой карты. Ожидается ${INSTANCE.name}; действия заблокированы`);
+    }
+    const firstVerified = !instanceVerified;
+    instanceVerified = true;
+    document.querySelector<HTMLElement>('.wrap')!.inert = false;
     state = next;
     render(state);
+    if (firstVerified && activeTab === 'leaderboard') void loadBoard();
+    if (firstVerified && activeTab === 'logs') void loadLogs();
     if (live) {
       live.textContent = `обновлено ${new Date().toLocaleTimeString('ru-RU')}`;
       live.classList.remove('bad');
     }
   } catch (e) {
-    if (e instanceof LoginNeeded) return;
+    if (silentError(e)) return;
     if (live) {
       live.textContent = `нет связи: ${(e as Error).message}`;
       live.classList.add('bad');
@@ -386,59 +521,65 @@ function render(s: State): void {
   $('adminUpdate')!.hidden = !srv.version || srv.version === 'dev' || srv.version === dashboardVersion;
   const online = s.drivers.filter((d) => d.state !== 'offline').length;
   $('meta')!.textContent = `версия ${srv.version} · правила ${srv.rules} · кольцо ${s.rules.ringKm} км · ${s.rules.tickHz} Гц`;
-  $('tiles')!.innerHTML = [
-    ['Игроки', `${online}<small> / ${s.rules.maxPlayers}</small>`],
-    ['Соединения', srv.connections],
-    ['Трафик', `${s.traffic.on ? s.traffic.cars : 'выкл'}<small>${s.traffic.on ? ' машин' : ''}</small>`],
-    ['Такт', `${srv.stepAvgMs.toFixed(2)}<small> / ${srv.stepMaxMs.toFixed(2)} мс</small>`],
-    ['Память', `${Math.round(srv.rssMB)}<small> МБ</small>`],
-    ['Аптайм', uptime(srv.uptimeS)],
-  ]
-    .map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`)
-    .join('');
-
-  const t = s.traffic;
-  $('trafficOn')!.classList.toggle('on', t.on);
-  $('trafficCars')!.textContent = t.on ? `сейчас ${t.cars} машин` : 'выключен';
-  $('trafficNote')!.textContent = `До ${t.maxPerKm} машин/км каждой полосы (≈ ${Math.round(t.maxPerKm * t.lanes * t.windowKm)} у игрока). Участок: 220 м позади и 850 м впереди; общий пул сервера — ${t.capacity} машин.`;
-  const sel = $('mode') as HTMLSelectElement;
-  if (sel.options.length === 0) {
-    sel.innerHTML = `<option value="auto">Авто (меняются сами)</option>` + s.modes.map((m) => `<option value="${m}">${esc(MODE_NAMES[m] ?? m)}</option>`).join('');
+  if (activeTab === 'overview') {
+    $('tiles')!.innerHTML = [
+      ['Игроки', `${online}<small> / ${s.rules.maxPlayers}</small>`],
+      ['Соединения', srv.connections],
+      ['Трафик', `${s.traffic.on ? s.traffic.cars : 'выкл'}<small>${s.traffic.on ? ' машин' : ''}</small>`],
+      ['Такт', `${srv.stepAvgMs.toFixed(2)}<small> / ${srv.stepMaxMs.toFixed(2)} мс</small>`],
+      ['Память', `${Math.round(srv.rssMB)}<small> МБ</small>`],
+      ['Аптайм', uptime(srv.uptimeS)],
+    ]
+      .map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`)
+      .join('');
   }
-  if (document.activeElement !== sel) sel.value = t.held ? t.mode : 'auto';
-  $('modeNow')!.textContent = `сейчас: ${MODE_NAMES[t.mode] ?? t.mode}${t.held ? ' (закреплён)' : ''}`;
-  renderDensities(t);
-  renderTuning(s);
-  renderRadio(s.radio);
 
-  const maxInput = $('maxPlayers') as HTMLInputElement;
-  if (document.activeElement !== maxInput) maxInput.value = String(s.rules.maxPlayers);
-  $('srvNote')!.textContent = `seed ${srv.seed} · тик ${fmt.format(srv.tick)}. Объявление появится у всех в ленте событий справа.`;
-  $('bans')!.innerHTML = s.bans.length
-    ? s.bans.map((b) => `<div>${esc(b.addr)} до ${time(b.until)} <button class="small" data-addr="${esc(b.addr)}">Снять</button></div>`).join('')
-    : '<span class="note">нет</span>';
+  if (activeTab === 'traffic') {
+    const t = s.traffic;
+    $('trafficOn')!.classList.toggle('on', t.on);
+    $('trafficCars')!.textContent = t.on ? `сейчас ${t.cars} машин` : 'выключен';
+    $('trafficNote')!.textContent = `До ${t.maxPerKm} машин/км каждой полосы (≈ ${Math.round(t.maxPerKm * t.lanes * t.windowKm)} у игрока). Участок: 220 м позади и 850 м впереди; общий пул сервера — ${t.capacity} машин.`;
+    const sel = $('mode') as HTMLSelectElement;
+    if (sel.options.length === 0) {
+      sel.innerHTML = `<option value="auto">Авто (меняются сами)</option>` + s.modes.map((m) => `<option value="${esc(m)}">${esc(MODE_NAMES[m] ?? m)}</option>`).join('');
+    }
+    if (document.activeElement !== sel) sel.value = t.held ? t.mode : 'auto';
+    $('modeNow')!.textContent = `сейчас: ${MODE_NAMES[t.mode] ?? t.mode}${t.held ? ' (закреплён)' : ''}`;
+    renderDensities(t);
+  }
+  if (activeTab === 'tuning') renderTuning(s);
+  if (activeTab === 'radio') renderRadio(s.radio);
 
-  $('playersNote')!.textContent = `${s.drivers.length} в слотах, ${online} на связи`;
-  $('players')!.innerHTML = s.drivers.length
-    ? `<thead><tr><th>#</th><th>Имя</th><th>Статус</th><th>Машина</th><th class="num">км/ч</th><th class="num">Очки</th><th class="num">Рекорд</th><th>Адрес</th><th class="num">Наруш.</th><th></th></tr></thead><tbody>` +
-      s.drivers
-        .map(
-          (d) => `<tr>
-            <td>${d.id}</td>
-            <td>${esc(d.name)}${d.ghost ? ' <span class="tag">призрак</span>' : ''}</td>
-            <td><span class="tag ${d.state}">${STATE_NAMES[d.state] ?? d.state}</span></td>
-            <td>${esc(carName(d.car))} · ${PHYSICS_NAMES[d.physics] ?? d.physics}</td>
-            <td class="num">${d.kmh}</td>
-            <td class="num">${fmt.format(d.score)}</td>
-            <td class="num">${fmt.format(d.best)}</td>
-            <td>${esc(d.addr || '—')}</td>
-            <td class="num">${d.violations}</td>
-            <td class="acts"><button class="small danger" data-id="${d.id}">Отключить</button><button class="small danger" data-id="${d.id}" data-ban="30">Бан 30 мин</button><button class="small danger" data-id="${d.id}" data-ban="1440">Бан сутки</button></td>
-          </tr>`,
-        )
-        .join('') +
-      '</tbody>'
-    : '<tr><td class="empty">На сервере никого нет</td></tr>';
+  if (activeTab === 'overview') {
+    const maxInput = $('maxPlayers') as HTMLInputElement;
+    if (document.activeElement !== maxInput) maxInput.value = String(s.rules.maxPlayers);
+    $('srvNote')!.textContent = `seed ${srv.seed} · тик ${fmt.format(srv.tick)}. Объявление появится у всех в ленте событий справа.`;
+    $('bans')!.innerHTML = s.bans.length
+      ? s.bans.map((b) => `<div>${esc(b.addr)} до ${time(b.until)} <button class="small" data-addr="${esc(b.addr)}">Снять</button></div>`).join('')
+      : '<span class="note">нет</span>';
+
+    $('playersNote')!.textContent = `${s.drivers.length} в слотах, ${online} на связи`;
+    $('players')!.innerHTML = s.drivers.length
+      ? `<thead><tr><th>#</th><th>Имя</th><th>Статус</th><th>Машина</th><th class="num">км/ч</th><th class="num">Очки</th><th class="num">Рекорд</th><th>Адрес</th><th class="num">Наруш.</th><th></th></tr></thead><tbody>` +
+        s.drivers
+          .map(
+            (d) => `<tr>
+              <td>${d.id}</td>
+              <td>${esc(d.name)}${d.ghost ? ' <span class="tag">призрак</span>' : ''}</td>
+              <td><span class="tag ${d.state}">${STATE_NAMES[d.state] ?? d.state}</span></td>
+              <td>${esc(carName(d.car))} · ${PHYSICS_NAMES[d.physics] ?? d.physics}</td>
+              <td class="num">${d.kmh}</td>
+              <td class="num">${fmt.format(d.score)}</td>
+              <td class="num">${fmt.format(d.best)}</td>
+              <td>${esc(d.addr || '—')}</td>
+              <td class="num">${d.violations}</td>
+              <td class="acts"><button class="small danger" data-id="${d.id}">Отключить</button><button class="small danger" data-id="${d.id}" data-ban="30">Бан 30 мин</button><button class="small danger" data-id="${d.id}" data-ban="1440">Бан сутки</button></td>
+            </tr>`,
+          )
+          .join('') +
+        '</tbody>'
+      : '<tr><td class="empty">На сервере никого нет</td></tr>';
+  }
 }
 
 /** Spawn density of each traffic mode; the current one highlighted. Inputs being edited are left alone. */
@@ -462,10 +603,21 @@ function renderDensities(t: Traffic): void {
 }
 
 async function loadBoard(): Promise<void> {
-  for (const b of document.querySelectorAll<HTMLButtonElement>('#boardTabs button')) b.classList.toggle('on', b.dataset.v === boardMode);
+  if (!instanceVerified) return;
+  if (activeTab !== 'leaderboard') return;
+  boardRequest?.abort();
+  const request = boardRequest = new AbortController();
+  const revision = ++boardRevision;
+  const mode = boardMode;
+  for (const b of document.querySelectorAll<HTMLButtonElement>('#boardTabs button')) {
+    b.classList.toggle('on', b.dataset.v === mode);
+    b.setAttribute('aria-pressed', String(b.dataset.v === mode));
+  }
   const el = document.getElementById('board')!;
+  el.innerHTML = '<tr><td class="empty">Загрузка…</td></tr>';
   try {
-    const r = await call<{ entries: BoardEntry[] }>(`board?mode=${boardMode}&limit=50`);
+    const r = await call<{ entries: BoardEntry[] }>(`board?mode=${mode}&limit=50`, undefined, request.signal);
+    if (revision !== boardRevision || !el.isConnected || activeTab !== 'leaderboard') return;
     el.innerHTML = r.entries.length
       ? `<thead><tr><th>#</th><th>Имя</th><th class="num">Очки</th><th>Машина</th><th class="num">км/ч</th><th>Когда</th><th></th></tr></thead><tbody>` +
         r.entries
@@ -477,15 +629,28 @@ async function loadBoard(): Promise<void> {
         '</tbody>'
       : '<tr><td class="empty">Пусто</td></tr>';
   } catch (e) {
-    if (!(e instanceof LoginNeeded)) el.innerHTML = `<tr><td class="empty">${esc((e as Error).message)}</td></tr>`;
+    if (!silentError(e) && revision === boardRevision && el.isConnected) el.innerHTML = `<tr><td class="empty">${esc((e as Error).message)}</td></tr>`;
+  } finally {
+    if (boardRequest === request) boardRequest = null;
   }
 }
 
 async function loadLogs(): Promise<void> {
-  for (const b of document.querySelectorAll<HTMLButtonElement>('#logTabs button')) b.classList.toggle('on', (b.dataset.v ?? '') === logSource);
+  if (!instanceVerified) return;
+  if (activeTab !== 'logs') return;
+  logRequest?.abort();
+  const request = logRequest = new AbortController();
+  const revision = ++logRevision;
+  const source = logSource;
+  for (const b of document.querySelectorAll<HTMLButtonElement>('#logTabs button')) {
+    b.classList.toggle('on', (b.dataset.v ?? '') === source);
+    b.setAttribute('aria-pressed', String((b.dataset.v ?? '') === source));
+  }
   const el = document.getElementById('logs')!;
+  el.innerHTML = '<tr><td class="empty">Загрузка…</td></tr>';
   try {
-    const r = await call<{ rows: LogRow[] }>(`logs?limit=300${logSource ? `&source=${logSource}` : ''}`);
+    const r = await call<{ rows: LogRow[] }>(`logs?limit=300${source ? `&source=${source}` : ''}`, undefined, request.signal);
+    if (revision !== logRevision || !el.isConnected || activeTab !== 'logs') return;
     el.innerHTML = r.rows.length
       ? `<thead><tr><th>Время</th><th>Откуда</th><th>Сообщение</th></tr></thead><tbody>` +
         r.rows
@@ -497,7 +662,9 @@ async function loadLogs(): Promise<void> {
         '</tbody>'
       : '<tr><td class="empty">Журнал пуст</td></tr>';
   } catch (e) {
-    if (!(e instanceof LoginNeeded)) el.innerHTML = `<tr><td class="empty">${esc((e as Error).message)}</td></tr>`;
+    if (!silentError(e) && revision === logRevision && el.isConnected) el.innerHTML = `<tr><td class="empty">${esc((e as Error).message)}</td></tr>`;
+  } finally {
+    if (logRequest === request) logRequest = null;
   }
 }
 
@@ -518,19 +685,28 @@ function renderTuning(s: State): void {
   }
 }
 async function saveTuning(body: object, done: string): Promise<void> {
+  const epoch = dashboardEpoch, car = tuneCar;
+  const traffic = 'traffic' in body || 'resetTraffic' in body;
+  // A save/reset owns only this draft. Later edits, submissions and car changes
+  // must remain dirty, including while their mounted panel is hidden.
+  const revision = traffic ? ++speedDraftRevision : ++tuneDraftRevision;
+  if (traffic) speedDirty = true; else tuneDirty = true;
   try {
     await call('tuning', body);
-    if ('traffic' in body || 'resetTraffic' in body) speedDirty = false; else tuneDirty = false;
+    if (epoch !== dashboardEpoch) return;
+    if (traffic) {
+      if (revision === speedDraftRevision) speedDirty = false;
+    } else if (revision === tuneDraftRevision && car === tuneCar) tuneDirty = false;
     toast(done); await refresh();
-  } catch (e) { if (!(e instanceof LoginNeeded)) toast((e as Error).message, true); }
+  } catch (e) { if (epoch === dashboardEpoch && !silentError(e)) toast((e as Error).message, true); }
 }
 function initTuningControls(): void {
   const carForm = document.getElementById('carTuneForm') as HTMLFormElement;
   const speedForm = document.getElementById('trafficSpeedForm') as HTMLFormElement;
-  carForm.addEventListener('input', () => { tuneDirty = true; });
-  speedForm.addEventListener('input', () => { speedDirty = true; });
+  carForm.addEventListener('input', () => { tuneDirty = true; ++tuneDraftRevision; });
+  speedForm.addEventListener('input', () => { speedDirty = true; ++speedDraftRevision; });
   document.getElementById('tuneCar')!.addEventListener('change', e => {
-    tuneCar = (e.target as HTMLSelectElement).value; tuneDirty = false; if (state) renderTuning(state);
+    tuneCar = (e.target as HTMLSelectElement).value; tuneDirty = false; ++tuneDraftRevision; if (state) renderTuning(state);
   });
   carForm.addEventListener('submit', e => {
     e.preventDefault(); if (!carForm.reportValidity()) return;
@@ -548,11 +724,11 @@ function initTuningControls(): void {
 
 function renderRadio(library: RadioLibrary): void {
   if (uploading) return;
+  if (!library.playlists.some(p => p.id === radioSelected)) radioSelected = library.playlists[0]?.id ?? '';
   const signature = JSON.stringify([library, radioSelected]);
   if (signature === radioSignature) return;
   radioSignature = signature;
   const select = document.getElementById('radioPlaylist') as HTMLSelectElement;
-  if (!library.playlists.some(p => p.id === radioSelected)) radioSelected = library.playlists[0]?.id ?? '';
   select.innerHTML = library.playlists.map(p => `<option value="${esc(p.id)}">${esc(p.name)} (${p.tracks.length})</option>`).join('') || '<option value="">Нет плейлистов</option>';
   select.value = radioSelected;
   const p = library.playlists.find(p => p.id === radioSelected);
@@ -565,8 +741,9 @@ async function radioAction(body: object): Promise<void> {
     const result = await call<{ radio: RadioLibrary }>('radio', body);
     if ('action' in body && body.action === 'create') radioSelected = result.radio.playlists.at(-1)?.id ?? '';
     radioSignature = ''; if (state) state.radio = result.radio;
-    renderRadio(result.radio); toast('Плейлисты обновлены');
-  } catch (e) { if (!(e instanceof LoginNeeded)) toast((e as Error).message, true); }
+    if (activeTab === 'radio') renderRadio(result.radio);
+    toast('Плейлисты обновлены');
+  } catch (e) { if (!silentError(e)) toast((e as Error).message, true); }
 }
 function initRadioControls(): void {
   document.getElementById('createPlaylist')!.addEventListener('click', () => {
@@ -588,27 +765,42 @@ function initRadioControls(): void {
   document.getElementById('radioFiles')!.addEventListener('change', e => void uploadRadio(e.target as HTMLInputElement));
 }
 async function uploadRadio(input: HTMLInputElement): Promise<void> {
+  if (!instanceVerified) { toast('Карта сервера ещё не подтверждена', true); return; }
   const files = [...input.files ?? []]; if (!files.length || !radioSelected || uploading) return;
   if (files.some(f => f.size > RADIO_MAX_TRACK_BYTES)) { toast('Максимум 40 МБ на трек', true); input.value = ''; return; }
+  const epoch = dashboardEpoch, playlist = radioSelected, uploadToken = token;
   uploading = true;
   const fieldset = document.getElementById('radioEdit') as HTMLFieldSetElement, progress = document.getElementById('radioProgress')!, cancel = document.getElementById('cancelRadioUpload')!;
   fieldset.disabled = true; cancel.hidden = false;
   try {
     for (const [i, file] of files.entries()) {
+      if (epoch !== dashboardEpoch || !instanceVerified) throw new RequestCancelled();
       const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
       const type = ({ mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', flac: 'audio/flac' } as Record<string, string>)[ext];
       if (!type) throw new Error(`Неподдерживаемый файл: ${file.name}`);
       await new Promise<void>((resolve, reject) => {
         const xhr = uploadRequest = new XMLHttpRequest();
-        xhr.open('POST', `${API}/radio/upload?${new URLSearchParams({ playlist: radioSelected, title: file.name.replace(/\.[^.]+$/, '') })}`);
-        xhr.setRequestHeader('authorization', `Bearer ${token}`); xhr.setRequestHeader('content-type', type); xhr.timeout = 180000;
-        xhr.upload.onprogress = event => { progress.textContent = `${i + 1}/${files.length} · ${file.name} · ${event.lengthComputable ? Math.round(event.loaded / event.total * 100) : 0}%`; };
-        xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) resolve(); else { let message = `Ошибка загрузки ${xhr.status}`; try { message = JSON.parse(xhr.responseText).error ?? message; } catch { /* non JSON */ } reject(new Error(message)); } };
+        xhr.open('POST', `${API}/radio/upload?${new URLSearchParams({ playlist, title: file.name.replace(/\.[^.]+$/, '') })}`);
+        xhr.setRequestHeader('authorization', `Bearer ${uploadToken}`); xhr.setRequestHeader('content-type', type); xhr.timeout = 180000;
+        xhr.upload.onprogress = event => { if (epoch === dashboardEpoch) progress.textContent = `${i + 1}/${files.length} · ${file.name} · ${event.lengthComputable ? Math.round(event.loaded / event.total * 100) : 0}%`; };
+        xhr.onload = () => {
+          if (epoch !== dashboardEpoch) { reject(new RequestCancelled()); return; }
+          if (xhr.status === 401) {
+            setToken(''); showLogin('Сессия закончилась, войдите снова'); reject(new LoginNeeded()); return;
+          }
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else { let message = `Ошибка загрузки ${xhr.status}`; try { message = JSON.parse(xhr.responseText).error ?? message; } catch { /* non JSON */ } reject(new Error(message)); }
+        };
         xhr.onerror = () => reject(new Error('Не удалось загрузить трек')); xhr.onabort = () => reject(new Error('Загрузка отменена')); xhr.ontimeout = () => reject(new Error('Загрузка заняла слишком много времени'));
         xhr.send(file);
       });
     }
-    toast('Треки загружены'); progress.textContent = 'Загрузка завершена';
-  } catch (e) { toast((e as Error).message, true); progress.textContent = (e as Error).message; }
-  finally { uploading = false; uploadRequest = null; fieldset.disabled = false; cancel.hidden = true; input.value = ''; radioSignature = ''; await refresh(); }
+    if (epoch === dashboardEpoch) { toast('Треки загружены'); progress.textContent = 'Загрузка завершена'; }
+  } catch (e) {
+    if (epoch === dashboardEpoch && !silentError(e)) { toast((e as Error).message, true); progress.textContent = (e as Error).message; }
+  } finally {
+    if (epoch === dashboardEpoch) {
+      uploading = false; uploadRequest = null; fieldset.disabled = false; cancel.hidden = true; input.value = ''; radioSignature = ''; await refresh();
+    }
+  }
 }

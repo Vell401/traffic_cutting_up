@@ -1,10 +1,17 @@
 # External foundation of the replacement R34
 
 The previous custom four-contact prototype was rejected. It is not the handling
-baseline for this replacement. Before user-authorized publication, the branch
+baseline for this replacement. **Historical publication context:** before user-authorized publication, the branch
 was rebased onto `2e1ef96`, retaining the colleague's continuous-slip fix in
 addition to the already approved Porsche update. Other vehicles match that
 independently captured upstream baseline, not the older `4ed6c0b`.
+
+That rebase note describes the earlier R34 replacement, not a new push/deploy.
+The current boundary is the post-grip frozen checkpoint in
+`tests/frozenPhysics.test.ts`: the only final authorized physics changes were
+R34 `gripFront=1.22`, `gripRear=1.07`, `longGrip=1.10`. All other physics,
+including the retained C63/M156 and colleague controls (Shift BOOST / Ctrl
+CLUTCH), must remain unchanged; freeze hashes must not be recaptured.
 
 ## Project Chrono: tyre forces
 
@@ -46,8 +53,12 @@ must act through the front wheels, not overwrite heading or body velocity.
 Unmodified source copies and SHA-256 manifests live in `third_party/chrono/` and
 `third_party/sketchbook/`. `public/THIRD_PARTY_LICENSES.txt` carries both licenses
 into the browser distribution. No runtime dependency on native/WASM engines is
-introduced. Settings revision 3 replaces only retired R34 presets; saved values
-for other cars and traffic survive unchanged.
+introduced. **Historical migration:** revision 3 replaced retired R34 presets.
+Current settings revision **4** preserves a revision-3 custom preset and updates
+each grip field only if it exactly equals its old shipped value (`1.16`, `.93`,
+`1.04`). Older revision 1/2 or missing revisions still replace only the retired
+R34 preset. Saved values for other cars and traffic survive; missing C63 settings
+are added separately. See [admin-settings-radio.md](admin-settings-radio.md).
 
 Force causality and deterministic rewind remain necessary checks, but they do
 not prove good keyboard feel. Feel acceptance uses fixed key sequences with

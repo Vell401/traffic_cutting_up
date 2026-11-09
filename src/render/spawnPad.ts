@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { RING_LEN, SPAWN_D, spawnS } from '../sim/ring';
+import { getMap, mapSpawnS, type MapId } from '../sim/maps';
 import type { Road, RoadPoint } from '../sim/road';
 
 const FREE = new THREE.Color(0.55, 0.58, 0.62);
@@ -54,7 +54,7 @@ export class SpawnPad {
   private readonly word: THREE.Mesh;
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
 
-  constructor(count: number) {
+  constructor(count: number, private readonly mapId: MapId = 'highway') {
     const ground = (w: number, l: number) => new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2);
     for (let i = 0; i < count; i++) {
       const root = new THREE.Group();
@@ -92,14 +92,16 @@ export class SpawnPad {
 
   /** owners[i]: paint of the driver on place i (null = free); mine: our place (-1 unknown). */
   update(road: Road, ownS: number, ox: number, oz: number, owners: readonly (number | null)[], mine: number): void {
+    const map = getMap(this.mapId);
+    const ringLen = road.ringLen;
     for (let i = 0; i < this.places.length; i++) {
       const p = this.places[i];
-      const home = spawnS(i);
-      const s = home + RING_LEN * Math.round((ownS - home) / RING_LEN);
+      const home = mapSpawnS(map, i);
+      const s = home + ringLen * Math.round((ownS - home) / ringLen);
       const near = Math.abs(s - ownS) < 1200;
       p.root.visible = near;
       if (!near) continue;
-      road.toWorld(s, SPAWN_D, this.pt);
+      road.toWorld(s, map.spawn.d, this.pt);
       p.root.position.set(this.pt.x - ox, 0, this.pt.z - oz);
       p.root.rotation.y = -this.pt.th;
       const owner = owners[i];
@@ -108,11 +110,11 @@ export class SpawnPad {
       else if (owner != null) p.mat.color.setHex(owner).multiplyScalar(1.6);
       else p.mat.color.copy(FREE);
     }
-    const first = spawnS(0) + 14;
-    const s = first + RING_LEN * Math.round((ownS - first) / RING_LEN);
+    const first = mapSpawnS(map, 0) + 14;
+    const s = first + ringLen * Math.round((ownS - first) / ringLen);
     this.word.visible = Math.abs(s - ownS) < 1200;
     if (this.word.visible) {
-      road.toWorld(s, SPAWN_D, this.pt);
+      road.toWorld(s, map.spawn.d, this.pt);
       this.word.position.set(this.pt.x - ox, 0.035, this.pt.z - oz);
       this.word.rotation.y = -this.pt.th;
     }

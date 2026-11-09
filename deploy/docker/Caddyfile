@@ -11,14 +11,30 @@
 	tls /certs/cert.pem /certs/key.pem
 	encode zstd gzip
 
-	@game path /ws /health /api/*
-	reverse_proxy @game game:8787
-
-	@hashed path /assets/*
-	header @hashed Cache-Control "public, max-age=31536000, immutable"
-	@page path / /index.html /admin.html /version.json
-	header @page Cache-Control "no-cache"
-
-	root * /srv
-	file_server
+	# Mutually exclusive handlers keep backend routes out of the static file server.
+	# reverse_proxy preserves WebSocket upgrades, Range requests and streamed radio uploads.
+	# route prevents Caddy's directive sorting from moving the /miami/* 404 ahead of the proxy.
+	route {
+		@miami path /miami/ws /miami/health /miami/api /miami/api/*
+		handle @miami {
+			uri strip_prefix /miami
+			reverse_proxy game-miami:8787
+		}
+		@game path /ws /health /api /api/*
+		handle @game {
+			reverse_proxy game:8787
+		}
+		# Miami is selected by /?map=miami in the same build, not a second static tree.
+		handle /miami/* {
+			respond "Not found" 404
+		}
+		handle {
+			@hashed path /assets/*
+			header @hashed Cache-Control "public, max-age=31536000, immutable"
+			@page path / /index.html /admin.html /version.json
+			header @page Cache-Control "no-cache"
+			root * /srv
+			file_server
+		}
+	}
 }

@@ -57,7 +57,7 @@ export class WheelSet {
   }
 
   /** steer: front wheel angle (rad, + = right); spin: rolled angle (rad). */
-  update(steer: number, spin: number): void {
+  update(steer: number, spin: number, perWheelAngles?: readonly number[]): void {
     for (let i = 0; i < this.pos.length; i++) {
       const w = this.pos[i];
       const left = w.x < 0;
@@ -71,7 +71,8 @@ export class WheelSet {
         this.fixed.setMatrixAt(i, this.m);
       }
       this.qa.setFromAxisAngle(Y, (w.front ? -steer : 0) + (left ? Math.PI : 0));
-      this.qb.setFromAxisAngle(X, left ? spin : -spin);
+      const angle = perWheelAngles?.[i] ?? spin;
+      this.qb.setFromAxisAngle(X, left ? angle : -angle);
       this.qb.premultiply(this.qa);
       this.m.compose(this.p, this.qb, this.one);
       for (const r of this.rolling) r.setMatrixAt(i, this.m);

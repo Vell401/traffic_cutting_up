@@ -1,9 +1,12 @@
-import { G, clamp, smoothstep } from '../core/math';
+import { clamp, smoothstep } from '../core/math';
 import { ROAD_HALF } from '../config';
 import type { Sim } from '../sim/world';
 import { PorscheEngine, preloadPorscheAudio } from './porscheEngine';
 import { M156EngineSound, preloadW204Audio } from './m156Engine';
 import type { CarId } from '../sim/cars';
+import { createTyreFeedback, sampleTyreFeedback } from '../presentation/tyres';
+import { TyreAudio } from './tyreAudio';
+import { TunnelAcoustics } from './tunnelAcoustics';
 
 /*
  * Web Audio mixer: synthetic road/effect voices plus the Porsche's original sampled engine banks.
@@ -111,8 +114,9 @@ export class Sound {
   private turboOsc!: OscillatorNode;
   private turboGain!: GainNode;
   private wind!: Voice;
-  private roar!: Voice;
-  private squeal!: Voice;
+  private tyres!: TyreAudio;
+  private readonly tyreFeedback = createTyreFeedback();
+  private tunnel!: TunnelAcoustics;
   private scrape!: Voice;
   private hum!: Voice;
   private rumbleOsc!: OscillatorNode;
@@ -172,8 +176,10 @@ export class Sound {
       if(this.ctx&&!this.m156)this.m156=new M156EngineSound(this.ctx,this.bus.engine);
     }
     if(id===1){
-      void preloadPorscheAudio().catch(()=>{/* The voice reports a decode/fetch failure if used. */});
-      if(this.ctx&&!this.porsche)this.porsche=new PorscheEngine(this.ctx,this.bus.engine);
+      if(this.ctx){
+        if(!this.porsche)this.porsche=new PorscheEngine(this.ctx,this.bus.engine);
+        else void this.porsche.retry();
+      }else void preloadPorscheAudio().catch(()=>{/* The voice reports a decode/fetch failure if used. */});
     }
     this.popsLeft=0;this.burble=0;
     if(id===4){this.boost=0;this.prevThrottle=0;}
@@ -258,10 +264,8 @@ export class Sound {
     this.applyMaster();
     this.dry = this.gainNode(1, this.master);
     this.wet = this.gainNode(0, this.master);
-    const verb = ctx.createConvolver();
-    verb.buffer = this.makeTunnelIR();
-    verb.connect(this.wet);
-    this.send = this.gainNode(1, verb);
+    this.tunnel = new TunnelAcoustics(ctx, this.wet);
+    this.send = this.tunnel.input;
     const bus = (b: Bus) => ({ dry: this.gainNode(this.mix[b], this.dry), send: this.gainNode(this.mix[b], this.send) });
     this.bus = { engine: bus('engine'), world: bus('world'), fx: bus('fx'), radio: { dry: this.gainNode(this.mix.radio, this.master), send: this.gainNode(0, this.send) } };
     const E = this.bus.engine;
@@ -302,17 +306,19 @@ export class Sound {
     this.buildHorns();
 
     this.wind = this.noiseVoice('lowpass', 400, 0.5, W.dry);
-    this.roar = this.noiseVoice('lowpass', 480, 0.7, W.dry);
-    this.squeal = this.noiseVoice('bandpass', 900, 3, W.dry);
+    this.tyres = new TyreAudio(ctx, this.noise, W);
     // Barrier contact: a low, soft grind rather than a hiss.
     this.scrape = this.noiseVoice('bandpass', 420, 0.8, W.dry);
     this.hum = this.noiseVoice('lowpass', 170, 0.7, W.dry);
-    this.gainNode(0.6, W.send, this.roar.gain);
+    this.gainNode(.25, W.send, this.wind.gain);
+    this.gainNode(.5, W.send, this.scrape.gain);
+    this.gainNode(.3, W.send, this.hum.gain);
 
     const rumbleFilter = ctx.createBiquadFilter();
     rumbleFilter.type = 'lowpass';
     rumbleFilter.frequency.value = 170;
     this.rumbleGain = this.gainNode(0, W.dry);
+    this.gainNode(.4, W.send, this.rumbleGain);
     rumbleFilter.connect(this.rumbleGain);
     this.rumbleOsc = this.osc('triangle', rumbleFilter);
   }
@@ -479,23 +485,6 @@ export class Sound {
     return curve;
   }
 
-  /** Concrete tube: dense decaying noise plus a few flutter taps off the walls. */
-  private makeTunnelIR(): AudioBuffer {
-    const ctx = this.ctx!;
-    const sr = ctx.sampleRate;
-    const len = Math.floor(sr * 1.8);
-    const buf = ctx.createBuffer(2, len, sr);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = buf.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.4) * 0.6;
-      for (const [ms, g] of [[19, 0.7], [37, 0.5], [58, 0.35], [83, 0.25]]) {
-        const at = Math.floor(((ms + ch * 3) / 1000) * sr);
-        d[at] += g;
-      }
-    }
-    return buf;
-  }
-
   // ---------------------------------------------------------------- per frame
 
   update(dt: number): void {
@@ -507,7 +496,7 @@ export class Sound {
     const sim = this.sim;
     const p = sim.player;
     const t = p.tune;
-    const v = Math.max(0, p.vAlong);
+    const v = Math.hypot(p.vx, p.vy);
     const rpmN = clamp(p.rpm / t.redline, 0, 1.05);
 
     // R34's own body gets an inline-six voice; the other models keep their original audio paths.
@@ -577,23 +566,13 @@ export class Sound {
     set(this.turboOsc.frequency, 1400 + this.boost * 2200 + rpmN * 500);
     set(this.turboGain.gain, isPorsche||isM156 ? 0 : (four ? 0.014 : 0.008) * this.boost);
 
-    // Speed: wind and tyre roar; louder roar in tunnels where it reverberates.
-    const tunnel = sim.road.chunkAt(p.s).kind === 'tunnel';
-    set(this.wind.filter.frequency, 200 + v * 22);
-    set(this.wind.gain.gain, 0.32 * (v / 85) ** 2);
-    set(this.roar.gain.gain, 0.1 * Math.min(1.2, v / 75) * (tunnel ? 1.5 : 1));
-    set(this.wet.gain, tunnel ? 0.55 : 0, 0.25);
-
-    // Tyres: squeal when sliding or near the grip limit, a little under hard braking.
-    const beta = Math.abs(Math.atan2(p.vy, Math.max(p.vx, 1)));
-    const latUse = Math.abs(p.accLat) / (t.gripFront * G);
-    let sq = clamp((beta - 0.06) / 0.1, 0, 1) * 0.65 + clamp((latUse - 0.92) / 0.1, 0, 1) * 0.25;
-    const wheelSlip = 'slipRear' in p ? Math.abs((p as typeof p & { slipRear: number }).slipRear) : 0;
-    sq = Math.max(sq, clamp((wheelSlip - 0.06) / 0.22, 0, 1));
-    if (p.brake > 0.85 && v > 15) sq += 0.25;
-    if (v < 1.5) sq = 0;
-    set(this.squeal.filter.frequency, 1050 + beta * 900 + wheelSlip * 420);
-    set(this.squeal.gain.gain, 0.24 * Math.min(1, sq), 0.045);
+    // Geometry-faded room response, not a louder dry road loop. Radio bypasses this graph.
+    const room = this.tunnel.update(sim.road, p.s, now);
+    set(this.dry.gain, room.dry, .18);
+    set(this.wet.gain, room.wet, .18);
+    set(this.wind.filter.frequency, clamp(200 + v * 22, 200, 4200));
+    set(this.wind.gain.gain, .32 * Math.min(1.5, (v / 85) ** 2));
+    this.tyres.update(sampleTyreFeedback(p, this.tyreFeedback), now);
 
     // Rumble strips just outside the edge lines: a buzz at speed / strip spacing.
     const onStrip = Math.abs(p.d) + p.halfExtentD() > ROAD_HALF + 0.25;

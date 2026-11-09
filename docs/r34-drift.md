@@ -5,6 +5,20 @@ is a TypeScript port of **Project Chrono TMeasy**, with **Sketchbook** as the
 keyboard steering baseline. Exact source revisions, licenses, and port boundaries
 are documented in [r34-foundation.md](r34-foundation.md).
 
+## Current frozen checkpoint
+
+The final authorized physics change was **R34 grip only**:
+`gripFront=1.22`, `gripRear=1.07`, `longGrip=1.10`. All vehicle physics,
+controllers, shared contacts and shipped presets are now frozen, including C63
+(body 4 / physics 5 / M156). Do not recapture `tests/frozenPhysics.test.ts` hashes
+to accommodate review or optimization. Shift remains BOOST; Ctrl is CLUTCH.
+
+Settings revision **4** migrates revision 3 field by field: only exact untouched
+old grip values `1.16 / .93 / 1.04` become `1.22 / 1.07 / 1.10`. Custom values and
+all other R34 fields survive, as do other cars and traffic. Revision 1/2 or an
+absent revision replaces the retired R34 preset only. See
+[mobile-miami-upgrade.md](mobile-miami-upgrade.md) for integrated usage.
+
 ## Responsibilities
 
 - `src/sim/r34/chronoTMeasy.ts`: load-dependent passenger-car tyre coefficients,
@@ -30,7 +44,12 @@ disconnects driver pressure; TMeasy aligning moment and mechanical trail then
 move an inertial, damped rack. There is no released-key body-slip/yaw target.
 The extra steering memory and summed ground moment are serialized: **58 scalars**.
 
-### Fixed-input driving examples
+### Historical fixed-input driving examples (before the grip-only increase)
+
+The measurements below document the earlier accepted replacement. They are
+retained as colleague notes, not remeasured claims for revision 4. Current tests
+in the repository define the frozen-checkpoint regressions; passing them does
+not revalidate every old angle, timing or clearance below.
 
 On an unlimited pad, using automatic gears and keyboard mode:
 
@@ -57,9 +76,14 @@ stayed wall-free for five seconds, with at least 4.27 m clearance. These timings
 describe a reproducible test, not a required rhythm or a road-centering feature.
 
 For R34 only, chase framing blends toward actual travel direction so the chassis
-angle remains visible. HUD/instruments use total speed rather than road progress;
-stationary-burnout smoke uses wheel overspeed as well as body motion. These are
-presentation changes, not additions to physical yaw or sliding.
+angle remains visible. HUD/instruments use total speed rather than road progress.
+Current tyre feedback reads four contact speeds and available actual wheel omega;
+wheel rotation, pooled smoke/skids and four local tyre-audio voices follow that
+read-only presentation layer. Legacy axle models use axle omega; Grip without
+wheel dynamics uses signed rolling fallback, not brake-button lock guesses.
+Estimated effect loads are not new physical suspension. These changes add no yaw
+or sliding forces. Protocol 12 adds four quantized remote omega values (8 bytes,
+scale 16), for a 36-byte remote-driver record; owner rewind remains unchanged.
 
 ## Validation and isolation
 
@@ -73,12 +97,16 @@ presentation changes, not additions to physical yaw or sliding.
 - `unchangedCars.test.ts` / `r34Isolation.test.ts`: approved A45/Porsche files,
   assets, settings and trajectories, plus other-car settings preservation.
 
-All persistent physics/controller memory must fit the existing 64-float state
+All persistent physics/controller memory must fit the existing 64-scalar state
 budget and rewind exactly. Numerical tests alone do not prove good driving feel.
-After local driving review the user approved this replacement for publication;
-the colleague's newer shared-physics changes are retained separately from R34.
+Historical acceptance note: after local driving review the user approved this
+replacement for publication; the colleague's newer shared-physics changes were
+retained separately from R34. This is not a claim that the present Miami/mobile
+update has been pushed or deployed.
 
 Network replay correctness does not eliminate collision/pacing corrections.
-The 150 ms stall/traffic stress run recorded a 2.64 m worst reconciliation
+The measured 150 ms stalled-contact/traffic stress run recorded a **2.639 m** worst reconciliation
 (35 cm p95); ordinary cases were substantially smaller. The shared collision
-prediction system has not been changed as part of this R34-only replacement.
+prediction equations remain frozen; map integration does not remove this limit.
+Local integrated Edge/smoke checks are not human audio approval, physical-iOS
+validation or a Docker/remote deployment.

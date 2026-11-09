@@ -5,7 +5,17 @@ import type { MouseControl } from './mouse';
 const BLOCK = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F1']);
 const DEADZONE = 0.12;
 
-/** Keyboard (layout independent, by KeyboardEvent.code) and gamepad. */
+/** null steering means no finger owns the wheel (a held centre is deliberately different). */
+export interface TouchInput {
+  steer: number | null;
+  throttle: number;
+  brake: number;
+  clutch: boolean;
+  boost: boolean;
+  handbrake: boolean;
+}
+
+/** Keyboard (layout independent, by KeyboardEvent.code), gamepad and independent touch source. */
 export class Input {
   readonly drive: DriveInput = { steer: 0, throttle: 0, brake: 0, analog: false, boost: false };
   /** Fired once per key press (no auto-repeat). Gamepad buttons are mapped to key codes. */
@@ -13,18 +23,39 @@ export class Input {
 
   /** Mouse steering and pedals, when the player drives with the mouse. */
   mouse: MouseControl | null = null;
+  readonly touch: TouchInput = { steer: null, throttle: 0, brake: 0, clutch: false, boost: false, handbrake: false };
   private readonly keys = new Set<string>();
   private padPrev: boolean[] = [];
+  private readonly listeners = new AbortController();
 
   constructor() {
+    const signal = this.listeners.signal;
     window.addEventListener('keydown', (e) => {
       if (BLOCK.has(e.code)) e.preventDefault();
       if (!e.repeat) this.onPress?.(e.code);
       this.keys.add(e.code);
-    });
+    }, { signal });
     // UI sliders stop keydown propagation; releases must still clear keys held before opening a menu.
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code), { capture: true });
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('keyup', (e) => this.keys.delete(e.code), { capture: true, signal });
+    window.addEventListener('blur', () => this.releaseAll(), { signal });
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) this.releaseAll(); }, { signal });
+  }
+
+  releaseTouch(): void {
+    Object.assign(this.touch, { steer: null, throttle: 0, brake: 0, clutch: false, boost: false, handbrake: false });
+  }
+
+  /** Menus/lifecycle boundaries must never carry a held pedal into the next drive. */
+  releaseAll(): void {
+    this.keys.clear();
+    this.releaseTouch();
+    if (this.mouse) { this.mouse.throttle = this.mouse.brake = 0; this.mouse.centre(); }
+    Object.assign(this.drive, { steer: 0, throttle: 0, brake: 0, analog: false, direct: false, clutch: false, boost: false, handbrake: false, horn: false });
+  }
+
+  dispose(): void {
+    this.listeners.abort();
+    this.releaseAll();
   }
 
   poll(): void {
@@ -71,6 +102,21 @@ export class Input {
       this.padButton(pad, 3, 'KeyR');
       break;
     }
+
+    // Steering priority: a captured touch wheel (including centre), then the existing gamepad /
+    // keyboard / mouse rules above. Pedals take max, held buttons OR: one source cannot release
+    // another, and releasing touch immediately restores the other device's live value.
+    const touch = this.touch;
+    if (touch.steer !== null) {
+      steer = Math.max(-1, Math.min(1, touch.steer));
+      analog = true;
+      direct = false;
+    }
+    throttle = Math.max(throttle, touch.throttle);
+    brake = Math.max(brake, touch.brake);
+    clutch ||= touch.clutch;
+    boost ||= touch.boost;
+    handbrake ||= touch.handbrake;
 
     this.drive.steer = steer;
     this.drive.throttle = throttle;

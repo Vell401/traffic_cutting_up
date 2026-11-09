@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CHUNK_LEN, GROUND_LEVEL, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
+import { MIAMI, type MapTheme } from './miami';
 
 const GROUND = new THREE.Color(0x0a0c0f);
 const WATER = new THREE.Color(0x060c16);
@@ -14,8 +15,9 @@ const WATER = new THREE.Color(0x060c16);
 export class FarGround {
   readonly mesh: THREE.Mesh;
   private readonly mat: THREE.MeshStandardMaterial;
+  private disposed = false;
 
-  constructor() {
+  constructor(private readonly theme: MapTheme = 'highway') {
     this.mat = new THREE.MeshStandardMaterial({ color: GROUND.clone(), roughness: 1, metalness: 0 });
     this.mesh = new THREE.Mesh(new THREE.CircleGeometry(3200, 64).rotateX(-Math.PI / 2), this.mat);
     this.mesh.frustumCulled = false;
@@ -23,16 +25,24 @@ export class FarGround {
 
   update(road: Road, s: number, camera: THREE.Vector3): void {
     let level = 0;
-    let water = false;
+    let water = this.theme === 'miami';
     for (const c of road.chunks) {
       if (c.void || c.s0 + CHUNK_LEN < s - 300 || c.s0 > s + 1300) continue;
       level = Math.min(level, GROUND_LEVEL[c.kind]);
       if (c.kind === 'bridge') water = true;
     }
-    this.mesh.position.set(camera.x, level - 0.35, camera.z);
-    this.mat.color.copy(water ? WATER : GROUND);
+    this.mesh.position.set(camera.x, level - (this.theme === 'miami' ? 1.55 : 0.35), camera.z);
+    if (this.theme === 'miami') this.mat.color.setHex(MIAMI.water);
+    else this.mat.color.copy(water ? WATER : GROUND);
     this.mat.roughness = water ? 0.16 : 1;
     this.mat.metalness = water ? 0.6 : 0;
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.mesh.geometry.dispose();
+    this.mat.dispose();
   }
 }
 

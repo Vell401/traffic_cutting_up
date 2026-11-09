@@ -1,15 +1,15 @@
-import { carTune, scoreTune, trafficTune, SIM_HZ } from '../config';
+import { carTune, scoreTune, trafficTune, SIM_HZ, LANES, LANE_W, ROAD_HALF, SHOULDER, WALL_D } from '../config';
 import { driftTune } from '../sim/vehicleDrift';
 import { r34Tune } from '../sim/vehicleR34';
 import { mercedesTune } from '../sim/vehicleMercedes';
 import { porscheTune } from '../sim/vehiclePorsche';
 import { w204Tune } from '../sim/vehicleW204';
-import { SPAWN_D, SPAWN_GAP, SPAWN_S, ringScript } from '../sim/ring';
+import { getMap, type MapId } from '../sim/maps';
 import { VEHICLES } from '../sim/vehicles';
 import type { TrafficPreset } from '../sim/director';
 
 /** Bumped on any change to the message formats. */
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 
 /**
  * Session settings the server decides and sends in `welcome`. The client never picks traffic: it is one
@@ -66,9 +66,15 @@ export function fnv1a(text: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-let cached = '';
 // Runtime admin settings travel separately. The compatibility hash describes the shipped code/defaults.
-const BASE_RULES = JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, r34Tune, mercedesTune, porscheTune, w204Tune, trafficTune, scoreTune, VEHICLES, ring: ringScript(), spawn: [SPAWN_S, SPAWN_GAP, SPAWN_D] });
+const BASE_RULES = JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, r34Tune, mercedesTune, porscheTune, w204Tune, trafficTune, scoreTune, VEHICLES, road: { LANES, LANE_W, ROAD_HALF, SHOULDER, WALL_D, SIM_HZ } });
+// Eagerly freeze BOTH map hashes before admin tuning can mutate any shipped tune object.
+const HASHES: Readonly<Record<MapId, string>> = Object.freeze(Object.fromEntries(
+  (['highway', 'miami'] as const).map(id => {
+    const map = getMap(id);
+    return [id, fnv1a(BASE_RULES + JSON.stringify({ id, revision: map.revision, script: map.script, spawn: map.spawn }))];
+  }),
+) as Record<MapId, string>);
 
 /**
  * Version of the game rules: a hash of every tunable that the server and the client's prediction must
@@ -76,12 +82,7 @@ const BASE_RULES = JSON.stringify({ v: PROTOCOL_VERSION, carTune, driftTune, r34
  * page after a deploy) is turned away instead of mispredicting everything. Computed once, before any
  * debug panel can edit the tunables.
  */
-export function rulesHash(): string {
-  if (!cached) {
-    cached = fnv1a(
-      // Every physics tune is shared with client prediction.
-      BASE_RULES,
-    );
-  }
-  return cached;
+export function rulesHash(mapId: MapId = 'highway'): string {
+  getMap(mapId);
+  return HASHES[mapId];
 }

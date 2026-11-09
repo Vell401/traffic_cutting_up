@@ -1,4 +1,5 @@
 import { CARS } from '../sim/cars';
+import { getMap, type MapId } from '../sim/maps';
 
 /** One row of the server's leaderboard (server/store.ts LeaderEntry). */
 interface Entry {
@@ -12,6 +13,7 @@ interface Entry {
 }
 
 interface Board {
+  map: MapId;
   entries: Entry[];
   /** Players with a run on this board. */
   total: number;
@@ -53,11 +55,14 @@ export class Leaderboard {
   constructor(
     private readonly base: string,
     private readonly myName: () => string,
+    private readonly map: MapId = 'highway',
   ) {
     for (const mode of MODES) {
       const col = document.querySelector<HTMLElement>(`#leaders .lcol[data-mode="${mode}"]`)!;
       this.cols.set(mode, { list: col.querySelector('ol')!, me: col.querySelector('.lme')!, count: col.querySelector('.lcount')! });
     }
+    const context = document.querySelector<HTMLElement>('#leaders .lh em');
+    if (context) context.textContent = `${getMap(map).name} · лучший заезд каждого · от 1 000 очков`;
     void this.refresh();
   }
 
@@ -72,6 +77,7 @@ export class Leaderboard {
     try {
       const res = await fetch(`${this.base}/leaderboard?mode=${mode}&limit=10&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
       const data = (await res.json()) as Board;
+      if (!res.ok || data.map !== this.map) throw new Error('Leaderboard instance mismatch');
       const me = name.toLowerCase();
       col.list.innerHTML = data.entries.length
         ? data.entries
@@ -95,7 +101,7 @@ export class Leaderboard {
   /** Report a finished solo run; resolves to the player's place on the board (if any). */
   async submitSolo(run: SoloRun): Promise<number | undefined> {
     try {
-      const res = await fetch(`${this.base}/runs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(run) });
+      const res = await fetch(`${this.base}/runs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...run, map: this.map }) });
       const data = (await res.json()) as { rank?: number };
       void this.load('solo');
       return data.rank;

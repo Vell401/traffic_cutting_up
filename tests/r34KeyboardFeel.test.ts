@@ -99,7 +99,8 @@ function summary(samples: Sample[], sign: number, entry: number) {
 }
 
 /** Fixed three-key highway exit, chosen OFFLINE, not from live body-state feedback.
- * .6 s W+entry, lift+opposite for 1.2 s, original key .2 s, release all.
+ * .8 s W+entry (was .6 before the grip increase), lift+opposite for 1.2 s,
+ * original key .2 s, release all.
  * Entry is a parameter only to expose timing sensitivity; other durations stay fixed. */
 function highwayExit(sign: number, entry: number): Sample[] {
   return run(90, sign, 5, t => keys(t < entry ? sign : t < entry + 1.2 ? -sign
@@ -148,17 +149,19 @@ describe('R34 open-loop keyboard feel: measured requirements, not an external be
     console.table(rows);
   });
 
-  it('90 km/h fixed .5 s entry sustains a real power slide, then catches on a timed lift', () => {
+  it('90 km/h fixed .85 s entry sustains a real power slide, then catches on a timed lift', () => {
     const rows = [];
     for (const sign of [-1, 1]) {
-      const samples = run(90, sign, 6, t => keys(t < .5 ? sign : 0, t < 3.5));
-      const powered = samples.filter(s => s.t > .5 && s.t <= 3.5);
-      const row = { sign, ...summary(samples, sign, .5),
-        poweredHold: round(longestHold(powered, sign, .5)),
+      // A .5 s tap now stays mostly gripping. Preserve the substantial slide contract
+      // with a deliberate .85 s entry, not lower grip or a weaker angle/hold threshold.
+      const samples = run(90, sign, 6, t => keys(t < .85 ? sign : 0, t < 3.5));
+      const powered = samples.filter(s => s.t > .85 && s.t <= 3.5);
+      const row = { sign, ...summary(samples, sign, .85),
+        poweredHold: round(longestHold(powered, sign, .85)),
         poweredMeanSpin: round(mean(powered.map(s => s.spin))), exitYaw: round(samples.at(-1)!.yaw) };
       rows.push(row);
       const label = JSON.stringify(row);
-      expect.soft(longestHold(powered, sign, .5), label).toBeGreaterThanOrEqual(1.5);
+      expect.soft(longestHold(powered, sign, .85), label).toBeGreaterThanOrEqual(1.5);
       expect.soft(Math.max(...powered.map(s => s.beta * sign)), label).toBeGreaterThan(25);
       expect.soft(mean(powered.map(s => s.spin)), label).toBeGreaterThan(5);
       expect.soft(Math.max(...samples.map(s => Math.abs(s.beta))), label).toBeLessThan(60);
@@ -171,8 +174,8 @@ describe('R34 open-loop keyboard feel: measured requirements, not an external be
   it('90 km/h +/-100 ms entry window remains catchable, without promising the same drift angle', () => {
     const rows = [];
     for (const sign of [-1, 1]) for (const entry of [.4, .5, .6]) {
-      // Same fixed gas/lift schedule at all three timings. The center's substantial
-      // powerslide is checked above; edges need a catchable envelope, not a beta target.
+      // Keep the original short-tap envelope: more grip should not force these into slides.
+      // The deliberate longer-entry powerslide is checked above.
       const samples = run(90, sign, 6, t => keys(t < entry ? sign : 0, t < 3.5));
       const row = { sign, entry, ...summary(samples, sign, entry), exitYaw: round(samples.at(-1)!.yaw) };
       rows.push(row);
@@ -188,16 +191,17 @@ describe('R34 open-loop keyboard feel: measured requirements, not an external be
   it('timed entry/release/opposite-key/release transitions both ways, without beta feedback', () => {
     const rows = [];
     for (const sign of [-1, 1]) {
-      // .6 s entry, .4 s released, 1.4 s opposite key; release, lift at 4 s.
-      const samples = run(90, sign, 7, t => keys(t < .6 ? sign : t < 1 ? 0 : t < 2.4 ? -sign : 0, t < 4));
-      const opposite = samples.filter(s => s.t >= 2.4 && s.t <= 4);
-      const row = { sign, peakEntry: round(Math.max(...samples.filter(s => s.t <= 1).map(s => s.beta * sign))),
+      // More grip: .85 s entry, .35 s released, 1.5 s opposite (was .6/.4/1.4).
+      // Release, lift at 4 s; every duration is fixed before the run.
+      const samples = run(90, sign, 7, t => keys(t < .85 ? sign : t < 1.2 ? 0 : t < 2.7 ? -sign : 0, t < 4));
+      const opposite = samples.filter(s => s.t >= 2.7 && s.t <= 4);
+      const row = { sign, peakEntry: round(Math.max(...samples.filter(s => s.t <= 1.2).map(s => s.beta * sign))),
         peakOpposite: round(Math.max(...opposite.map(s => -s.beta * sign))),
         peakAbsBeta: round(Math.max(...samples.map(s => Math.abs(s.beta)))),
         exitBeta: round(samples.at(-1)!.beta), exitYaw: round(samples.at(-1)!.yaw) };
       rows.push(row);
       const label = JSON.stringify(row);
-      expect.soft(Math.max(...samples.filter(s => s.t <= 1).map(s => s.beta * sign)), label).toBeGreaterThan(15);
+      expect.soft(Math.max(...samples.filter(s => s.t <= 1.2).map(s => s.beta * sign)), label).toBeGreaterThan(15);
       expect.soft(Math.max(...opposite.map(s => -s.beta * sign)), label).toBeGreaterThan(20);
       expect.soft(Math.max(...samples.map(s => Math.abs(s.beta))), label).toBeLessThan(60);
       expect.soft(Math.abs(samples.at(-1)!.beta), label).toBeLessThan(1);
@@ -238,18 +242,18 @@ describe('R34 open-loop keyboard feel: measured requirements, not an external be
   it('holding the entry key is meaningfully different from release, without demanding spin immunity', () => {
     const rows = [];
     for (const sign of [-1, 1]) {
-      const release = run(90, sign, 4, t => keys(t < .5 ? sign : 0));
+      const release = run(90, sign, 4, t => keys(t < .85 ? sign : 0));
       const held = run(90, sign, 4, () => keys(sign));
-      const difference = Math.max(...held.filter(s => s.t > .5).map(s => {
+      const difference = Math.max(...held.filter(s => s.t > .85).map(s => {
         const delta = (s.beta - at(release, s.t).beta) / DEG;
         return Math.abs(Math.atan2(Math.sin(delta), Math.cos(delta))) * DEG;
       }));
       const row = { sign, maxBetaDifference: round(difference),
-        release: summary(release, sign, .5), held: summary(held, sign, .5) };
+        release: summary(release, sign, .85), held: summary(held, sign, .85) };
       rows.push(row);
       expect.soft(difference, JSON.stringify(row)).toBeGreaterThan(10);
       // Held W+A/D is allowed to spin; release must provide the accessible alternative.
-      expect.soft(longestHold(release, sign, .5), JSON.stringify(row)).toBeGreaterThanOrEqual(1.5);
+      expect.soft(longestHold(release, sign, .85), JSON.stringify(row)).toBeGreaterThanOrEqual(1.5);
     }
     console.log('Held key versus release:', JSON.stringify(rows));
   });
@@ -257,8 +261,8 @@ describe('R34 open-loop keyboard feel: measured requirements, not an external be
   it('a fixed three-key highway exit reaches >=15 degrees, catches, and avoids walls for five seconds', () => {
     const rows = [];
     for (const sign of [-1, 1]) {
-      const samples = highwayExit(sign, .6);
-      const row = highwayResult(samples, sign, .6);
+      const samples = highwayExit(sign, .8);
+      const row = highwayResult(samples, sign, .8);
       rows.push(row);
       checkHighway(samples, JSON.stringify(row));
     }
@@ -267,19 +271,19 @@ describe('R34 open-loop keyboard feel: measured requirements, not an external be
 
   it('a brief Space entry and fixed three-key exit tolerate +/-50 ms variation without highway walls', () => {
     const rows = [];
-    // The no-Space .6/1.2/.2 script above is NOT robust: +50 ms hits a wall at
-    // ~2.63 s. Instead use the existing drift control, not weaker physics/thresholds.
-    // Nominal: W+entry .5 s, Space ONLY .20-.35 s, lift+opposite 1.6 s,
+    // Use the existing drift control, not weaker physics/thresholds. Higher grip
+    // needs a shorter opposite pulse (1.4 s, was 1.6) to avoid over-correcting.
+    // Nominal: W+entry .5 s, Space ONLY .20-.35 s, lift+opposite 1.4 s,
     // original key .2 s, then release all. Three preplanned key choices, no feedback.
     // Final travel heading is allowed to differ across timings; no lane-centering target.
     for (const sign of [-1, 1]) for (const entry of [.45, .5, .55]) {
       const entryFrame = Math.round(entry * 60);
       const samples = run(90, sign, 5, t => {
         // Integer poll frames avoid accidentally adding a 16.7 ms key hold because
-        // .55 + 1.6 and 129 / 60 round to opposite sides of the same boundary.
+        // decimal sums and frame fractions round to opposite sides of a boundary.
         const frame = Math.round(t * 60);
-        return keys(frame < entryFrame ? sign : frame < entryFrame + 96 ? -sign
-          : frame < entryFrame + 108 ? sign : 0, frame < entryFrame, frame >= 12 && frame < 21);
+        return keys(frame < entryFrame ? sign : frame < entryFrame + 84 ? -sign
+          : frame < entryFrame + 96 ? sign : 0, frame < entryFrame, frame >= 12 && frame < 21);
       }, true);
       const locked = samples.filter(s => s.handbrake);
       const row = { ...highwayResult(samples, sign, entry),

@@ -6,7 +6,7 @@ import { Director, type TrafficMode, type TrafficPreset } from '../sim/director'
 import type { SimEvents } from '../sim/events';
 import type { CarId } from '../sim/cars';
 import { createCar, physicsId, type PhysicsId } from '../sim/physics';
-import { SPAWN_D, SPAWN_GAP, SPAWN_PLACES, ringScript, spawnS } from '../sim/ring';
+import { getMap, isSpawnProtected, type MapDefinition, type MapId } from '../sim/maps';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
 import { AHEAD as TRAFFIC_AHEAD, BEHIND as TRAFFIC_BEHIND, MAX_PER_KM, MAX_TRAFFIC, Traffic, type TrafficCar } from '../sim/traffic';
@@ -31,6 +31,7 @@ import {
 } from './protocol';
 import { DEFAULT_RULES, type OnlineRules } from './rules';
 import { applyTuning, defaultTuning, validateTuning, type GlobalTuning } from '../sim/tuning';
+import { createTyreFeedback, sampleTyreFeedback } from '../presentation/tyres';
 
 /** Paint per driver slot. */
 export const DRIVER_COLORS = [0x1f4fd8, 0xd8321f, 0x16a35a, 0xe0a812, 0x9b30d9, 0x14b8c4, 0xd9d9de, 0xff6a13];
@@ -209,6 +210,9 @@ const RING_TRAFFIC = 4096;
 const PAIR_QUIET = 60;
 
 export class OnlineWorld {
+  private readonly remoteTyres = createTyreFeedback();
+  private readonly remoteWheelOmega = new Float64Array(4);
+  readonly map: MapDefinition;
   // Drivers' s is never wrapped: a car's s counts the laps, so the client holds the very same number
   // (bit-exact prediction) and draws a continuous road. Traffic lives in [0, ringLen); every
   // comparison between the two goes through the ring-aware rel().
@@ -238,10 +242,12 @@ export class OnlineWorld {
   constructor(
     readonly seed: number,
     rules: Partial<OnlineRules> = {},
+    mapId: MapId = 'highway',
   ) {
+    this.map = getMap(mapId);
     this.rules = { ...DEFAULT_RULES, ...rules };
     this.rng = mulberry32(seed);
-    this.road = new Road(this.rng, ringScript());
+    this.road = new Road(this.rng, this.map.script);
     this.ringLen = this.road.ringLen;
     this.road.ensure(-200, this.ringLen + 200);
     this.director = new Director(this.rng, this.events);
@@ -521,9 +527,7 @@ export class OnlineWorld {
    * there stay ghosts, so pulling away never runs into someone parked on the next place.
    */
   private onSpawnPad(p: PlayerCar): boolean {
-    if (p.d < SPAWN_D - 1.6) return false;
-    const first = this.traffic.rel(p.s, spawnS(0));
-    return first < 30 && first > -(SPAWN_PLACES - 1) * SPAWN_GAP - 12;
+    return isSpawnProtected(this.map, p.s, p.d, this.ringLen);
   }
 
   private touchesTraffic(p: PlayerCar): boolean {
@@ -565,9 +569,9 @@ export class OnlineWorld {
       car.reset(car.s, laneCenter(this.freeLane(car.s)), 90 / 3.6);
     } else {
       // Everyone spawns on the same spot; ghosts there, so nobody collides with anybody.
-      const home = spawnS(0);
+      const home = this.map.spawn.s;
       const lap = how === 'join' ? 0 : Math.round((car.s - home) / this.ringLen);
-      car.reset(home + this.ringLen * lap, SPAWN_D, 0);
+      car.reset(home + this.ringLen * lap, this.map.spawn.d, 0);
     }
     car.ghost = true;
     dr.ghostT = this.rules.ghostSeconds;
@@ -630,8 +634,9 @@ export class OnlineWorld {
         (c.brake > 0.05 ? REMOTE_BRAKE : 0) |
         (c.blinker === 1 ? REMOTE_BLINK_LEFT : c.blinker === 2 ? REMOTE_BLINK_RIGHT : 0) |
         (c.horn ? REMOTE_HORN : 0);
-      const steerVisual = o.body === 2 ? c.steerAngle / 1.1 : c.steerIn;
-      writeDriver(w, o.id, flags, this.traffic.wrap(c.s), c.d, c.psi, c.vx, c.vy, c.r, steerVisual, c.gear);
+      const feedback = sampleTyreFeedback(c, this.remoteTyres);
+      for (let i = 0; i < 4; i++) this.remoteWheelOmega[i] = feedback.wheels[i].omega;
+      writeDriver(w, o.id, flags, this.traffic.wrap(c.s), c.d, c.psi, c.vx, c.vy, c.r, c.steerAngle / 1.1, c.gear, this.remoteWheelOmega);
     }
 
     // Traffic in view, nearest first if there is more than a client draws.
@@ -690,9 +695,9 @@ const u32 = new Uint32Array(f64.buffer);
  * Rebuild a session from its seed, rules and journal (up to `endTick`). `prepare` repeats what was done
  * to the live world before its first tick (tests switch traffic off, say).
  */
-export function replay(seed: number, rules: Partial<OnlineRules>, journal: readonly Stimulus[], endTick: number, prepare?: (w: OnlineWorld) => void): OnlineWorld {
+export function replay(seed: number, rules: Partial<OnlineRules>, journal: readonly Stimulus[], endTick: number, prepare?: (w: OnlineWorld) => void, mapId: MapId = 'highway'): OnlineWorld {
   applyTuning(defaultTuning());
-  const w = new OnlineWorld(seed, rules);
+  const w = new OnlineWorld(seed, rules, mapId);
   prepare?.(w);
   const q: InputQ[] = [];
   for (const rec of journal) {

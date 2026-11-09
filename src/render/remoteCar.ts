@@ -98,7 +98,8 @@ export class RemoteCar {
     this.fade = close ? Math.min(1, this.fade + dt / .4) : 0;
     this.reveal.value = this.fade;
     this.proxy.visible = this.fade < 1;
-    if (close) view.update(dt, car, zero, 0);
+    // Keep a prepared detail's wheel phase current behind the proxy; no hidden-time catch-up burst.
+    view.update(dt, car, zero, 0, true);
   }
 
   dispose(): void {

@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
     <title>Traffic Cutting Up</title>
     <link rel="stylesheet" href="/src/loading.css" />
@@ -54,7 +54,7 @@
       <div class="speedo">
         <div class="blinkers"><i id="blinkL">◀</i><i id="blinkR">▶</i></div>
         <div class="rpm"><i id="rpmBar"></i></div>
-        <div class="boost" title="Ctrl — нитро"><i id="boostBar"></i></div>
+        <div class="boost" title="Shift — нитро"><i id="boostBar"></i></div>
         <div class="row">
           <span id="kmh" class="num">0</span>
           <span class="unit">km/h</span>
@@ -81,8 +81,8 @@
             <span><kbd>R</kbd> на полосу</span>
             <span><kbd>V</kbd> камера</span>
             <span><kbd>C</kbd> держать — назад</span>
-            <span><kbd>Shift</kbd> сцепление</span>
-            <span><kbd>Ctrl</kbd> нитро</span>
+            <span><kbd>Ctrl</kbd> сцепление</span>
+            <span><kbd>Shift</kbd> нитро</span>
             <span><kbd>Пробел</kbd> ручник</span>
             <span><kbd>H</kbd> сигнал</span>
             <span><kbd>L</kbd> дальний свет</span>
@@ -104,6 +104,8 @@
             <div id="modeSeg" class="seg"></div>
             <div id="modeDesc" class="odesc"></div>
           </div>
+          <label class="ol" for="serverChoice">Карта / сервер</label>
+          <div id="serverChoiceRoot" class="server-picker"></div>
           <span class="ol">Имя</span>
           <div>
             <input id="nameInput" maxlength="16" spellcheck="false" autocomplete="nickname" placeholder="Driver" />
@@ -142,6 +144,7 @@
           </div>
         </div>
         <div id="onlineMsg" class="online-only"></div>
+        <div id="screenOptions" class="screen-options"></div>
         <button id="startBtn"><em class="solo-only">Поехали</em><em class="online-only">Подключиться</em><i class="chev" aria-hidden="true"><b>›</b><b>›</b><b>›</b></i><span>Enter</span></button>
       </div>
     </div>
@@ -189,6 +192,10 @@
         <p class="tag"><span class="solo-only">P или Esc — продолжить</span><span class="online-only">Мир не останавливается: машина катится без газа. P или Esc — назад</span></p>
         <button id="resumeBtn">Продолжить <span>Esc</span></button>
         <button id="menuBtn" class="ghost-btn">Выйти из игры</button>
+        <details class="pause-settings"><summary>Настройки</summary>
+          <button id="gearboxBtn" class="ghost-btn" type="button">Коробка: автомат</button>
+          <div id="pauseScreenOptions" class="screen-options"></div>
+        </details>
       </div>
     </div>
 

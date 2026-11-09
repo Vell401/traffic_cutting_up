@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
 import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
-import { buildCar, isShared, type CarParts } from './car';
+import { buildCar, isShared, waitForCar, type CarParts } from './car';
+import { createTyreFeedback, sampleTyreFeedback } from '../presentation/tyres';
 
 /** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
 const BLINK_PERIOD = 0.7;
@@ -18,17 +19,27 @@ export class PlayerView {
   /** Our car's two headlight beams (left, right). */
   readonly headlights: THREE.SpotLight[] = [];
   private readonly parts: CarParts;
+  private disposed = false;
+  private readonly readiness: Promise<void>;
+  private cancelReady: () => void = () => {};
   private pitch = 0;
   private roll = 0;
   private ghost = false;
   private cockpitOn = false;
   private blinkSide = 0;
   private blinkT = 0;
+  /** Presentation-local phase; never write physics wheelSpin or integrate the rear axle for fronts. */
+  readonly wheelAngles = [0, 0, 0, 0];
+  readonly tyreFeedback = createTyreFeedback();
+  private readonly contactMatrix = new THREE.Matrix4();
+  private readonly contactNodes: (THREE.Object3D | null)[] = [null, null, null, null];
+  private contactInstances: THREE.InstancedMesh | null = null;
+  private remoteSource?: { vx: number; vy: number; r: number; steerAngle: number; tune: PlayerCar['tune']; omega?: ArrayLike<number> };
   /** A turn signal lamp is lit right now (the HUD arrow and the relay click follow it). */
   blinkLit = false;
   /** The cockpit's materials, including hidden instrument surfaces. */
   private readonly inside = new Set<THREE.Material>();
-  get ready(): Promise<void> { return this.parts.ready ?? Promise.resolve(); }
+  get ready(): Promise<void> { return this.readiness; }
 
   /** own: the player's own car (real spot light, cockpit); others get just the lamps. */
   constructor(
@@ -45,6 +56,19 @@ export class PlayerView {
     const W = width;
     this.parts = buildCar(car, paint, L, W, own, !spare);
     const p = this.parts;
+    // A builder may keep its placeholder alive after a failed download. That is not readiness.
+    // A fresh instance can attach the model after the caller retries its download.
+    // Headless instrument/animation consumers have no page URL for relative model requests and
+    // retain the builder's placeholder contract. A real browser must also verify the download.
+    const loaded = Promise.all([p.ready, !spare && typeof window !== 'undefined' ? waitForCar(car) : undefined]).then(() => {});
+    const cancelled = new Promise<never>((_resolve, reject) => {
+      this.cancelReady = () => {
+        const error = new Error('Car view disposed before it was ready');
+        error.name = 'AbortError';
+        reject(error);
+      };
+    });
+    this.readiness = Promise.race([loaded, cancelled]);
 
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(W * 1.45, L * 1.2).rotateX(-Math.PI / 2),
@@ -74,7 +98,37 @@ export class PlayerView {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (m) this.inside.add(m);
     });
-    void this.ready.then(() => { if (this.ghost) this.applyGhost(); });
+    // Observe the detached branch without hiding failures from callers awaiting ready.
+    void this.ready.then(() => {
+      if (this.disposed) return;
+      this.findWheelContacts();
+      if (this.ghost) this.applyGhost();
+    }).catch(() => {});
+    this.findWheelContacts();
+  }
+
+  private findWheelContacts(): void {
+    const corners = ['FL', 'FR', 'RL', 'RR'], a45 = ['LF', 'RF', 'LR', 'RR'];
+    for (let i = 0; i < 4; i++) this.contactNodes[i] = this.parts.wheelRoot.getObjectByName(`Wheel_${corners[i]}`)?.parent
+      ?? this.parts.body.getObjectByName(`WHEEL_${a45[i]}`) ?? null;
+    this.contactInstances = null;
+    this.parts.wheelRoot.traverse(o => {
+      if (!this.contactInstances && o instanceof THREE.InstancedMesh && o.count === 4) this.contactInstances = o;
+    });
+  }
+
+  /** Current rendered tyre centre projected onto the flat road, in floating-origin coordinates. */
+  wheelContact(index: number, out: THREE.Vector3): THREE.Vector3 {
+    const node = this.contactNodes[index], mesh = this.contactInstances;
+    if (node) node.getWorldPosition(out);
+    else if (mesh) {
+      mesh.getMatrixAt(index, this.contactMatrix);
+      out.setFromMatrixPosition(this.contactMatrix).applyMatrix4(mesh.matrixWorld);
+    } else {
+      out.set(index % 2 ? .8 : -.8, 0, index < 2 ? -1.35 : 1.35).applyMatrix4(this.root.matrixWorld);
+    }
+    out.y = this.root.position.y + .018;
+    return out;
   }
 
   /**
@@ -152,7 +206,8 @@ export class PlayerView {
     }
   }
 
-  update(dt: number, car: PlayerCar, pos: THREE.Vector3, yaw: number): void {
+  update(dt: number, car: PlayerCar, pos: THREE.Vector3, yaw: number, remote = false): void {
+    dt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
     const p = this.parts;
     this.root.position.copy(pos);
     this.root.rotation.y = -yaw;
@@ -160,7 +215,18 @@ export class PlayerView {
     this.pitch = damp(this.pitch, clamp(car.accLong * 0.004, -0.04, 0.03), 8, dt);
     this.roll = damp(this.roll, clamp(car.accLat * 0.005, -0.05, 0.05), 8, dt);
     p.body.rotation.set(this.pitch, 0, this.roll);
-    if (!this.cockpitOn) p.wheels.update(this.car === 1 || this.car === 2 || this.car === 4 ? car.steerAngle : car.steerIn * 0.32, car.wheelSpin % (Math.PI * 2));
+    if (remote) {
+      // Remote physics instances contain default/stale omega, not network telemetry. Until the
+      // coordinator wires this optional presentation tuple, show honest signed rolling fallback.
+      const source = this.remoteSource ??= { vx: 0, vy: 0, r: 0, steerAngle: 0, tune: car.tune };
+      source.vx = car.vx; source.vy = car.vy; source.r = car.r; source.steerAngle = car.steerAngle;
+      source.tune = car.tune;
+      source.omega = (car as PlayerCar & { visualWheelOmega?: ArrayLike<number> }).visualWheelOmega;
+      sampleTyreFeedback(source, this.tyreFeedback);
+    } else sampleTyreFeedback(car, this.tyreFeedback);
+    for (let i = 0; i < 4; i++) this.wheelAngles[i] = (this.wheelAngles[i] + this.tyreFeedback.wheels[i].omega * dt) % (Math.PI * 2);
+    // Keep phase advancing in cockpit/bumper views so switching cameras never resumes stale wheels.
+    p.wheels.update(car.steerAngle, this.wheelAngles[0], this.wheelAngles);
     p.tail.color.copy(car.brake > 0.05 ? p.tailBrake : p.tailIdle);
     // Turn signals: a new side starts lit, like a real relay.
     if (car.blinker !== this.blinkSide) {
@@ -175,6 +241,9 @@ export class PlayerView {
 
   /** Take it out of the scene and free its materials (geometry is shared between cars of a model). */
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.cancelReady();
     this.parts.dispose?.();
     this.root.removeFromParent();
     for (const m of this.ownMaterials(true)) if (!this.parts.managedMaterials?.has(m)) m.dispose();

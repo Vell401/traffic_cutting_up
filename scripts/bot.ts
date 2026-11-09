@@ -8,14 +8,19 @@ import { mulberry32 } from '../src/core/rng';
 import { ClientCore } from '../src/online/clientCore';
 import { Sim } from '../src/sim/world';
 import { Bot } from '../tests/netsim';
+import { resolveMap } from '../src/sim/maps';
 
-const count = Math.max(1, Number(process.argv[2]) || 2);
-const url = process.argv[3] ?? 'ws://localhost:8787/ws';
+const args = process.argv.slice(2);
+const mapAt = args.indexOf('--map');
+const map = resolveMap(mapAt < 0 ? undefined : args[mapAt + 1] ?? '').id;
+if (mapAt >= 0) args.splice(mapAt, 2);
+const count = Math.max(1, Number(args[0]) || 2);
+const url = args[1] ?? 'ws://localhost:8787/ws';
 const NAMES = ['Bot Kira', 'Bot Max', 'Bot Lena', 'Bot Timur', 'Bot Ola'];
 
 function start(i: number): void {
   const rng = mulberry32(100 + i);
-  const sim = new Sim(rng, { online: true, physics: i % 2 === 0 ? 1 : 2 });
+  const sim = new Sim(rng, { online: true, physics: i % 2 === 0 ? 1 : 2, map });
   const ws = new WebSocket(url);
   ws.binaryType = 'arraybuffer';
   const core = new ClientCore(sim, {

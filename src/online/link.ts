@@ -1,3 +1,5 @@
+import { getMap, type MapId } from '../sim/maps';
+
 /*
  * Browser WebSocket with optional simulated network conditions, for testing the netcode by hand:
  *   ?lag=120      round trip added, ms (half each way)
@@ -84,20 +86,45 @@ export class Link {
 }
 
 /** Where the game server is: ?server=, the build-time VITE_ONLINE_URL, or /ws on this site. */
-export function serverUrl(params: URLSearchParams): string {
+export function serverUrl(params: URLSearchParams, mapId: MapId = 'highway'): string {
+  getMap(mapId);
   const fromParam = params.get('server');
   if (fromParam) return fromParam;
-  const fromEnv = import.meta.env.VITE_ONLINE_URL as string | undefined;
+  const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+  const fromEnv = mapId === 'miami' ? env?.VITE_MIAMI_ONLINE_URL : env?.VITE_ONLINE_URL;
   if (fromEnv) return fromEnv;
-  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+  const page = pageLocation();
+  return `${page.protocol === 'https:' ? 'wss' : 'ws'}://${page.host}${mapId === 'miami' ? '/miami' : ''}/ws`;
+}
+
+function pageLocation(): { protocol: string; host: string; href: string } {
+  return (globalThis as typeof globalThis & { location?: { protocol: string; host: string; href: string } }).location ?? { protocol: 'http:', host: 'localhost', href: 'http://localhost/' };
+}
+
+/** Canonical endpoint + map, never the old global reconnect token. */
+export function onlineTokenKey(endpoint: string, mapId: MapId = 'highway'): string {
+  getMap(mapId);
+  const url = new URL(endpoint, pageLocation().href);
+  url.hash = '';
+  url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+  url.searchParams.sort();
+  return `tcu.online.token:${mapId}:${url.toString()}`;
 }
 
 /** The server's HTTP API (…/api) next to its WebSocket URL. */
 export function apiBase(ws: string): string {
-  return ws.replace(/^ws/, 'http').replace(/\/ws\/?$/, '') + '/api';
+  return siblingUrl(ws, 'api');
 }
 
 /** The server's /health endpoint next to its WebSocket URL. */
 export function healthUrl(ws: string): string {
-  return ws.replace(/^ws/, 'http').replace(/\/ws\/?$/, '') + '/health';
+  return siblingUrl(ws, 'health');
+}
+
+function siblingUrl(ws: string, sibling: string): string {
+  const url = new URL(ws);
+  url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+  url.pathname = url.pathname.replace(/\/ws\/?$/, '').replace(/\/$/, '') + '/' + sibling;
+  url.search = url.hash = '';
+  return url.toString();
 }

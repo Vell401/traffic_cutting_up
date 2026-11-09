@@ -3,24 +3,23 @@ import type { PhysicsId } from '../sim/physics';
 import type { DriveInput } from '../sim/vehicle';
 import type { Sim } from '../sim/world';
 import { ClientCore } from './clientCore';
-import { Link, type LinkConditions } from './link';
+import { Link, onlineTokenKey, type LinkConditions } from './link';
 import type { PlayerInfo } from './protocol';
 
 export type OnlineState = 'idle' | 'connecting' | 'joined' | 'reconnecting' | 'failed';
 
-const TOKEN_KEY = 'tcu.online.token';
 const RETRY_MS = [500, 1000, 2000, 3000, 5000, 5000, 8000, 8000, 10000, 10000];
 
-const loadToken = (): string | undefined => {
+const loadToken = (key: string): string | undefined => {
   try {
-    return sessionStorage.getItem(TOKEN_KEY) ?? undefined;
+    return sessionStorage.getItem(key) ?? undefined;
   } catch {
     return undefined;
   }
 };
-const saveToken = (t: string): void => {
+const saveToken = (key: string, t: string): void => {
   try {
-    sessionStorage.setItem(TOKEN_KEY, t);
+    sessionStorage.setItem(key, t);
   } catch {
     /* no storage: a reload joins as a new driver */
   }
@@ -50,6 +49,7 @@ export class OnlineSession {
   private color: number | undefined;
   private retryTimer = 0;
   private rejected = false;
+  private readonly tokenKey: string;
 
   constructor(
     sim: Sim,
@@ -57,6 +57,7 @@ export class OnlineSession {
     private readonly conditions: LinkConditions,
     private readonly hooks: SessionHooks,
   ) {
+    this.tokenKey = onlineTokenKey(url, sim.map.id);
     this.core = new ClientCore(sim, {
       send: (d) => this.link?.send(d),
       onTeleport: () => hooks.onTeleport(),
@@ -64,12 +65,13 @@ export class OnlineSession {
       onFeed: (text) => hooks.onFeed(text),
       onAnnounce: (text) => hooks.onAnnounce(text),
       onWelcome: (msg) => {
-        saveToken(msg.token);
+        saveToken(this.tokenKey, msg.token);
         this.attempts = 0;
         this.setState('joined', '');
       },
       onReject: (text) => {
         this.rejected = true;
+        this.link?.close();
         this.setState('failed', text);
       },
     });
@@ -99,7 +101,7 @@ export class OnlineSession {
       return;
     }
     this.link = link;
-    link.onOpen = () => this.core.hello(this.name, this.physics, this.car, this.core.token || loadToken(), this.color);
+    link.onOpen = () => this.core.hello(this.name, this.physics, this.car, this.core.token || loadToken(this.tokenKey), this.color);
     link.onMessage = (d) => this.core.receive(d, performance.now());
     link.onClose = () => this.lost();
   }

@@ -25,8 +25,8 @@ describe('PlayerView steering angle routing', () => {
         expect(Math.abs(car.steerIn * .32)).toBeGreaterThan(Math.abs(car.steerAngle) * 10);
 
         view.update(dt, car, new THREE.Vector3(), car.psi);
-        const expected = id === 3 ? car.steerIn * .32 : car.steerAngle;
-        expect(wheels).toHaveBeenLastCalledWith(expected, car.wheelSpin % (Math.PI * 2));
+        const expected = car.steerAngle;
+        expect(wheels).toHaveBeenLastCalledWith(expected, view.wheelAngles[0], view.wheelAngles);
       }
       expect(wheels).toHaveBeenCalledTimes(2);
     } finally {

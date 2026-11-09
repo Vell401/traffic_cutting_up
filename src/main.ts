@@ -1,5 +1,6 @@
 import './style.css';
 import './menu.css';
+import './mobile.css';
 import { LANES, SIM_HZ, laneCenter } from './config';
 import { Sound } from './audio/sound';
 import { Input } from './core/input';
@@ -14,7 +15,7 @@ import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
 import { bodyPhysics, type PhysicsId } from './sim/physics';
-import { spawnS } from './sim/ring';
+import { getMap, mapSpawnS } from './sim/maps';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
 import { apiBase, conditionsFromUrl, healthUrl, serverUrl } from './online/link';
@@ -35,7 +36,6 @@ import {
   loadName,
   loadPaint,
   loadQuality,
-  loadSky,
   loadSteerMode,
   loadTraffic,
   saveCameraMode,
@@ -45,7 +45,6 @@ import {
   saveName,
   savePaint,
   saveQuality,
-  saveSky,
   saveSteerMode,
   saveTraffic,
   type Quality,
@@ -53,8 +52,18 @@ import {
 import { Hud } from './ui/hud';
 import { Metrics } from './ui/metrics';
 import { OnlineHud } from './ui/onlineHud';
+import { TouchControls } from './ui/touchControls';
+import { Fullscreen } from './ui/fullscreen';
+import { loadMapSky, mapNavigation, modeNavigation, mountServerPicker, saveMapSky, saveSelectedMap, selectedMap } from './ui/serverPicker';
 
-const BEST_KEY = 'tcu.best.v1';
+const params = new URLSearchParams(location.search);
+/** Test showcases retain their original road/theme; regular play keeps the selected instance. */
+const TEST = params.has('test');
+const MAP_ID = TEST ? 'highway' : selectedMap(params);
+const MAP = getMap(MAP_ID);
+if (!TEST) saveSelectedMap(MAP_ID);
+document.body.dataset.map = MAP_ID;
+const BEST_KEY = MAP_ID === 'highway' ? 'tcu.best.v1' : `tcu.best.v1.${MAP_ID}`;
 const loadBest = (): number => {
   try {
     return Number(localStorage.getItem(BEST_KEY)) || 0;
@@ -71,15 +80,13 @@ const saveBest = (v: number): void => {
 };
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
-const params = new URLSearchParams(location.search);
-/** ?test: short finite showcase tracks picked from a side panel; no records saved. */
-const TEST = params.has('test');
 /**
  * Online by default: the shared ring on the game server (its own page lifecycle: leaving reloads the
  * page). ?solo: single player. (?online still works for old links.)
  */
 const ONLINE = !TEST && !params.has('solo');
-const API = apiBase(serverUrl(params));
+const SERVER_URL = serverUrl(params, MAP_ID);
+const API = apiBase(SERVER_URL);
 async function syncGlobalTuning(): Promise<void> {
   try {
     const response = await fetch(`${API}/tuning`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
@@ -91,7 +98,7 @@ if (!ONLINE && !TEST) window.setInterval(() => void syncGlobalTuning(), 15000);
 let showcase = 0;
 await loading.stage(18, 'Подготовка трассы и трафика');
 const initialCar = loadCar();
-const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: bodyPhysics(initialCar), online: ONLINE });
+const sim = new Sim(Math.random, { map: MAP_ID, track: TEST ? SHOWCASES[0].script : undefined, physics: bodyPhysics(initialCar), online: ONLINE });
 sim.director.preset = loadTraffic();
 sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
@@ -101,11 +108,18 @@ let paint = loadPaint(car);
 // Before the view: building the chosen car may start a model download right away.
 initModelLoad();
 await loading.stage(28, 'Создание сцены');
+// Observe the first selected request before constructing its view. Retain its rejection rather
+// than silently starting another download later while the original instance remains failed.
+let showSelectedProgress = false;
+const selectedCarDownload = waitForCar(car, (fraction, unpacking) => {
+  if (showSelectedProgress) loading.set(45 + fraction * 45, unpacking ? 'Подготовка материалов автомобиля' : 'Загрузка автомобиля');
+});
+void selectedCarDownload.catch(() => {});
 const view = new View(canvas, sim, QUALITY[quality], car, paint);
 await loading.stage(40, 'Подготовка управления и интерфейса');
 // Each car remembers its own camera.
 view.setCar(car, loadCameraMode(car) as CameraMode);
-view.setSky(skyPreset(loadSky()).id);
+view.setSky(skyPreset(loadMapSky(MAP_ID, MAP.defaultSky)).id);
 const hud = new Hud(sim);
 initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.renderer.getContext());
 const input = new Input();
@@ -123,6 +137,48 @@ let state: State = 'menu';
 document.body.classList.add('menu');
 const startEl = document.getElementById('start')!;
 const pauseEl = document.getElementById('pause')!;
+const fullscreen = new Fullscreen(); // document root includes canvas AND every DOM control
+const touchLayout = matchMedia('(pointer: coarse), (max-width: 760px)');
+const touch = new TouchControls(input, code => input.onPress?.(code));
+// Move, don't clone, the existing audio widgets: their listeners/playback remain untouched.
+const audioPanels = ['radio', 'mixer'].map(id => {
+  const element = document.getElementById(id)!;
+  const home = document.createComment(`${id} desktop position`);
+  element.before(home);
+  return { element, home };
+});
+const mobileAudio = document.createElement('details');
+mobileAudio.className = 'mobile-audio';
+const audioSummary = document.createElement('summary');
+audioSummary.textContent = 'Радио и звук';
+mobileAudio.append(audioSummary);
+touch.toolbar.append(fullscreen.button());
+for (const id of ['screenOptions', 'pauseScreenOptions']) {
+  document.getElementById(id)!.append(fullscreen.button(), fullscreen.notice());
+}
+let touchSnapshot = '';
+function syncTouch(): void {
+  const paused = state === 'pause' || onlineMenu;
+  const driving = touchLayout.matches && state === 'play' && !onlineMenu && !loading.active;
+  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}`;
+  if (snapshot === touchSnapshot) return;
+  touchSnapshot = snapshot;
+  mixer.setVisible(state === 'menu' || paused);
+  startEl.inert = state !== 'menu';
+  pauseEl.inert = !paused;
+  document.body.classList.toggle('touch-ui', touchLayout.matches);
+  document.body.classList.toggle('driving-touch', driving);
+  touch.setActive(driving);
+  if (touchLayout.matches) {
+    const parent = (paused ? pauseEl.querySelector('.pause-settings') : startEl.querySelector('.card'))!;
+    if (mobileAudio.parentElement !== parent) parent.append(mobileAudio);
+    for (const { element } of audioPanels) if (element.parentElement !== mobileAudio) mobileAudio.append(element);
+  } else {
+    for (const { element, home } of audioPanels) if (element.previousSibling !== home) home.after(element);
+    mobileAudio.remove();
+  }
+}
+touchLayout.addEventListener('change', () => { touch.releaseAll(); syncTouch(); });
 
 sim.events.on('runEnd', (e) => {
   if (e.newBest && !TEST && !ONLINE) saveBest(e.best);
@@ -154,23 +210,31 @@ function enterPlay(): void {
   startEl.classList.add('hidden');
   mouse.centre();
   // Starting is a click or a key press: mouse steering can take the pointer at once.
-  if (mouse.mode === 'mouse') void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
+  if (mouse.mode === 'mouse' && !touchLayout.matches) void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
+  syncTouch();
 }
 
 /** Online the world never stops: P / Esc only show the menu card while the car rolls on without input. */
 let onlineMenu = false;
 function setPaused(paused: boolean): void {
   if (state === 'menu') return;
+  touch.releaseAll();
+  input.releaseAll();
+  pendingShift = 0;
   document.body.classList.toggle('paused', paused);
   if (paused && mouse.locked) document.exitPointerLock();
   if (ONLINE) {
     onlineMenu = paused;
     pauseEl.classList.toggle('hidden', !paused);
+    syncTouch();
+    if (paused) document.getElementById('resumeBtn')!.focus({ preventScroll: true });
     return;
   }
   state = paused ? 'pause' : 'play';
   pauseEl.classList.toggle('hidden', !paused);
   sound.setPaused(paused);
+  syncTouch();
+  if (paused) document.getElementById('resumeBtn')!.focus({ preventScroll: true });
 }
 
 // ---------------------------------------------------------------- online
@@ -187,7 +251,7 @@ function menuMessage(text: string, bad = false): void {
 
 function startOnline(): void {
   if (session && session.state !== 'failed') return;
-  loading.begin('online', 'Выходим на общее кольцо');
+  loading.begin('online', `Подключаемся · ${MAP.name}`);
   loading.set(20, 'Соединение с сервером');
   const name = playerName();
   saveName(name);
@@ -198,7 +262,7 @@ function startOnline(): void {
     if (!st) return '';
     return `net  ping ${st.rtt.toFixed(0)} ms  ahead ${st.horizon} steps  srv queue ${st.queue}  corrections ${st.corrections} (last ${(st.lastCorrection * 100).toFixed(1)} cm, max ${(st.maxCorrection * 100).toFixed(1)} cm)  in ${(st.bytesIn / 1024).toFixed(0)} kB`;
   };
-  session = new OnlineSession(sim, serverUrl(params), conditionsFromUrl(params), {
+  session = new OnlineSession(sim, SERVER_URL, conditionsFromUrl(params), {
     onState: (st, text) => {
       if (st === 'joined') {
         if (loading.context === 'online') loading.set(75, 'Получение состояния трассы');
@@ -225,6 +289,8 @@ function startOnline(): void {
           document.body.classList.add('menu');
           if (mouse.locked) document.exitPointerLock();
           startEl.classList.remove('hidden');
+          input.releaseAll();
+          syncTouch();
         }
       }
     },
@@ -236,7 +302,7 @@ function startOnline(): void {
     },
     onTeleport: () => {
       view.snapCamera();
-      if (Math.abs(sim.road.rel(sim.player.s, spawnS(0))) < 3) hud.tag('SPAWN · ВЫ НЕВИДИМЫ, ПОКА НА ПЛОЩАДКЕ', 2.5);
+      if (Math.abs(sim.road.rel(sim.player.s, mapSpawnS(MAP, 0))) < 3) hud.tag('SPAWN · ВЫ НЕВИДИМЫ, ПОКА НА ПЛОЩАДКЕ', 2.5);
     },
   });
   session.start(name, sim.player.physicsId as PhysicsId, car, paint);
@@ -246,14 +312,15 @@ function startOnline(): void {
 /** Menu line under the name field: is the server up, how many are driving. */
 async function probeServer(): Promise<void> {
   const info = document.getElementById('serverInfo')!;
-  const url = serverUrl(params);
-  info.textContent = `Сервер ${url.replace(/^wss?:\/\//, '')} …`;
+  const url = SERVER_URL;
+  info.textContent = `${MAP.name} · ${url.replace(/^wss?:\/\//, '')} …`;
   try {
     const res = await fetch(healthUrl(url), { cache: 'no-store' });
-    const h = (await res.json()) as { players: number; drivers: unknown[] };
-    info.textContent = `Сервер на связи · на трассе ${h.players}`;
+    const h = (await res.json()) as { map?: string; players: number };
+    if (!res.ok || h.map !== MAP_ID) throw new Error('Server map does not match selection');
+    info.textContent = `${MAP.name} · на связи · на трассе ${h.players}`;
   } catch {
-    info.textContent = 'Сервер не отвечает (npm run server)';
+    info.textContent = `${MAP.name} недоступен или адрес ведёт на другую карту`;
   }
 }
 
@@ -271,7 +338,11 @@ nameInput.addEventListener('change', () => {
   saveName(playerName());
   void leaders?.refresh(); // our place is looked up by name
 });
-const leaders = TEST ? null : new Leaderboard(API, playerName);
+const leaders = TEST ? null : new Leaderboard(API, playerName, MAP_ID);
+mountServerPicker(document.getElementById('serverChoiceRoot')!, MAP_ID, map => {
+  saveSelectedMap(map);
+  location.href = mapNavigation(new URL(location.href), map).href;
+});
 if (ONLINE) {
   document.body.classList.add('online');
   void probeServer();
@@ -331,6 +402,14 @@ function updateMouseHud(): void {
 /** G switches the gearbox; Z / X shift down / up in manual (one shift per press, in the next step). Y toggles ESP. */
 let manualGears = loadManual();
 let pendingShift = 0;
+const gearboxBtn = document.getElementById('gearboxBtn')!;
+function syncGearbox(): void {
+  touch.setManual(manualGears);
+  gearboxBtn.textContent = manualGears ? 'Коробка: ручная' : 'Коробка: автомат';
+  gearboxBtn.setAttribute('aria-pressed', String(manualGears));
+}
+gearboxBtn.addEventListener('click', () => { input.onPress?.('KeyG'); gearboxBtn.blur(); });
+syncGearbox();
 /** Turn signal: 0 off, 1 left, 2 right. Q / E toggle it; it cancels itself after the lane change. */
 let blinker = 0;
 let blinkFromD = 0;
@@ -403,6 +482,7 @@ input.onPress = (code) => {
   else if (code === 'KeyG') {
     manualGears = !manualGears;
     saveManual(manualGears);
+    syncGearbox();
     hud.tag(manualGears ? 'КОРОБКА · РУЧНАЯ  (Z ↓  X ↑)' : 'КОРОБКА · АВТОМАТ', 2);
   } else if ((code === 'KeyX' || code === 'KeyZ') && state === 'play') {
     if (manualGears) pendingShift = code === 'KeyX' ? 1 : -1;
@@ -506,6 +586,8 @@ let fitQueued = false;
 function fitMenu(): void {
   fitQueued = false;
   menuCard.style.zoom = '';
+  // Phones/tablets reflow and scroll at native text/target size; never shrink the desktop plate.
+  if (touchLayout.matches) return;
   const cs = getComputedStyle(startEl);
   const room = startEl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   const need = menuCard.scrollHeight;
@@ -530,7 +612,7 @@ keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur(
 {
   const seg = document.getElementById('skySeg')!;
   const desc = document.getElementById('skyDesc')!;
-  let current = skyPreset(loadSky()).id;
+  let current = skyPreset(loadMapSky(MAP_ID, MAP.defaultSky)).id;
   const show = () => {
     for (const b of seg.children) b.classList.toggle('on', (b as HTMLElement).dataset.id === current);
     const p = skyPreset(current);
@@ -545,7 +627,7 @@ keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur(
     b.addEventListener('click', () => {
       current = p.id;
       view.setSky(p.id);
-      saveSky(p.id);
+      saveMapSky(MAP_ID, p.id);
       show();
       b.blur();
     });
@@ -591,22 +673,22 @@ document.getElementById('testBtn')!.addEventListener('click', () => {
 document.getElementById('menuBtn')!.addEventListener('click', () => {
   if (ONLINE) {
     session?.leave();
-    location.href = location.pathname;
+    location.href = modeNavigation(new URL(location.href), 'online').href;
     return;
   }
-  location.href = `${location.pathname}?solo`;
+  location.href = modeNavigation(new URL(location.href), 'solo').href;
 });
 document.getElementById('resumeBtn')!.addEventListener('click', () => {
   setPaused(false);
-  if (mouse.mode === 'mouse') void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
+  if (mouse.mode === 'mouse' && !touchLayout.matches) void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
   document.getElementById('resumeBtn')!.blur();
 });
 // Mode: single player and online are separate pages (online keeps its own sim, ring and lifecycle).
 choice('modeSeg', 'modeDesc', [
-  { id: 2, name: 'Онлайн', desc: 'Общее кольцо 12 км и общий трафик с другими игроками на сервере' },
-  { id: 1, name: 'Одиночный', desc: 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
+  { id: 2, name: 'Онлайн', desc: `${MAP.name} · общее кольцо 12 км; трафик, игроки и рекорды этого сервера` },
+  { id: 1, name: 'Одиночный', desc: MAP_ID === 'miami' ? 'Miami · прибрежное кольцо, свой трафик и отдельные рекорды' : 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
 ] as const, ONLINE ? 2 : 1, (id) => {
-  if ((id === 2) !== ONLINE) location.search = id === 2 ? '' : '?solo';
+  if ((id === 2) !== ONLINE) location.href = modeNavigation(new URL(location.href), id === 2 ? 'online' : 'solo').href;
 });
 // ---------------------------------------------------------------- test panel
 
@@ -719,6 +801,7 @@ view.renderer.setAnimationLoop((now: number) => {
   const dt = Math.min(frameMs / 1000, 0.1);
   last = now;
   input.poll();
+  syncTouch();
   const t0 = performance.now();
   let n = 0;
   if (session && session.core.ready && state !== 'menu') {
@@ -755,6 +838,7 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuEnd();
   const t2 = performance.now();
   hud.update(dt);
+  if (touchLayout.matches) touch.update(document.getElementById('kmh')!.textContent!, document.getElementById('gear')!.textContent!);
   hud.setPhysicalInstruments(car===1&&view.cameraMode==='cockpit');
   updateBlinker();
   updateMouseHud();
@@ -777,14 +861,27 @@ view.renderer.setAnimationLoop((now: number) => {
   if (debugOn) debug?.update();
 });
 
-await loading.stage(45, 'Загрузка выбранного автомобиля');
-await waitForCar(car, (fraction, unpacking) => loading.set(45 + fraction * 45, unpacking ? 'Подготовка материалов автомобиля' : 'Загрузка автомобиля'));
-if (ONLINE) {
-  await loading.stage(91, 'Подготовка машин других игроков');
-  // Parsing a 36 MB GLB after somebody joins stalls the main thread even with async HTTP.
-  for (const id of [1, 3] as const) await waitForCar(id);
-  await view.prepareOnlineCars();
+// Boot readiness: optional models must not prevent a usable selected car from reaching the menu.
+try {
+  showSelectedProgress = true;
+  await loading.stage(45, 'Загрузка выбранного автомобиля');
+  await selectedCarDownload;
+  if (ONLINE) {
+    await loading.stage(91, 'Подготовка машин других игроков');
+    // Parsing a 36 MB GLB after somebody joins stalls the main thread even with async HTTP.
+    for (const id of [1, 3]) {
+      try { await waitForCar(id as CarId); }
+      catch (error) { console.warn(`Optional online model preload failed (${id})`, error); }
+    }
+    await view.prepareOnlineCars();
+  }
+  await loading.stage(95, 'Подготовка первого кадра');
+  view.render(1, 0);
+  await view.prepareCar();
+} catch (error) {
+  report('error', 'Selected car startup preparation failed', String(error));
+  loading.fail('Не удалось подготовить выбранный автомобиль. Проверьте соединение и повторите загрузку.', () => location.reload());
+  // boot.ts finishes the loading screen when this module resolves. Keep a failed boot pending
+  // until the explicit reload action reconstructs the selected view and retries its model.
+  await new Promise(() => {});
 }
-await loading.stage(95, 'Подготовка первого кадра');
-view.render(1, 0);
-await view.prepareCar();

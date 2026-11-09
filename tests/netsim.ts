@@ -14,6 +14,7 @@ import type { CarId } from '../src/sim/cars';
 import type { PhysicsId } from '../src/sim/physics';
 import type { DriveInput } from '../src/sim/vehicle';
 import { Sim } from '../src/sim/world';
+import type { MapId } from '../src/sim/maps';
 
 export interface LinkSpec {
   /** One-way base delay, ms. */
@@ -131,7 +132,7 @@ export class NetClient {
     seed: number,
   ) {
     const rng = mulberry32(seed);
-    this.sim = new Sim(rng, { online: true, physics: spec.physics });
+    this.sim = new Sim(rng, { online: true, physics: spec.physics, map: net.server.world.map.id });
     this.up = new Pipe(spec.up, rng);
     this.down = new Pipe(spec.down, rng);
     this.core = new ClientCore(this.sim, {
@@ -203,9 +204,9 @@ export class NetSession {
   now = 0;
   private nextTick = 0;
 
-  constructor(seed: number, rules: Partial<OnlineRules> = {}, record = false) {
+  constructor(seed: number, rules: Partial<OnlineRules> = {}, record = false, map: MapId = 'highway') {
     let n = 0;
-    this.server = new GameServer({ seed, rules, token: () => `t${++n}`, journal: record ? (s) => this.journal.push(s) : undefined });
+    this.server = new GameServer({ seed, rules, map, token: () => `t${++n}`, journal: record ? (s) => this.journal.push(s) : undefined });
   }
 
   add(spec: ClientSpec): NetClient {

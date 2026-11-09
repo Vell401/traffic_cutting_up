@@ -5,7 +5,7 @@ import type { Rng } from '../core/rng';
 import { Contacts, type Hit } from './contact';
 import { Director } from './director';
 import type { SimEvents } from './events';
-import { ringScript } from './ring';
+import { getMap, type MapDefinition, type MapId } from './maps';
 import { Road, type RoadScript } from './road';
 import { Scoring } from './scoring';
 import { Traffic } from './traffic';
@@ -20,6 +20,8 @@ const SHOWCASE_START_S = 60;
 const END_STOP_GAP = 14;
 
 export interface SimOptions {
+  /** Immutable map selection. Miami solo uses its ring; highway solo stays procedural. */
+  map?: MapId;
   /** Start on a finite scripted track (test showcase) instead of the endless road. */
   track?: RoadScript;
   /** Car physics variant (start menu). */
@@ -63,6 +65,7 @@ export class Sim {
   /** Online spawn pad: paint of the driver on each place (null = free) and our own place. */
   readonly spawn = { owners: [] as (number | null)[], mine: -1 };
   readonly online: boolean;
+  readonly map: MapDefinition;
 
   private readonly drivers: PlayerCar[] = [];
   private readonly contacts: Contacts;
@@ -75,13 +78,15 @@ export class Sim {
     options: SimOptions = {},
   ) {
     this.online = !!options.online;
+    this.map = getMap(options.map ?? 'highway');
     this.player = createCar(options.physics ?? 1);
     this.drivers.push(this.player);
-    this.road = new Road(rng, this.online ? ringScript() : options.track);
+    this.road = new Road(rng, options.track ?? (this.online || this.map.id === 'miami' ? this.map.script : undefined));
     this.director = new Director(rng, this.events);
     this.traffic = new Traffic(rng, this.director);
     this.score = new Scoring(this.events);
     this.contacts = new Contacts(rng);
+    this.traffic.ringLen = this.score.ringLen = this.contacts.ringLen = this.road.ringLen;
     this.events.on('runEnd', () => this.director.resetRun());
     const start = options.track ? SHOWCASE_START_S : START_S;
     this.player.reset(start, laneCenter(1), (options.track ? 160 : 100) / 3.6);
@@ -93,6 +98,7 @@ export class Sim {
   /** Swap in a finite showcase track and put the car at its start. */
   loadTrack(script: RoadScript, kmh = 160): void {
     this.road = new Road(this.rng, script);
+    this.traffic.ringLen = this.score.ringLen = this.contacts.ringLen = this.road.ringLen;
     this.road.ensure(0, SHOWCASE_START_S + 1700);
     this.player.reset(SHOWCASE_START_S, laneCenter(1), kmh / 3.6);
     this.trackEnded = false;

@@ -30,7 +30,7 @@ export const r34Tune: R34Tune = {
   mass: 1510, length: 4.6, width: 1.79, cgToFront: 1.25, cgToRear: 1.415,
   powerKW: 375, torqueNm: 610, torqueRpm: 4200, driveEff: .89, engineBrakeNm: 48,
   engineInertia: .24, wheelInertia: 1.35, wheelRadius: .335, turboLag: .22,
-  gripFront: 1.16, gripRear: .93, longGrip: 1.04,
+  gripFront: 1.22, gripRear: 1.07, longGrip: 1.10,
   slipRatioPeak: .13913, slipAnglePeak: .14852, rearStiffness: 1.08,
   cgHeight: .49, trackWidth: 1.52, loadLag: .14, rollFront: .53, loadSensitivity: .16,
   lsdLock: .88, brakeDecel: 12, brakeFront: .65, aeroDrag: .47, rollingRes: 7,

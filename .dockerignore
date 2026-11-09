@@ -4,8 +4,23 @@ dist-server
 sessions
 data
 .git
-.github
+# Default Docker builds run deployment tests, which read these workflow fixtures.
+# Keep all other GitHub metadata out of the context.
+.github/*
+!.github/workflows
+.github/workflows/*
+!.github/workflows/test.yml
+!.github/workflows/deploy.yml
 .claude
+# Local credentials must never be sent to the builder.
+**/.env
+**/.env.*
+**/.npmrc
+**/.ssh
+**/.aws
+**/secrets
+**/*.pem
+**/*.key
 *.log
 # Authoring mods / intermediate exports must not enter a local Docker build context.
 **/*.zip

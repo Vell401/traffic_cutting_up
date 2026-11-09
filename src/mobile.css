@@ -1,0 +1,73 @@
+/* Controls stay in CSS pixels. Canvas/material/quality settings are deliberately unchanged. */
+html, body { overscroll-behavior: none; }
+body { height: 100vh; height: 100dvh; }
+#touchControls { position: fixed; inset: 0; z-index: 8; pointer-events: none; touch-action: none; }
+#touchControls[hidden], #touchControls [hidden] { display: none; }
+#touchControls button { pointer-events: auto; touch-action: none; -webkit-touch-callout: none; min-width: 44px; min-height: 48px; border: 1px solid #ffffff40; border-radius: 12px; background: #101322b8; color: #fff; font: 600 13px var(--font); padding: 10px; box-shadow: 0 2px 12px #0003; }
+#touchControls button[aria-pressed='true'] { background: #8054d2cc; border-color: #d5bdff; }
+.touch-toolbar { position: absolute; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; align-items: center; gap: 8px; }
+.touch-readout { margin-left: auto; color: #fff; font-size: 12px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px #000; }
+.touch-toolbar .fullscreen-button { max-width: 116px; }
+.touch-wheel-group { position: absolute; left: max(12px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); width: min(clamp(146px, 26vw, 220px), calc((100vw - 40px) / 2)); }
+#touchControls [data-touch='steer'] { width: 100%; height: clamp(88px, 18vh, 124px); font-size: 15px; background: linear-gradient(90deg, #101322b8 49.5%, #ffffff45 50%, #101322b8 50.5%); }
+.touch-aux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.touch-pedals { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(clamp(152px, 25vw, 218px), calc((100vw - 40px) / 2)); }
+#touchControls .touch-pedals button { height: clamp(120px, 28vh, 180px); }
+#touchControls [data-touch='throttle'] { background: #18372ebd; border-color: #a2e5cb80; font-size: 19px; }
+.touch-manual { position: absolute; left: max(12px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + clamp(88px, 18vh, 124px) + 64px); display: flex; gap: 8px; }
+.driving-touch #hud, .driving-touch #leaders, .driving-touch #radio, .driving-touch #mixer,
+.driving-touch #announce, .driving-touch #metrics, .driving-touch #testPanel { display: none !important; }
+/* Connection failures / model-load errors are not decorative HUD and remain visible. */
+.touch-ui #netStatus { top: calc(max(10px, env(safe-area-inset-top)) + 58px); max-width: calc(100% - 24px); font-size: 12px; text-align: center; }
+.touch-ui #modelLoad { bottom: auto; top: calc(max(10px, env(safe-area-inset-top)) + 104px); max-width: calc(100% - 24px); }
+
+@media (pointer: coarse), (max-width: 760px) {
+  #start, #pause { transition: none; }
+  #start.hidden, #pause.hidden { visibility: hidden; }
+  #start, body.menu #start { display: block; overflow-y: auto; overflow-x: hidden; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); height: 100vh; height: 100dvh; background: #080410d9; }
+  #start .menu-fx { position: fixed; }
+  #start .card { width: 100%; max-width: 620px; margin: 0 auto; padding: 20px 16px; clip-path: none; overflow: visible; zoom: 1 !important; border-radius: 10px; }
+  #start .card > * { animation: none; }
+  #start .kicker { font-size: 10px; letter-spacing: .15em; }
+  #start h1 { font-size: clamp(30px, 8vw, 46px); transform: none; }
+  #start .keysbox summary { min-height: 44px; transform: none; }
+  #start .opts { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  #start .opts > * { min-width: 0; }
+  #start .opts > .ol { padding: 14px 0 6px; font-size: 12px; }
+  #start .opts > :not(.ol) { border-top: 0; padding: 0 0 8px; }
+  #start .seg { padding-left: 0; width: 100%; }
+  #start .seg button, #start .seg.sky button, #start .seg.sky button.on { min-height: 44px; min-width: 44px; padding: 10px 12px; transform: none; border-radius: 6px; }
+  #start .seg.sky .sw { width: 24px; height: 22px; }
+  #start .odesc { font-size: 13px; overflow-wrap: anywhere; }
+  #start #nameInput { width: 100%; min-height: 44px; font-size: 16px; clip-path: none; border-radius: 6px; }
+  #start #startBtn { position: sticky; bottom: 0; width: 100%; min-height: 52px; justify-content: center; font-size: 15px; padding: 14px 10px; clip-path: none; border-radius: 8px; z-index: 1; }
+  #start #startBtn > span { display: none; }
+  #start .corner-btn { position: relative; display: block; top: auto; right: auto; margin: 0 0 8px auto; transform: none; min-height: 44px; }
+  #start .sens { grid-template-columns: 1fr 38px; }
+  #start .sens input { grid-column: 1; grid-row: 2; min-height: 44px; }
+  #start .paint-swatches button { width: 44px; height: 44px; }
+  #start #paintInput { width: 44px; height: 44px; }
+  #start .custom-paint { margin-left: 0; }
+  #leaders { display: none; }
+  /* Put the existing audio panels into document flow inside scrollable menu/pause surfaces. */
+  #start #radio, #pause #radio, #start #mixer, #pause #mixer { position: static; display: block; width: 100%; margin: 16px 0 0; padding: 14px; opacity: 1; pointer-events: auto; clip-path: none; border-radius: 10px; }
+  #radio select, .radio-buttons button, .mixer .mute, #radio input, #mixer input { min-height: 44px; }
+  .radio-buttons button { flex: 1; }
+  #pause { height: 100vh; height: 100dvh; padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+  #pause .card { max-width: 420px; padding: 18px; overscroll-behavior: contain; }
+  #pause .tag { font-size: 13px; }
+  .fullscreen-notice { text-align: left; }
+  .mobile-audio { margin-top: 16px; text-align: left; }
+  .mobile-audio > summary { display: flex; align-items: center; min-height: 44px; color: var(--accent-hi); cursor: pointer; font-size: 14px; }
+}
+@media (max-width: 480px) {
+  .touch-toolbar { gap: 6px; flex-wrap: wrap; }
+  #touchControls .touch-toolbar button { padding: 8px; font-size: 12px; }
+  .touch-readout { position: absolute; top: 56px; right: 0; }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  #touchControls [data-touch='steer'] { height: 80px; }
+  #touchControls .touch-pedals button { height: 120px; }
+  .touch-manual { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 144px); }
+  #pause h2 { font-size: 24px; }
+}

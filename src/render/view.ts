@@ -13,14 +13,14 @@ import { Post } from './post';
 import { RoadView } from './roadView';
 import { Blimp, FarGround } from './scenery';
 import { SpawnPad } from './spawnPad';
-import { SPAWN_PLACES } from '../sim/ring';
 import { Sparks } from './sparks';
+import { TyreEffects } from './tyreEffects';
 import { HORIZON, MOON_DIR, applySky, makeSky, skyPreset, type SkyId } from './sky';
 import { makeRadialTexture } from './textures';
 import { TrafficView } from './trafficView';
 import { RemoteCar, revealMaterials } from './remoteCar';
 import { ResolutionBudget } from './resolution';
-import { r34ChaseYaw, r34SmokeIntensity } from './r34Feedback';
+import { r34ChaseYaw } from './r34Feedback';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
@@ -42,7 +42,9 @@ export class View {
   private readonly hemi: THREE.HemisphereLight;
   private readonly moon: THREE.DirectionalLight;
   private readonly sparks = new Sparks();
-  private readonly farGround = new FarGround();
+  private readonly tyreEffects = new TyreEffects();
+  private readonly tyreContact = (i: number, out: THREE.Vector3): THREE.Vector3 => this.playerView.wheelContact(i, out);
+  private readonly farGround: FarGround;
   private readonly blimp = new Blimp();
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly carPos = new THREE.Vector3();
@@ -101,15 +103,16 @@ export class View {
 
     const shadowTex = makeRadialTexture(64, 1.2);
     this.shadowTex = shadowTex;
-    this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy());
+    this.farGround = new FarGround(sim.map.theme);
+    this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy(), sim.map.theme);
     this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width);
     this.chase.setRig(CAMERA_RIGS[car]);
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
-    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.sparks.smoke, this.sparks.points, this.farGround.mesh, this.blimp.group);
+    this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.tyreEffects.group, this.sparks.points, this.farGround.mesh, this.blimp.group);
     this.post = new Post(r, this.scene, this.camera, quality);
-    this.spawnPad = sim.online ? new SpawnPad(SPAWN_PLACES) : null;
+    this.spawnPad = sim.online ? new SpawnPad(sim.map.spawn.places, sim.map.id) : null;
     if (this.spawnPad) this.scene.add(this.spawnPad.group);
     sim.events.on('nearMiss', (e) => {
       this.chase.kick(0.25);
@@ -166,12 +169,11 @@ export class View {
     this.carPos.set(this.pt.x - this.ox, 0, this.pt.z - this.oz);
 
     this.playerView.update(dt, p, this.carPos, yaw);
-    const tire = p as typeof p & { slipRear?: number; slipAngleRear?: number; rearWheelspin?: number };
-    const slip = Math.max(Math.abs(tire.slipRear ?? 0), Math.abs(tire.slipAngleRear ?? 0) * 2.2);
     const r34 = this.playerView.car === 2 && p.physicsId === 2;
-    const smoke = r34 ? r34SmokeIntensity(slip, p.speed, tire.rearWheelspin ?? 0)
-      : Math.min(1, Math.max(0, (slip - 0.1) / 0.5)) * Math.min(1, p.speed / 4);
-    if (smoke > 0.08 && !p.ghost) this.emitTireSmoke(smoke);
+    this.playerView.root.updateMatrixWorld(true);
+    this.tyreEffects.emit(dt, this.playerView.tyreFeedback, this.tyreContact, yaw,
+      p.steerAngle, this.ox, this.oz, !p.ghost);
+    this.tyreEffects.update(dt, this.ox, this.oz);
     this.playerView.setGhost(p.ghost);
     if (sim.remotes.length > 0 || this.remoteViews.size > 0) this.updateRemotes(alpha, dt, s);
     this.carYaw = yaw;
@@ -265,6 +267,7 @@ export class View {
   /** After a teleport: no camera swing from the old heading. */
   snapCamera(): void {
     this.chase.snap();
+    this.tyreEffects.resetTrails();
   }
 
   /** Our car's turn signal lamp is lit this frame (HUD arrow, relay click). */
@@ -316,30 +319,39 @@ export class View {
     this.resize();
   }
 
-  /** All online bodies are parsed, compiled and uploaded under the initial loading screen. */
+  /** Warm optional online bodies without making their downloads a prerequisite for our car. */
   async prepareOnlineCars(): Promise<void> {
+    // A missing selected model is a real startup error, not a successful optional warmup.
+    await this.playerView.ready;
     for (const id of [1, 2, 3, 4] as const) {
-      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
-      await spare.ready;
-      revealMaterials(spare.root).value = 1;
-      spare.root.position.copy(this.playerView.root.position);
-      this.scene.add(spare.root);
-      await this.renderer.compileAsync(spare.root, this.camera, this.scene);
-      // compileAsync only compiles programs: the first draw must also upload geometry/textures.
-      const target = new THREE.WebGLRenderTarget(4, 4);
-      const previous = this.renderer.getRenderTarget();
-      const culled: THREE.Object3D[] = [];
-      spare.root.traverse(o => { if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
+      if (this.remoteSpares.some(spare => spare.car === id)) continue;
+      let spare: PlayerView | undefined;
       try {
-        this.renderer.setRenderTarget(target);
-        this.renderer.render(this.scene, this.camera);
-      } finally {
-        this.renderer.setRenderTarget(previous);
-        target.dispose();
-        for (const o of culled) o.frustumCulled = true;
-        spare.root.visible = false;
+        spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
+        await spare.ready;
+        revealMaterials(spare.root).value = 1;
+        spare.root.position.copy(this.playerView.root.position);
+        this.scene.add(spare.root);
+        await this.renderer.compileAsync(spare.root, this.camera, this.scene);
+        // compileAsync only compiles programs: the first draw must also upload geometry/textures.
+        const target = new THREE.WebGLRenderTarget(4, 4);
+        const previous = this.renderer.getRenderTarget();
+        const culled: THREE.Object3D[] = [];
+        spare.root.traverse(o => { if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
+        try {
+          this.renderer.setRenderTarget(target);
+          this.renderer.render(this.scene, this.camera);
+        } finally {
+          this.renderer.setRenderTarget(previous);
+          target.dispose();
+          for (const o of culled) o.frustumCulled = true;
+          spare.root.visible = false;
+        }
+        this.remoteSpares.push(spare); // Keep shared shader programs resident for future joins.
+      } catch (error) {
+        spare?.dispose();
+        console.warn(`Optional online car warmup failed (${id}); it can be retried`, error);
       }
-      this.remoteSpares.push(spare); // Keep shared shader programs resident for future joins.
     }
   }
 
@@ -357,6 +369,7 @@ export class View {
       return this.chase.mode;
     }
     const old = this.playerView;
+    this.tyreEffects.resetTrails();
     const next = new PlayerView(car, this.paint, this.shadowTex, this.sim.player.tune.length, this.sim.player.tune.width);
     next.setHighBeam(this.highBeam);
     old.dispose();
@@ -392,22 +405,6 @@ export class View {
     const half = p.tune.width / 2;
     const v = p.vAlong * 0.8;
     this.sparks.emit(this.carWorldX + rx * half + fx * along, 0.35, this.carWorldZ + rz * half + fz * along, fx * v, fz * v, count, spread);
-  }
-
-  private emitTireSmoke(intensity: number): void {
-    const p = this.sim.player;
-    const fx = Math.sin(this.carYaw);
-    const fz = -Math.cos(this.carYaw);
-    const rx = Math.cos(this.carYaw);
-    const rz = Math.sin(this.carYaw);
-    const half = p.tune.width * 0.39;
-    const rear = -p.tune.length * 0.34;
-    const v = p.vAlong * 0.35;
-    for (const side of [-1, 1]) {
-      const x = this.carWorldX + fx * rear + rx * side * half;
-      const z = this.carWorldZ + fz * rear + rz * side * half;
-      this.sparks.emitSmoke(x, 0.16, z, fx * v, fz * v, intensity);
-    }
   }
 
   private sparkAtNose(count: number, spread: number): void {

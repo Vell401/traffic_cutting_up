@@ -13,6 +13,52 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { cleanName } from '../src/online/world';
 import type { RunMode, Store } from './store';
+import { DatabaseSync } from 'node:sqlite';
+import { resolveMap, type MapId } from '../src/sim/maps';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { clientIp, type ClientAddressResolver } from './clientAddress';
+export { clientIp } from './clientAddress';
+
+/** Protect uploaded bytes too, even when RADIO_DIR was accidentally shared between distinct DBs. */
+export function claimRadioMap(directory: string, mapId: MapId): void {
+  resolveMap(mapId);
+  mkdirSync(directory, { recursive: true });
+  const marker = join(directory, '.map-id');
+  if (!existsSync(marker)) {
+    if (mapId !== 'highway' && readdirSync(directory).length) throw new Error('Unlabelled radio directory belongs to highway; use a new Miami volume');
+    try { writeFileSync(marker, mapId, { flag: 'wx' }); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+  }
+  if (readFileSync(marker, 'utf8') !== mapId) throw new Error(`Radio MAP_ID does not match ${mapId}; use a separate volume`);
+}
+
+/** Claim the database atomically BEFORE opening stores/radio or restoring mutable settings.
+ * Unlabelled populated databases predate maps and belong to highway; never relabel or wipe them.
+ */
+export function claimDatabaseMap(path: string, mapId: MapId): void {
+  resolveMap(mapId);
+  const db = new DatabaseSync(path);
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    db.exec('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    const identity = db.prepare("SELECT value FROM settings WHERE key = 'MAP_ID'").get() as { value: string } | undefined;
+    if (identity) {
+      if (identity.value !== JSON.stringify(mapId)) throw new Error(`Database MAP_ID ${identity.value} does not match ${mapId}; use a separate volume`);
+    } else {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('runs', 'log', 'settings')").all() as { name: string }[];
+      const populated = tables.some(({ name }) => !!db.prepare(`SELECT 1 FROM ${name} LIMIT 1`).get());
+      if (populated && mapId !== 'highway') throw new Error('Unlabelled legacy database belongs to highway; use a new Miami volume');
+      db.prepare("INSERT INTO settings (key, value) VALUES ('MAP_ID', ?)").run(JSON.stringify(mapId));
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  } finally {
+    db.close();
+  }
+}
 
 const BODY_MAX = 16 * 1024;
 const WINDOW = 10 * 60_000;
@@ -36,6 +82,12 @@ export class Limiter {
 
 const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, max) : '');
+
+/** HTTP LIMIT values must be finite integers; retain the existing zero/invalid defaults. */
+export function queryLimit(value: string | null, fallback: number, max: number): number {
+  const n = Number(value);
+  return Math.max(1, Math.min(max, Number.isFinite(n) && n !== 0 ? Math.floor(n) : fallback));
+}
 
 export function send(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -67,11 +119,6 @@ export function readJson(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-/** Client address: the proxy's X-Forwarded-For (Caddy sets it), else the socket's. */
-export function clientIp(req: IncomingMessage): string {
-  return String(req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '?').split(',')[0].trim();
-}
-
 /** A write must be JSON (a cross-site form cannot send that without a preflight) from one of our pages. */
 export function ownJson(req: IncomingMessage, origins: readonly string[]): boolean {
   const origin = req.headers.origin;
@@ -79,6 +126,9 @@ export function ownJson(req: IncomingMessage, origins: readonly string[]): boole
 }
 
 export interface ApiOptions {
+  /** Shared HTTP/WS resolver; defaults to the socket peer with no trusted proxies. */
+  clientAddress?: ClientAddressResolver;
+  map?: MapId;
   /** Allowed page origins for writes (empty: any). */
   origins: readonly string[];
   /** Diagnostics line for the server's own log. */
@@ -89,6 +139,13 @@ export interface ApiOptions {
 
 export class Api {
   private readonly runLimit = new Limiter(20);
+  /** Solo SQLite admissions: 120 per rolling minute, independent of address and map peers.
+   * Fixed-capacity ring: constant-time admission and no address-dependent aggregate memory.
+   */
+  private readonly runWriteTimes: number[] = [];
+  private runWriteNext = 0;
+  private readonly runWriteMax = 120;
+  private readonly runWriteWindow = 60_000;
   private readonly logPostLimit = new Limiter(10);
   /** Rows the whole log may take from pages / from the server itself per window. */
   private readonly clientRows = new Limiter(300);
@@ -100,6 +157,7 @@ export class Api {
     private readonly store: Store,
     private readonly opts: ApiOptions,
   ) {
+    resolveMap(opts.map);
     this.pruneTimer = setInterval(() => {
       this.runLimit.prune();
       this.logPostLimit.prune();
@@ -135,12 +193,18 @@ export class Api {
   handle(req: IncomingMessage, res: ServerResponse): boolean {
     const url = new URL(req.url ?? '/', 'http://x');
     if (!url.pathname.startsWith('/api/')) return false;
-    const ip = clientIp(req);
+    const ip = (this.opts.clientAddress ?? clientIp)(req);
+    const map = resolveMap(this.opts.map);
+    res.setHeader('x-map-id', map.id);
+    if (req.method === 'GET' && url.pathname === '/api/map') {
+      send(res, 200, { map: map.id, mapRevision: map.revision, name: map.name, soloPolicy: 'selected-instance' });
+      return true;
+    }
     if (req.method === 'GET' && url.pathname === '/api/leaderboard') {
       const mode: RunMode = url.searchParams.get('mode') === 'online' ? 'online' : 'solo';
-      const limit = Number(url.searchParams.get('limit') ?? 10) || 10;
+      const limit = queryLimit(url.searchParams.get('limit'), 10, 100);
       const name = (url.searchParams.get('name') ?? '').slice(0, 32);
-      send(res, 200, { mode, entries: this.store.leaderboard(mode, limit), total: this.store.playerCount(mode), me: name ? this.store.placeOn(mode, name) : null });
+      send(res, 200, { map: map.id, mapRevision: map.revision, soloPolicy: 'selected-instance', mode, entries: this.store.leaderboard(mode, limit), total: this.store.playerCount(mode), me: name ? this.store.placeOn(mode, name) : null });
       return true;
     }
     if (req.method === 'POST' && (url.pathname === '/api/runs' || url.pathname === '/api/log')) {
@@ -165,6 +229,9 @@ export class Api {
 
   private postRun(body: unknown, res: ServerResponse): void {
     const b = (body ?? {}) as Record<string, unknown>;
+    const map = resolveMap(this.opts.map);
+    // Existing highway pages remain valid. Miami submissions must explicitly name their map.
+    if ((b.map === undefined ? 'highway' : b.map) !== map.id) return send(res, 400, { ok: false, error: 'map mismatch', map: map.id });
     const score = num(b.score, 0, 1e8);
     const car = num(b.car, 1, 9);
     const physics = num(b.physics, 1, 9);
@@ -175,17 +242,27 @@ export class Api {
       send(res, 400, { ok: false });
       return;
     }
+    // Match Store.MIN_SCORE without touching SQLite or charging the write budget for ignored runs.
+    if (score < 1000) return send(res, 200, { ok: true, map: map.id, stored: false });
+    // Validate first: malformed JSON, wrong maps and bad numeric fields cannot exhaust admissions.
+    // Reserve synchronously before SQLite; even concurrent requests cannot oversubscribe the ring.
+    const now = Date.now();
+    if (this.runWriteTimes.length === this.runWriteMax && now - this.runWriteTimes[this.runWriteNext] < this.runWriteWindow) {
+      return send(res, 429, { ok: false, error: 'slow down' });
+    }
+    this.runWriteTimes[this.runWriteNext] = now;
+    this.runWriteNext = (this.runWriteNext + 1) % this.runWriteMax;
     const raw = cleanName(b.name, 0);
     const name = raw === 'Driver 0' ? 'Driver' : raw;
     const stored = this.store.addRun({ mode: 'solo', name, score, car, physics, near, topKmh, seconds });
     const rank = stored ? this.store.leaderboard('solo', 100).find((e) => e.name.toLowerCase() === name.toLowerCase())?.rank : undefined;
-    send(res, 200, { ok: true, stored, rank });
+    send(res, 200, { ok: true, map: map.id, stored, rank });
   }
 
   private postLog(body: unknown, res: ServerResponse): void {
     const b = (body ?? {}) as Record<string, unknown>;
     const items = Array.isArray(b.items) ? b.items.slice(0, 20) : [];
-    const ctx = { page: str(b.page, 20), ua: str(b.ua, 200), gpu: str(b.gpu, 120), quality: str(b.quality, 10), server: this.opts.version ?? '' };
+    const ctx = { map: resolveMap(this.opts.map).id, page: str(b.page, 20), ua: str(b.ua, 200), gpu: str(b.gpu, 120), quality: str(b.quality, 10), server: this.opts.version ?? '' };
     let kept = 0;
     for (const it of items) {
       const i = (it ?? {}) as Record<string, unknown>;

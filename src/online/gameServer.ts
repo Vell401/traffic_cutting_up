@@ -14,6 +14,7 @@ import {
 import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from './rules';
 import { OnlineWorld, type Driver, type Stimulus, type TrafficState, type WorldConfig } from './world';
 import { currentTuning, validateTuning, type GlobalTuning } from '../sim/tuning';
+import type { MapId } from '../sim/maps';
 
 /** A connected socket, as the game server sees it (the Node entry point wraps `ws`). */
 export interface Peer {
@@ -44,6 +45,7 @@ export interface AdminDriver {
 export type LogLevel = 'info' | 'warn' | 'error';
 
 export interface ServerOptions {
+  map?: MapId;
   seed: number;
   rules?: Partial<OnlineRules>;
   log?: (level: LogLevel, text: string) => void;
@@ -62,6 +64,10 @@ const SEND_LIMIT = 4 * 1024 * 1024;
 const MSG_RATE = 400;
 /** Malformed or out-of-contract messages tolerated before the socket is closed. */
 const MAX_VIOLATIONS = 50;
+/** A few inputs of frame/clock lead, not a fresh catch-up allowance on every message/socket. */
+const INPUT_LEAD = 8;
+/** A live transport (including one answering pings) must still complete hello promptly. */
+const HELLO_SECONDS = 5;
 /** Driver events forwarded to their client. */
 const FORWARD: readonly (keyof SimEvents)[] = ['nearMiss', 'laneSplit', 'comboEnd', 'runEnd', 'crash', 'bump'];
 
@@ -73,21 +79,35 @@ interface Slot {
   offlineAt: number;
 }
 
+interface InputBudget {
+  tick: number;
+  wall: number;
+  earned: number;
+  credit: number;
+}
+
 export class Conn {
   slot: Slot | null = null;
   violations = 0;
   closed = false;
+  readonly helloDeadline: number;
   private windowStart = 0;
   private windowCount = 0;
 
   constructor(
     readonly peer: Peer,
     private readonly server: GameServer,
-  ) {}
+  ) {
+    this.helloDeadline = server.world.tick + HELLO_SECONDS * server.world.rules.tickHz;
+  }
 
   receive(data: Uint8Array | string): void {
     if (this.closed) return;
     const now = this.server.world.tick;
+    if (!this.slot && now >= this.helloDeadline) {
+      this.server.kick(this, 1008, 'hello timeout');
+      return;
+    }
     if (now - this.windowStart >= this.server.world.rules.tickHz) {
       this.windowStart = now;
       this.windowCount = 0;
@@ -108,6 +128,10 @@ export class Conn {
 }
 
 export interface ServerHealth {
+  map: MapId;
+  mapRevision: number;
+  protocol: number;
+  ringLen: number;
   tick: number;
   players: number;
   connections: number;
@@ -142,6 +166,10 @@ export class GameServer {
   private readonly token: () => string;
   private readonly writer = new Writer(8192);
   private readonly inputs: InputQ[] = [];
+  /** One respawn per simulation second; retained when a driver reconnects, without retaining departed drivers. */
+  private readonly respawnReady = new WeakMap<Driver, number>();
+  /** Driver-scoped so reconnect/resync/respawn cannot mint more simulation time. */
+  private readonly inputBudgets = new WeakMap<Driver, InputBudget>();
   private lastPlayers = '';
   /** Totals for /health and the periodic log line. */
   readonly totals = { snapshots: 0, snapshotBytes: 0, skipped: 0, kicked: 0, joins: 0 };
@@ -154,7 +182,7 @@ export class GameServer {
   tuning: GlobalTuning = currentTuning();
 
   constructor(opts: ServerOptions) {
-    this.world = new OnlineWorld(opts.seed, opts.rules);
+    this.world = new OnlineWorld(opts.seed, opts.rules, opts.map);
     this.world.journal = opts.journal ?? null;
     this.log = opts.log ?? (() => {});
     this.token = opts.token ?? (() => globalThis.crypto.randomUUID());
@@ -164,8 +192,23 @@ export class GameServer {
 
   connect(peer: Peer): Conn {
     const c = new Conn(peer, this);
+    if (!this.canConnect) {
+      this.kick(c, 1013, 'connections');
+      return c;
+    }
     this.conns.add(c);
     return c;
+  }
+
+  /** Bound sockets independently of joined slots, leaving room for pending hellos/reconnects.
+   * Clamp even malformed player limits so admission can never become unbounded. */
+  get connectionLimit(): number {
+    const max = this.world.rules.maxPlayers;
+    return 16 + 2 * (Number.isFinite(max) ? Math.max(0, Math.min(64, Math.floor(max))) : 0);
+  }
+
+  get canConnect(): boolean {
+    return this.conns.size < this.connectionLimit;
   }
 
   get playerCount(): number {
@@ -186,7 +229,23 @@ export class GameServer {
       if (r.u8() !== MSG_INPUT) return this.violation(conn, 'unknown binary');
       const batch = readInputs(r, this.inputs);
       if (!batch) return this.violation(conn, 'bad input');
-      this.world.input(slot.driver, batch.firstSeq, this.inputs, batch.count);
+      const dr = slot.driver;
+      // Retransmitted/overlapping prefixes cost no time: world.input ignores them too.
+      const fresh = Math.min(batch.count, Math.max(0, batch.firstSeq + batch.count - 1 - dr.lastQueued));
+      if (fresh === 0) return;
+      const budget = this.inputBudget(dr);
+      // The clocks are alternatives, never additive. Wall time permits bounded catch-up after a
+      // server stall; server ticks also work in deterministic/headless sessions. Neither seq gaps
+      // nor repeated sockets earn credit. Cap idle savings at the existing queue capacity.
+      const earned = Math.max(this.world.tick - budget.tick,
+        Math.floor((performance.now() - budget.wall) * this.world.rules.tickHz / 1000));
+      budget.credit = Math.min(this.world.rules.inputMax, budget.credit + Math.max(0, earned - budget.earned));
+      budget.earned = Math.max(budget.earned, earned);
+      if (fresh > budget.credit || fresh > this.world.rules.inputMax - dr.queued) {
+        return this.violation(conn, 'input pacing');
+      }
+      budget.credit -= fresh;
+      this.world.input(dr, batch.firstSeq, this.inputs, batch.count);
       return;
     }
     if (data.length > 2048) return this.violation(conn, 'long text');
@@ -202,7 +261,7 @@ export class GameServer {
         this.hello(conn, msg);
         break;
       case 'respawn':
-        if (conn.slot) this.world.respawn(conn.slot.driver);
+        this.respawn(conn);
         break;
       case 'ping':
         if (typeof msg.c === 'number') this.send(conn, { t: 'pong', c: msg.c, tick: this.world.tick });
@@ -212,10 +271,34 @@ export class GameServer {
     }
   }
 
+  private inputBudget(dr: Driver): InputBudget {
+    let budget = this.inputBudgets.get(dr);
+    if (!budget) {
+      budget = { tick: this.world.tick, wall: performance.now(), earned: 0,
+        credit: Math.min(INPUT_LEAD, this.world.rules.inputMax) };
+      this.inputBudgets.set(dr, budget);
+    }
+    return budget;
+  }
+
+  private respawn(conn: Conn): void {
+    const slot = conn.slot;
+    if (conn.closed || !slot || slot.conn !== conn || slot.driver.state !== 'active') return;
+    const dr = slot.driver;
+    if (this.world.tick < (this.respawnReady.get(dr) ?? 0) || conn.peer.buffered > SEND_BACKLOG) return;
+    // Admit before endRun/reposition: even a valid-rate control flood otherwise fans a player list
+    // out to the entire server for every message. Ignored requests do not extend the cooldown.
+    this.respawnReady.set(dr, this.world.tick + this.world.rules.tickHz);
+    this.world.respawn(dr);
+  }
+
   private hello(conn: Conn, msg: Extract<ClientMsg, { t: 'hello' }>): void {
     if (conn.slot) return this.violation(conn, 'second hello');
     if (msg.v !== PROTOCOL_VERSION) return this.reject(conn, 'version', 'Версия игры не совпадает с сервером — обновите страницу');
-    if (msg.rules !== rulesHash()) return this.reject(conn, 'rules', 'Правила игры на сервере другие — обновите страницу');
+    const map = this.world.map;
+    // Missing map is accepted only for the default highway fixtures. Never for Miami.
+    if ((msg.map === undefined ? 'highway' : msg.map) !== map.id) return this.reject(conn, 'map', 'Карта не совпадает с сервером — выберите другой сервер');
+    if (msg.rules !== rulesHash(map.id)) return this.reject(conn, 'rules', 'Правила игры на сервере другие — обновите страницу');
     const addr = conn.peer.addr;
     const until = addr ? this.bans.get(addr) : undefined;
     if (until !== undefined) {
@@ -234,8 +317,7 @@ export class GameServer {
     // AMG/Porsche after R34 would keep simulating the previous chassis behind the new body.
     if (slot && slot.driver.physics !== physics) {
       if (slot.conn && slot.conn !== conn) this.kick(slot.conn, 4000, 'vehicle changed');
-      this.world.leave(slot.driver.id);
-      this.slots.delete(slot.driver.id);
+      this.removeDriver(slot);
       slot = undefined;
     }
     if (slot) {
@@ -261,8 +343,13 @@ export class GameServer {
     }
     const dr = slot.driver;
     this.world.resync(dr, typeof msg.seq === 'number' && msg.seq >= 0 ? Math.floor(msg.seq) : 0);
+    this.inputBudget(dr);
     this.send(conn, {
       t: 'welcome',
+      v: PROTOCOL_VERSION,
+      map: map.id,
+      mapRevision: map.revision,
+      rulesHash: rulesHash(map.id),
       id: dr.id,
       token: slot.token,
       rules: this.world.rules,
@@ -285,6 +372,18 @@ export class GameServer {
     }
   }
 
+  /** Finalize only permanent departures; a dropped socket can still resume the same run. */
+  private removeDriver(slot: Slot): void {
+    const dr = slot.driver;
+    if (this.slots.get(dr.id) !== slot) return;
+    // Claim the removal before callbacks, so the same driver cannot be submitted twice.
+    this.slots.delete(dr.id);
+    this.world.leave(dr.id);
+    const score = dr.score;
+    // Crash/respawn already reset their run. Do not broadcast another empty runEnd.
+    if (score.score > 0 || score.runTime > 0 || score.near > 0 || score.topKmh > 0) score.endRun();
+  }
+
   private reject(conn: Conn, reason: Extract<ServerMsg, { t: 'reject' }>['reason'], text: string): void {
     this.send(conn, { t: 'reject', reason, text });
     this.kick(conn, 4001, reason);
@@ -300,8 +399,11 @@ export class GameServer {
   kick(conn: Conn, code: number, reason: string): void {
     if (conn.closed) return;
     this.totals.kicked++;
-    conn.peer.close(code, reason);
-    conn.close();
+    try {
+      conn.peer.close(code, reason);
+    } finally {
+      conn.close();
+    }
   }
 
   /** A socket is gone. Its driver keeps the slot for the reconnect window. */
@@ -356,6 +458,9 @@ export class GameServer {
 
     this.timing.simulationMs = ms;
     const t1 = now();
+    for (const conn of this.conns) {
+      if (!conn.slot && w.tick >= conn.helloDeadline) this.kick(conn, 1008, 'hello timeout');
+    }
     this.sendSnapshots();
     const t2 = now();
     if (w.tick % w.rules.tickHz === 0) this.housekeeping();
@@ -393,8 +498,7 @@ export class GameServer {
     const limit = w.rules.reconnectSeconds * w.rules.tickHz;
     for (const [id, slot] of this.slots) {
       if (slot.conn || w.tick - slot.offlineAt < limit) continue;
-      w.leave(id);
-      this.slots.delete(id);
+      this.removeDriver(slot);
       this.log('info', `leave #${id} ${slot.driver.name}`);
       this.feed(`${slot.driver.name} уехал`);
     }
@@ -451,8 +555,7 @@ export class GameServer {
     const addr = slot.conn?.peer.addr;
     if (banMinutes > 0 && addr) this.bans.set(addr, Date.now() + banMinutes * 60_000);
     if (slot.conn) this.reject(slot.conn, 'kicked', banMinutes > 0 ? `Администратор отключил вас на ${banMinutes} мин` : 'Администратор отключил вас от сервера');
-    this.world.leave(id);
-    this.slots.delete(id);
+    this.removeDriver(slot);
     this.log('info', `admin kick #${id} ${name}${banMinutes > 0 ? ` (ban ${banMinutes} min${addr ? ` ${addr}` : ''})` : ''}`);
     this.feed(`${name} отключён администратором`);
     this.pushPlayers(true);
@@ -476,6 +579,10 @@ export class GameServer {
   health(resetWindow: boolean): ServerHealth {
     const st = this.steps;
     const out: ServerHealth = {
+      map: this.world.map.id,
+      mapRevision: this.world.map.revision,
+      protocol: PROTOCOL_VERSION,
+      ringLen: this.world.ringLen,
       tick: this.world.tick,
       players: this.slots.size,
       connections: this.conns.size,

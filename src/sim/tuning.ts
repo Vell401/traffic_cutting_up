@@ -61,7 +61,7 @@ export function tuningFields(id: string) {
 }
 const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': r34Tune, '3': mercedesTune, '4': porscheTune, '5': w204Tune };
 const baseline: GlobalTuning = {
-  r34Revision: 3,
+  r34Revision: 4,
   cars: Object.fromEntries(Object.entries(tunes).map(([id, tune]) => [id, Object.fromEntries(tuningFields(id).flatMap(f => typeof tune[f.key] === 'number' ? [[f.key, tune[f.key]]] : []))])),
   traffic: { lanes: trafficTune.laneSpeedKmh.map(v => [...v] as [number, number]), truckMin: 80, truckMax: 92, wallMin: 86, wallMax: 100 },
 };
@@ -77,7 +77,7 @@ export function currentTuning(): GlobalTuning {
 /** Strict, atomic validation: reject unknown keys and never partially apply a bad form. */
 export function validateTuning(value: unknown): GlobalTuning {
   const v = value as GlobalTuning;
-  if (!v || typeof v !== 'object' || !v.cars || !v.traffic || v.r34Revision !== 3 || Object.keys(v).some(k => !['cars', 'traffic', 'r34Revision'].includes(k))) throw new Error('Неверные настройки');
+  if (!v || typeof v !== 'object' || !v.cars || !v.traffic || v.r34Revision !== 4 || Object.keys(v).some(k => !['cars', 'traffic', 'r34Revision'].includes(k))) throw new Error('Неверные настройки');
   if (Object.keys(v.cars).some(id => !Object.hasOwn(baseline.cars, id))) throw new Error('Неизвестная машина');
   for (const [id, fields] of Object.entries(baseline.cars)) {
     const car = v.cars[id];

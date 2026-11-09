@@ -27,20 +27,26 @@ import { createServer } from 'node:http';
 import { dirname, join } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { GameServer, type LogLevel } from '../src/online/gameServer';
-import { rulesHash, type OnlineRules } from '../src/online/rules';
+import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from '../src/online/rules';
 import type { Stimulus, WorldConfig } from '../src/online/world';
 import { Admin, TRAFFIC_SETTINGS } from './admin';
-import { Api, clientIp } from './api';
+import { Api, claimDatabaseMap, claimRadioMap } from './api';
+import { createClientAddressResolver } from './clientAddress';
 import { Store } from './store';
 import { RadioStore } from './radio';
 import { currentTuning, type GlobalTuning } from '../src/sim/tuning';
 import { restoreTuning } from './restoreTuning';
 import { send } from './api';
+import { resolveMap } from '../src/sim/maps';
+import { parseRequestTarget } from './requestTarget';
 
 const env = process.env;
+// Validate before touching persistent data or accepting any connection. A process never changes map.
+const map = resolveMap(env.MAP_ID);
 const PORT = Number(env.PORT ?? 8787);
 const HOST = env.HOST ?? '0.0.0.0';
 const ORIGINS = (env.ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const clientIp = createClientAddressResolver(env.TRUSTED_PROXIES ?? '');
 const LOG_EVERY = Number(env.LOG_EVERY ?? 60);
 const seed = Number(env.SEED) || Math.floor(Math.random() * 2 ** 31);
 
@@ -80,9 +86,9 @@ let journalBytes = 0;
 const journalMax = Number(env.JOURNAL_MAX_MB ?? 200) * 1024 * 1024;
 if (env.JOURNAL_DIR) {
   mkdirSync(env.JOURNAL_DIR, { recursive: true });
-  const file = join(env.JOURNAL_DIR, `session-${new Date().toISOString().replace(/[:.]/g, '-')}.ndjson`);
+  const file = join(env.JOURNAL_DIR, `session-${map.id}-${new Date().toISOString().replace(/[:.]/g, '-')}.ndjson`);
   journal = createWriteStream(file);
-  journal.write(JSON.stringify({ seed, rules, rulesHash: rulesHash(), started: new Date().toISOString() }) + '\n');
+  journal.write(JSON.stringify({ seed, rules, map: map.id, mapRevision: map.revision, protocol: PROTOCOL_VERSION, rulesHash: rulesHash(map.id), started: new Date().toISOString() }) + '\n');
   log('info', `journal → ${file}`);
 }
 function record(s: Stimulus): void {
@@ -102,11 +108,14 @@ function record(s: Stimulus): void {
 
 // ------------------------------------------------------------------------- storage and API
 
-const DB_PATH = env.DB_PATH ?? join('data', 'traffic.db');
+const DB_PATH = env.DB_PATH ?? (map.id === 'highway' ? join('data', 'traffic.db') : join('data', 'miami', 'traffic.db'));
 mkdirSync(dirname(DB_PATH), { recursive: true });
+claimDatabaseMap(DB_PATH, map.id);
 const store = new Store(DB_PATH);
-const radio = new RadioStore(store, env.RADIO_DIR ?? join(dirname(DB_PATH), 'radio'));
-api = new Api(store, { origins: ORIGINS, log, version: env.GIT_SHA ?? 'dev' });
+const RADIO_DIR = env.RADIO_DIR ?? join(dirname(DB_PATH), 'radio');
+claimRadioMap(RADIO_DIR, map.id);
+const radio = new RadioStore(store, RADIO_DIR);
+api = new Api(store, { map: map.id, origins: ORIGINS, log, version: env.GIT_SHA ?? 'dev', clientAddress: clientIp });
 
 process.on('uncaughtException', (e) => {
   api?.diag('error', `uncaught: ${e.message}`, e.stack);
@@ -121,6 +130,7 @@ process.on('unhandledRejection', (e) => {
 });
 
 const game = new GameServer({
+  map: map.id,
   seed,
   rules,
   log,
@@ -167,7 +177,7 @@ function health(reset: boolean) {
     ok: true,
     /** Commit the running build came from (set by the Docker build; checked after every deploy). */
     version: env.GIT_SHA ?? 'dev',
-    rules: rulesHash(),
+    rules: rulesHash(map.id),
     seed,
     uptimeS: Math.round(process.uptime()),
     rssMB: +(mem.rss / 1048576).toFixed(1),
@@ -177,6 +187,12 @@ function health(reset: boolean) {
 }
 
 const http = createServer((req, res) => {
+  res.setHeader('x-map-id', map.id);
+  if (!parseRequestTarget(req.url ?? '/')) {
+    res.setHeader('connection', 'close');
+    send(res, 400, { ok: false, error: 'Invalid request target' });
+    return;
+  }
   if (admin.handle(req, res)) return;
   if (radio.handle(req, res)) return;
   if (req.method === 'GET' && (req.url ?? '').split('?')[0] === '/api/tuning') { res.setHeader('access-control-allow-origin', '*'); send(res, 200, currentTuning()); return; }
@@ -196,12 +212,17 @@ const http = createServer((req, res) => {
   res.end();
 });
 
-const wss = new WebSocketServer({
+const wss: WebSocketServer = new WebSocketServer({
   server: http,
   path: '/ws',
   maxPayload: 16 * 1024,
   perMessageDeflate: false,
-  verifyClient: (info: { origin: string }) => ORIGINS.length === 0 || ORIGINS.includes(info.origin),
+  verifyClient: (info, done) => {
+    if (ORIGINS.length !== 0 && !ORIGINS.includes(info.origin)) return done(false, 403, 'Forbidden');
+    // Include closing transports: freeing a game Conn must not bypass the physical socket cap.
+    if (!game.canConnect || wss.clients.size >= game.connectionLimit) return done(false, 503, 'Service Unavailable');
+    done(true);
+  },
 });
 
 const alive = new WeakMap<WebSocket, boolean>();
@@ -210,12 +231,20 @@ wss.on('connection', (ws, req) => {
   const addr = clientIp(req);
   const conn = game.connect({
     send: (d) => ws.send(d),
-    close: (code, reason) => ws.close(code, reason),
+    close: (code, reason) => {
+      // An unhandshaken peer must not hold admission capacity through ws's close-handshake timer.
+      if (reason === 'hello timeout' || reason === 'connections') ws.terminate();
+      else ws.close(code, reason);
+    },
     get buffered() {
       return ws.bufferedAmount;
     },
     addr,
   });
+  if (conn.closed) {
+    ws.terminate();
+    return;
+  }
   alive.set(ws, true);
   ws.on('pong', () => alive.set(ws, true));
   ws.on('message', (data, isBinary) => {
@@ -280,10 +309,10 @@ const status = setInterval(() => {
   log('info', `tick ${h.tick} players ${h.players} conn ${h.connections} traffic ${h.traffic} step avg ${h.stepAvgMs} max ${h.stepMaxMs} ms rss ${h.rssMB} MB snaps ${h.snapshots} skipped ${h.skipped} lagDrops ${lagDrops}`);
 }, LOG_EVERY * 1000);
 
-api?.diag('info', `start ${env.GIT_SHA ?? 'dev'}`, { rules: rulesHash(), seed, maxPlayers: game.world.rules.maxPlayers });
+api?.diag('info', `start ${env.GIT_SHA ?? 'dev'}`, { map: map.id, mapRevision: map.revision, rules: rulesHash(map.id), seed, maxPlayers: game.world.rules.maxPlayers });
 
 http.listen(PORT, HOST, () => {
-  log('info', `listening on ${HOST}:${PORT} (rules ${rulesHash()}, seed ${seed}, max ${game.world.rules.maxPlayers} players, traffic ${game.world.rules.traffic})`);
+  log('info', `listening on ${HOST}:${PORT} (map ${map.id} revision ${map.revision}, rules ${rulesHash(map.id)}, seed ${seed}, max ${game.world.rules.maxPlayers} players, traffic ${game.world.rules.traffic})`);
   loop();
 });
 

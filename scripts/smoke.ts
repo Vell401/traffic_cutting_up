@@ -25,8 +25,12 @@ import { ClientCore } from '../src/online/clientCore';
 import type { PhysicsId } from '../src/sim/physics';
 import { Sim } from '../src/sim/world';
 import { Bot } from '../tests/netsim';
+import { apiBase, healthUrl } from '../src/online/link';
+import { PROTOCOL_VERSION, rulesHash } from '../src/online/rules';
+import { resolveMap, type MapId } from '../src/sim/maps';
 
 interface Options {
+  map: MapId;
   url: string;
   origin?: string;
   insecure: boolean;
@@ -36,11 +40,12 @@ interface Options {
 }
 
 function parseArgs(argv: string[]): Options {
-  const o: Options = { url: 'ws://127.0.0.1:8787/ws', insecure: false, clients: 2, seconds: 10 };
+  const o: Options = { map: 'highway', url: 'ws://127.0.0.1:8787/ws', insecure: false, clients: 2, seconds: 10 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i] ?? '';
     if (a === '--url') o.url = next();
+    else if (a === '--map') o.map = resolveMap(next()).id;
     else if (a === '--origin') o.origin = next();
     else if (a === '--insecure') o.insecure = true;
     else if (a === '--clients') o.clients = Math.max(1, Number(next()) || 1);
@@ -49,13 +54,6 @@ function parseArgs(argv: string[]): Options {
     else throw new Error(`unknown argument ${a}`);
   }
   return o;
-}
-
-function healthUrl(wsUrl: string): string {
-  const u = new URL(wsUrl);
-  u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:';
-  u.pathname = '/health';
-  return u.toString();
 }
 
 function getJson(url: string, insecure: boolean): Promise<Record<string, unknown>> {
@@ -95,7 +93,7 @@ interface Client {
 function startClient(i: number, o: Options): Client {
   const rng = mulberry32(900 + i);
   const physics: PhysicsId = i % 2 === 0 ? 1 : 2;
-  const sim = new Sim(rng, { online: true, physics });
+  const sim = new Sim(rng, { online: true, physics, map: o.map });
   const ws = new WebSocket(o.url, { origin: o.origin, rejectUnauthorized: !o.insecure, handshakeTimeout: 5000 });
   const c = { name: `Проверка ${i + 1}`, sim, ws, welcomed: false, rejected: '', error: '', closed: false, snapshots: 0, startS: null, timers: [] } as unknown as Client;
   c.core = new ClientCore(sim, {
@@ -144,6 +142,9 @@ async function main(): Promise<void> {
     return null;
   });
   if (before && o.version && before.version !== o.version) problems.push(`/health reports version ${String(before.version)}, expected ${o.version}`);
+  if (before && (before.map !== o.map || before.protocol !== PROTOCOL_VERSION || before.rules !== rulesHash(o.map) || before.mapRevision !== resolveMap(o.map).revision)) problems.push('/health map/protocol/rules mismatch');
+  const board = await getJson(`${apiBase(o.url)}/leaderboard?mode=online&limit=1`, o.insecure).catch(() => null);
+  if (!board || board.map !== o.map) problems.push('prefixed API does not identify expected map');
   if (problems.length) return finish(problems, []);
 
   const clients: Client[] = [];

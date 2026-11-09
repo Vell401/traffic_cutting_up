@@ -19,6 +19,7 @@ import {
   REMOTE_BLINK_LEFT,
   REMOTE_BLINK_RIGHT,
   REMOTE_HORN,
+  REMOTE_WHEELS,
   REMOTE_BRAKE,
   REMOTE_GHOST,
   Reader,
@@ -72,6 +73,7 @@ interface NetDriver {
   r: number;
   steer: number;
   gear: number;
+  wheelOmega: Float64Array;
   es: number;
   ed: number;
   seen: number;
@@ -171,6 +173,7 @@ export class ClientCore {
   private lastLocalBump = -1e9;
   private replaying = false;
   private pingT = 0;
+  private welcomed = false;
 
   constructor(
     readonly sim: Sim,
@@ -194,7 +197,9 @@ export class ClientCore {
   hello(name: string, physics: PhysicsId, car: CarId, token?: string, color?: number): void {
     // Inputs made while offline never reach the server: the next ones follow `seq`.
     this.sentSeq = this.seq;
-    this.send({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(), name, physics, car, seq: this.seq, token, color });
+    this.welcomed = false;
+    this.ready = false;
+    this.send({ t: 'hello', v: PROTOCOL_VERSION, map: this.sim.map.id, rules: rulesHash(this.sim.map.id), name, physics, car, seq: this.seq, token, color });
   }
 
   requestRespawn(): void {
@@ -221,6 +226,7 @@ export class ClientCore {
       this.onMessage(msg, now);
       return;
     }
+    if (!this.welcomed || data.byteLength < 1) return;
     this.stats.bytesIn += data.byteLength;
     const r = new Reader(data);
     if (r.u8() !== MSG_SNAPSHOT) return;
@@ -232,8 +238,15 @@ export class ClientCore {
     const ev = this.sim.events;
     switch (msg.t) {
       case 'welcome':
+        // Fence prediction, tuning and snapshots BEFORE accepting anything from another map/build.
+        if (msg.map !== this.sim.map.id || msg.mapRevision !== this.sim.map.revision || msg.ringLen !== this.L || msg.v !== PROTOCOL_VERSION || msg.rulesHash !== rulesHash(this.sim.map.id)) {
+          this.welcomed = this.ready = false;
+          this.hooks.onReject?.('Карта или правила сервера не совпадают — обновите страницу и выберите другой сервер');
+          return;
+        }
+        this.welcomed = true;
         if (msg.tuning) applyTuning(msg.tuning);
-        if (this.id !== 0 && this.id !== msg.id) this.forget();
+        if (this.id !== 0 && (this.id !== msg.id || this.token !== msg.token)) this.forget();
         this.id = msg.id;
         this.token = msg.token;
         this.rules = msg.rules;
@@ -242,11 +255,13 @@ export class ClientCore {
         this.hooks.onPlayers?.(msg.players);
         break;
       case 'tuning':
+        if (!this.welcomed) return;
         applyTuning(msg.tuning);
         this.ready = false;
         this.epoch = -1;
         break;
       case 'reject':
+        this.welcomed = this.ready = false;
         this.hooks.onReject?.(msg.text);
         break;
       case 'players':
@@ -299,13 +314,14 @@ export class ClientCore {
     }
   }
 
-  /** A different session (server restarted): drop everything tied to the old one. */
+  /** A different session: drop old predictions, keeping the sequence adopted from hello. */
   private forget(): void {
     this.ready = false;
     this.epoch = -1;
-    this.seq = this.sentSeq = this.ack = 0;
+    this.sentSeq = this.ack = this.seq;
     for (const nc of this.cars.values()) this.releaseView(nc);
     this.cars.clear();
+    this.preds.length = 0;
     for (const nd of this.drivers.values()) this.dropRemote(nd);
     this.drivers.clear();
   }
@@ -328,8 +344,11 @@ export class ClientCore {
     const sc = sim.score;
     Object.assign(sc, sn.score);
 
-    const teleport = sn.epoch !== this.epoch || !this.ready || this.seq - sn.ack >= HIST;
-    if (teleport && this.seq - sn.ack >= HIST) this.seq = sn.ack; // too far behind to replay: start over from the server
+    const historyOverflow = this.seq - sn.ack >= HIST;
+    const teleport = sn.epoch !== this.epoch || !this.ready || historyOverflow;
+    // An old snapshot cannot rewind input numbering: later inputs may already be queued/applied on
+    // the server. Keep sending fresh inputs and accepting their ACKs; only discard this replay when
+    // its history has been overwritten. Once ACKs catch up, the complete replay is available again.
     const oldS = car.s;
     const oldD = car.d;
     const oldPsi = car.psi;
@@ -345,7 +364,7 @@ export class ClientCore {
 
     // Replay what the server has not applied yet, against the traffic predicted from this snapshot.
     this.replaying = true;
-    for (let k = sn.ack + 1; k <= this.seq; k++) {
+    for (let k = historyOverflow ? this.seq + 1 : sn.ack + 1; k <= this.seq; k++) {
       this.stepCar(this.hist[k % HIST]);
       this.advanceCars();
       this.collideCars(k);
@@ -554,7 +573,7 @@ export class ClientCore {
           visible: true,
         };
         remotes.push(remote);
-        nd = { ...b, es: 0, ed: 0, seen: 0, remote, fresh: true, pred: createCar(info?.physics ?? 1), contactShown: -1e9 };
+        nd = { ...b, wheelOmega: new Float64Array(4), es: 0, ed: 0, seen: 0, remote, fresh: true, pred: createCar(info?.physics ?? 1), contactShown: -1e9 };
         this.drivers.set(b.id, nd);
       } else {
         nd.flags = b.flags;
@@ -567,6 +586,7 @@ export class ClientCore {
         nd.steer = b.steer;
         nd.gear = b.gear;
       }
+      if (b.wheelOmega) nd.wheelOmega.set(b.wheelOmega);
       nd.seen = this.snapIndex;
       this.applyInfo(nd);
       // Prediction restarts from the server's state (same tick as our rewound car).
@@ -664,13 +684,22 @@ export class ClientCore {
       c.vy = nd.vy;
       c.r = nd.r;
       c.steerIn = nd.steer;
-      if (nd.remote.carId === 2) c.steerAngle = nd.steer * 1.1;
+      c.steerAngle = nd.steer * 1.1;
+      // Display-only overlay: a remote R34 also has a native, unstepped omega array.
+      // Never mutate that physical memory to animate somebody else's tyres.
+      const display = c as PlayerCar & { visualWheelOmega?: ArrayLike<number> };
+      if ((nd.flags & REMOTE_WHEELS) === 0) {
+        const radius = (c.tune as typeof c.tune & { wheelRadius?: number }).wheelRadius ?? .34;
+        nd.wheelOmega.fill(c.vx / radius); // Conservative signed rolling, not invented lock/burnout.
+      }
+      display.visualWheelOmega = nd.wheelOmega;
       c.brake = (nd.flags & REMOTE_BRAKE) !== 0 ? 1 : 0;
       c.gear = nd.gear;
       c.ghost = (nd.flags & REMOTE_GHOST) !== 0;
       c.blinker = nd.flags & REMOTE_BLINK_LEFT ? 1 : nd.flags & REMOTE_BLINK_RIGHT ? 2 : 0;
       c.horn = (nd.flags & REMOTE_HORN) !== 0;
-      c.wheelSpin += (nd.vx / 0.34) * this.dt;
+      // Wheel phase is integrated by PlayerView at render time. Snapshots must not add
+      // extra rotation on top of fixed steps (that made animation packet-rate dependent).
       nd.remote.visible = true;
       nd.fresh = false;
     }
@@ -759,6 +788,7 @@ export class ClientCore {
   /** The connection dropped: inputs made while offline will never reach the server. */
   disconnected(): void {
     this.sentSeq = this.seq;
+    this.welcomed = this.ready = false;
   }
 
   /** Remote drivers' info for the HUD (name tags). */

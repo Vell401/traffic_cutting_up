@@ -71,7 +71,7 @@ describe('HTTP API', () => {
 
   it('takes a solo run, ranks it and serves the board', async () => {
     const res = await post('/api/runs', { name: ' Vell <b> ', score: 42000, car: 2, physics: 3, near: 31, topKmh: 288, seconds: 95 });
-    expect(await res.json()).toEqual({ ok: true, stored: true, rank: 1 });
+    expect(await res.json()).toEqual({ ok: true, map: 'highway', stored: true, rank: 1 });
     const board = (await (await fetch(`${base}/api/leaderboard?mode=solo`)).json()) as { entries: { name: string; score: number }[] };
     expect(board.entries[0]).toMatchObject({ name: 'Vell b', score: 42000 });
     const online = (await (await fetch(`${base}/api/leaderboard?mode=online`)).json()) as { entries: unknown[] };
@@ -183,7 +183,9 @@ describe('admin API', () => {
     expect((await req('players', { maxPlayers: 12 })).status).toBe(200);
     expect(game.world.rules.maxPlayers).toBe(12);
     expect((await req('players', { maxPlayers: 500 })).status).toBe(400);
-    expect(diag.some((m) => m.includes('traffic') && m.includes('10.0.0.9'))).toBe(true);
+    // Forwarded headers from an untrusted direct client cannot forge the audit identity.
+    expect(diag.some((m) => m.includes('traffic') && m.includes('127.0.0.1'))).toBe(true);
+    expect(diag.some((m) => m.includes('10.0.0.9'))).toBe(false);
   });
 
   it('accepts the full density range, preserves zero, and restores absolute targets after restart', async () => {

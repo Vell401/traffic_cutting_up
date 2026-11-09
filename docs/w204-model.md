@@ -1,5 +1,11 @@
 # Mercedes W204 — default C63 AMG model conversion
 
+This is the delivered-asset/conversion record, not the current menu order: A45
+remains the first/default body. C63 is **body 4 / physics 5 / M156**. All physics
+is frozen after the R34-only grip update; model/presentation work must not
+recapture physics hashes. Current integration and validation limits are in
+[w204.md](w204.md) and [mobile-miami-upgrade.md](mobile-miami-upgrade.md).
+
 ## Delivered asset and budgets
 
 - `public/models/mercedes-w204.glb`: **21,045,480 bytes / 20.07 MiB**.
@@ -89,8 +95,16 @@ python3 scripts/verify-w204.py
 
 `--python-exit-code 1` makes Blender Python exceptions fail the command. Run the final normal verifier after export/compression and before `verify-w204.py`: the latter requires a passing `normals-final.json` whose hashes match the delivered and decoded GLBs before publishing the manifest. NumPy path is environment-specific. Blender's bundled 3.0 glTF importer requires the local `np.bool=bool` compatibility shim in the render script. This Blender install exposes only Linear/sRGB image spaces; linear data maps use Linear when Non-Color is unavailable.
 
-Intermediate selection manifests, DAE import, assembled blend, raw GLB, staged textures, and decompressed inspection GLB remain exclusively in `/tmp/opencode/w204*`. Original source files are never written. The compression algorithm reuses the Porsche lossless approach, adjusted for Blender 3's target-less views and padded ushort indices.
+Historical conversion workspace: intermediate selection manifests, DAE import, assembled blend, raw GLB, staged textures, and decompressed inspection GLB were kept exclusively in `/tmp/opencode/w204*`. Those local files/paths are not guaranteed in this Windows checkout. Original source files were not written. The compression algorithm reuses the Porsche lossless approach, adjusted for Blender 3's target-less views and padded ushort indices.
 
-### Inspection status — important
+### Historical conversion-stage inspection status — preserved colleague note
 
 `docs/w204-model-front.png`, `-rear.png`, `-side.png`, and `-cockpit.png` are genuine background Cycles renders **after decoding and reimporting the delivered compressed GLB**. They are not source-only previews. Automated authored-normal and material checks passed, but the image-read attempt reported **“Cannot read image (this model does not support image input)”**. **There is no human visual approval; visual approval remains unverified.** A human/image-capable reviewer should inspect these four frames before final integration. **No FPS measurements or in-game frame timings have been collected**; structural budgets and successful renders do not establish runtime performance.
+
+**Current integration update:** C63 has since been integrated in the browser;
+the reported integrated Edge acceptance exercises C63 on the Miami phone layout.
+This supersedes the old implication that runtime integration is still pending,
+not the absence of human visual/audio approval. The four conversion renders
+remain historical evidence, not fresh screenshots of this update. Physical iOS,
+human listening and comparable device FPS measurements remain unverified; no
+Docker-daemon or remote deployment was performed.

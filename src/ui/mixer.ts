@@ -41,6 +41,14 @@ export class Mixer {
     sound.onMixChange(() => this.sync());
   }
 
+  /** Hidden driving controls must neither retain focus nor intercept driving keys. */
+  setVisible(visible: boolean): void {
+    if (!visible && this.root.contains(document.activeElement)) {
+      (document.activeElement as HTMLElement).blur();
+    }
+    this.root.inert = !visible;
+  }
+
   /** Show the mute state (after M). */
   sync(): void {
     for (const input of this.root.querySelectorAll<HTMLInputElement>('input[data-channel]')) {

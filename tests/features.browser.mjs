@@ -1,0 +1,109 @@
+// Integrated feature acceptance against two isolated servers behind the Vite proxy.
+import assert from 'node:assert/strict';
+import { pathToFileURL } from 'node:url';
+const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE || 'C:/Users/sosi/AppData/Local/Temp/opencode/traffic-browser-check/node_modules/playwright/index.mjs').href);
+const base = process.env.FEATURE_BASE_URL || 'http://127.0.0.1:5186';
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
+  args: ['--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const errors = [];
+function wav() {
+  const pcm = Buffer.alloc(800), header = Buffer.alloc(44);
+  header.write('RIFF'); header.writeUInt32LE(pcm.length + 36, 4); header.write('WAVE', 8);
+  header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22); header.writeUInt32LE(8000, 24); header.writeUInt32LE(16000, 28);
+  header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
+try {
+  for (const map of ['highway', 'miami']) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await context.route('https://fonts.googleapis.com/**', r => r.fulfill({ body: '', contentType: 'text/css' }));
+    const page = await context.newPage(); page.on('pageerror', e => errors.push(String(e)));
+    await page.addInitScript(() => { localStorage.setItem('tcu.quality', 'medium'); localStorage.setItem('tcu.car', '2'); });
+    await page.goto(`${base}/?map=${map}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.locator('#loading').waitFor({ state: 'hidden', timeout: 240000 });
+    assert.equal(await page.locator('#serverChoice').inputValue(), map);
+    await page.locator('#startBtn').click();
+    await page.waitForFunction(() => window.__game.session?.core.ready, { timeout: 120000 });
+    await page.waitForFunction(() => !document.body.classList.contains('menu'), { timeout: 120000 });
+    await page.locator('#loading').waitFor({ state: 'hidden', timeout: 120000 });
+    const identity = await page.evaluate(() => ({ map: window.__game.sim.map.id, ring: window.__game.sim.road.ringLen }));
+    assert.equal(identity.map, map); assert.equal(identity.ring, 12000);
+    await page.keyboard.down('KeyW'); await page.waitForTimeout(350); await page.keyboard.up('KeyW');
+    await page.locator('#c').click({ force: true });
+    await page.keyboard.press('KeyP');
+    await page.waitForFunction(() => document.body.classList.contains('paused'));
+    if (process.env.FEATURE_SCREENSHOTS === '1') await page.screenshot({ path: `C:/Users/sosi/AppData/Local/Temp/opencode/integrated-${map}.png`, timeout: 120000 });
+    await page.goto(`${base}/admin.html?map=${map}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.locator('input[name=password]').fill(process.env.FEATURE_ADMIN_PASSWORD || 'local-acceptance-only');
+    await page.locator('button[type=submit]').click();
+    await page.waitForFunction(() => document.querySelector('.wrap') && !document.querySelector('.wrap').inert);
+    assert.equal(await page.locator('#adminInstance').inputValue(), map);
+    await page.locator('#admin-tab-tuning').click();
+    const input = page.locator('#carTuneFields input').first(); await input.fill('555');
+    await page.locator('#admin-tab-radio').click(); await page.locator('#admin-tab-tuning').click();
+    assert.equal(await input.inputValue(), '555');
+    await page.locator('#admin-tab-tuning').press('Home');
+    assert.equal(await page.locator('#admin-tab-overview').getAttribute('aria-selected'), 'true');
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.locator('#adminInstance').selectOption(map === 'miami' ? 'highway' : 'miami');
+    assert.equal(await page.locator('#adminInstance').inputValue(), map);
+    await page.locator('#admin-tab-radio').click();
+    const playlistName = `Acceptance ${map} ${Date.now()}`;
+    await page.locator('#playlistName').fill(playlistName);
+    await page.locator('#createPlaylist').click();
+    await page.waitForFunction(name => document.querySelector('#radioPlaylist option:checked')?.textContent.includes(name), playlistName);
+    const prefix = map === 'miami' ? '/miami' : '';
+    let releaseUpload;
+    const gate = new Promise(resolve => { releaseUpload = resolve; });
+    const uploadPattern = `**${prefix}/api/admin/radio/upload?*`;
+    await page.route(uploadPattern, async route => {
+      const response = await route.fetch();
+      assert.equal(response.status(), 200);
+      assert.equal(new URL(route.request().url()).pathname, `${prefix}/api/admin/radio/upload`);
+      await gate; await route.fulfill({ response });
+    });
+    await page.locator('#radioFiles').setInputFiles({ name: 'acceptance.wav', mimeType: 'audio/wav', buffer: wav() });
+    await page.locator('#cancelRadioUpload').waitFor({ state: 'visible' });
+    await page.locator('#admin-tab-overview').click();
+    assert.equal(await page.locator('#radioFiles').evaluate(el => el.files.length), 1);
+    await page.locator('#admin-tab-radio').click();
+    assert.equal(await page.locator('#radioEdit').evaluate(el => el.disabled), true);
+    releaseUpload();
+    await page.locator('#cancelRadioUpload').waitFor({ state: 'hidden' });
+    await page.locator('#radioTracks').getByText('acceptance', { exact: true }).waitFor();
+    await page.unroute(uploadPattern);
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#deletePlaylist').click();
+    await page.waitForFunction(() => !document.querySelector('#radioTracks')?.textContent.includes('acceptance'));
+    await context.close();
+  }
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const mobile = await phone.newPage(); mobile.on('pageerror', e => errors.push(String(e)));
+  await mobile.addInitScript(() => { localStorage.setItem('tcu.quality', 'medium'); localStorage.setItem('tcu.car', '4'); });
+  await mobile.goto(`${base}/?map=miami`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await mobile.locator('#loading').waitFor({ state: 'hidden', timeout: 240000 });
+  await mobile.locator('#startBtn').click();
+  await mobile.locator('body.driving-touch').waitFor({ timeout: 120000 });
+  assert.equal(await mobile.evaluate(() => window.__game.sim.map.id), 'miami');
+  for (const id of ['hud', 'leaders', 'radio', 'mixer']) assert.equal(await mobile.locator(`#${id}`).isVisible(), false);
+  await mobile.locator('[data-touch=throttle]').dispatchEvent('pointerdown', { pointerId: 51, pointerType: 'touch' });
+  await mobile.waitForFunction(() => window.__game.input.drive.throttle === 1);
+  await mobile.locator('[data-touch=throttle]').dispatchEvent('pointercancel', { pointerId: 51, pointerType: 'touch' });
+  await mobile.waitForFunction(() => window.__game.input.drive.throttle === 0);
+  await mobile.locator('#touchControls button').filter({ hasText: 'Пауза' }).click();
+  await mobile.waitForFunction(() => document.body.classList.contains('paused'));
+  if (process.env.FEATURE_SCREENSHOTS === '1') await mobile.screenshot({ path: 'C:/Users/sosi/AppData/Local/Temp/opencode/integrated-miami-phone.png', timeout: 120000 });
+  await phone.close();
+  // A misrouted proxy must not enable mutations even with a valid stored login.
+  const context = await browser.newContext(); const page = await context.newPage();
+  await page.route('**/miami/api/admin/state', route => route.fulfill({ json: { map: 'highway' } }));
+  await page.goto(`${base}/admin.html?map=miami`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.locator('input[name=password]').fill(process.env.FEATURE_ADMIN_PASSWORD || 'local-acceptance-only');
+  await page.locator('button[type=submit]').click();
+  await page.waitForFunction(() => document.querySelector('#live')?.textContent.includes('другой карты'));
+  assert.equal(await page.locator('.wrap').evaluate(el => el.inert), true);
+  await context.close();
+  assert.deepEqual(errors, []);
+  console.log('Integrated highway/Miami online, Miami phone controls, pause, scoped admin tabs/drafts, real per-map uploads across tabs, and wrong-map blocking passed.');
+} finally { await browser.close(); }

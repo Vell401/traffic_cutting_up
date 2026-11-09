@@ -1,11 +1,11 @@
 # Production stack, started by deploy/deploy.sh on the VPS:
-#   game  the Node game server (WebSocket /ws, /health), reachable only inside the stack
-#   web   Caddy: HTTPS with the self-signed certificate, the static site, /ws and /health to game
+#   game / game-miami: the same image, isolated worlds and persistent data, internal ports only
+#   web: one static build and HTTPS; /miami/* game routes go to game-miami after prefix removal
 # SITE_ADDRESS is the server's IP (or a domain later); CERT_DIR holds cert.pem and key.pem.
 name: traffic
 
 services:
-  game:
+  game: &game-service
     build:
       context: .
       target: server
@@ -15,24 +15,58 @@ services:
         SKIP_TESTS: ${SKIP_TESTS:-0}
     image: traffic-game
     restart: unless-stopped
-    environment:
+    environment: &game-environment
       PORT: "8787"
+      MAP_ID: highway
       ORIGINS: https://${SITE_ADDRESS:?set SITE_ADDRESS}
+      # Only Caddy's fixed socket address may assert client identity (not the whole subnet).
+      TRUSTED_PROXIES: ${PROXY_IP:-172.30.114.2}
       MAX_PLAYERS: ${MAX_PLAYERS:-50}
       # Dense traffic by default; the admin page can change it (its choice is kept in the database).
       TRAFFIC: ${TRAFFIC:-2}
       LOG_EVERY: "60"
       DB_PATH: /data/traffic.db
+      RADIO_DIR: /data/radio
       # Admin page (/admin.html): from the repository secret ADMIN_PASSWORD via the deploy workflow.
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     expose:
       - "8787"
+    networks: [client_proxy]
     volumes:
       # Leaderboard and diagnostics log: kept across deploys.
       - game_data:/data
     mem_limit: 512m
+    cpus: 1.0
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # Check identity as well as liveness: a default highway must never pass as Miami.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8787/health').then(async r => { const h = await r.json(); if (!r.ok || h.ok !== true || h.map !== process.env.MAP_ID || h.version !== process.env.GIT_SHA) process.exit(1); }).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+
+  game-miami:
+    # Identical build/image: BuildKit deduplicates the shared server target, no second bundle.
+    <<: *game-service
+    environment:
+      <<: *game-environment
+      MAP_ID: miami
+    volumes:
+      - miami_data:/data
 
   web:
+    networks:
+      client_proxy:
+        ipv4_address: ${PROXY_IP:-172.30.114.2}
     build:
       context: .
       target: web
@@ -45,6 +79,8 @@ services:
     depends_on:
       game:
         condition: service_healthy
+      game-miami:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
@@ -55,8 +91,24 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     mem_limit: 256m
+    cpus: 0.5
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+
+networks:
+  client_proxy:
+    ipam:
+      config:
+        - subnet: ${PROXY_NETWORK_SUBNET:-172.30.114.0/24}
+          # Dynamic game addresses cannot consume Caddy's fixed address before web starts.
+          ip_range: ${PROXY_NETWORK_IP_RANGE:-172.30.114.128/25}
 
 volumes:
   game_data:
+  miami_data:
   caddy_data:
   caddy_config:

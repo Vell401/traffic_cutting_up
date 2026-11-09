@@ -12,6 +12,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=traffic
+Group=traffic
 WorkingDirectory=/opt/traffic
 ExecStart=/usr/bin/node dist-server/main.js
 Environment=NODE_ENV=production
@@ -20,7 +21,17 @@ Environment=HOST=127.0.0.1
 Environment=ORIGINS=https://traffic.example.com
 Environment=MAX_PLAYERS=5
 Environment=LOG_EVERY=60
-# Environment=JOURNAL_DIR=/opt/traffic/sessions
+Environment=DB_PATH=/var/lib/traffic/traffic.db
+Environment=RADIO_DIR=/var/lib/traffic/radio
+# Optional replay journals (stdout/stderr still go to journald).
+# Environment=JOURNAL_DIR=/var/log/traffic/sessions
+# systemd creates these before starting Node, owned by User/Group above. They remain
+# writable under ProtectSystem=strict; no pre-existing /opt/traffic/sessions is needed.
+StateDirectory=traffic
+StateDirectoryMode=0700
+LogsDirectory=traffic/sessions
+LogsDirectoryMode=0700
+UMask=0077
 Restart=always
 RestartSec=2
 # Memory guard: the server runs at ~60-100 MB; anything near this is a leak and gets restarted.
@@ -29,7 +40,6 @@ MemoryMax=400M
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/traffic/sessions
 PrivateTmp=true
 
 [Install]

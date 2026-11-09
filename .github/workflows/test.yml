@@ -29,14 +29,42 @@ jobs:
         run: npx vitest run --reporter=default --reporter=github-actions
       - name: Build site and server
         run: npm run build && npm run build:server
-      - name: Smoke test (real clients against the built server)
+      - name: Smoke test (real clients against both built maps, isolated data)
+        shell: bash
         run: |
-          GIT_SHA=ci node dist-server/main.js > server.log 2>&1 &
-          for i in $(seq 1 40); do curl -fs http://127.0.0.1:8787/health >/dev/null && break; sleep 0.25; done
-          node dist-server/smoke.js --url ws://127.0.0.1:8787/ws --clients 3 --seconds 10 --version ci
+          set -euo pipefail
+          data=$(mktemp -d)
+          pids=()
+          cleanup() {
+            for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+            for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
+            rm -rf -- "$data"
+          }
+          trap cleanup EXIT
+          mkdir -p "$data/highway/radio" "$data/miami/radio"
+          MAP_ID=highway PORT=8793 GIT_SHA=ci DB_PATH="$data/highway/traffic.db" RADIO_DIR="$data/highway/radio" node dist-server/main.js > server-highway.log 2>&1 &
+          pids+=("$!")
+          MAP_ID=miami PORT=8788 GIT_SHA=ci DB_PATH="$data/miami/traffic.db" RADIO_DIR="$data/miami/radio" node dist-server/main.js > server-miami.log 2>&1 &
+          pids+=("$!")
+          for pair in highway:8793 miami:8788; do
+            map=${pair%:*}
+            port=${pair#*:}
+            ready=0
+            for i in $(seq 1 80); do
+              if curl -fsS --max-time 2 "http://127.0.0.1:$port/health" | node -e '
+                let body = "";
+                process.stdin.on("data", chunk => body += chunk).on("end", () => {
+                  try { const h = JSON.parse(body); process.exit(h.ok === true && h.map === process.argv[1] && h.version === "ci" ? 0 : 1); }
+                  catch { process.exit(1); }
+                });' "$map"; then ready=1; break; fi
+              sleep 0.25
+            done
+            test "$ready" = 1 || { echo "$map did not become healthy with the expected build and map" >&2; exit 1; }
+            node dist-server/smoke.js --url "ws://127.0.0.1:$port/ws" --map "$map" --clients 3 --seconds 10 --version ci
+          done
       - name: Server log
         if: always()
-        run: cat server.log 2>/dev/null || true
+        run: cat server-highway.log server-miami.log 2>/dev/null || true
       - name: Ride quality report (latency, jitter, low FPS, crashes)
         run: |
           npm run --silent netcheck | tee netcheck.txt

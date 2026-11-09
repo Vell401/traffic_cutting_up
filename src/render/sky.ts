@@ -4,7 +4,7 @@ import * as THREE from 'three';
 export const HORIZON = new THREE.Color(0x1c1a2c);
 export const MOON_DIR = new THREE.Vector3(-0.45, 0.32, -1).normalize();
 
-export type SkyId = 'night' | 'dusk' | 'midnight' | 'neon' | 'violet';
+export type SkyId = 'night' | 'dusk' | 'midnight' | 'neon' | 'violet' | 'miami-night';
 
 /** A sky look: the dome, the fog it fades into, and the ambient light it casts. */
 export interface SkyPreset {
@@ -52,6 +52,11 @@ export const SKY_PRESETS: readonly SkyPreset[] = [
     id: 'violet', name: 'Фиолет', desc: 'Глубокий фиолетовый, в цвет интерфейса',
     top: 0x06021a, horizon: 0x2a1452, glow: 0x6c2cb0, fogNear: 70, fogFar: 950,
     hemiSky: 0x6c5cb0, hemiGround: 0x170f26, hemi: 1.15, moon: 0xc6aaff, moonLight: 0.5, stars: 1,
+  },
+  {
+    id: 'miami-night', name: 'Майами · ночь', desc: 'Синяя бухта, тёплые фонари и пастельный город у воды',
+    top: 0x020c1e, horizon: 0x163344, glow: 0x3d5264, fogNear: 100, fogFar: 1400,
+    hemiSky: 0x839bb8, hemiGround: 0x333028, hemi: 1.5, moon: 0xb6d4ed, moonLight: 0.8, stars: 0.65,
   },
 ];
 

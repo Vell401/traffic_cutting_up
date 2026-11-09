@@ -562,6 +562,7 @@ body.menu .mixer {
   bottom: clamp(16px, 3vh, 32px);
 }
 body:not(.menu):not(.paused) .mixer {
+  visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
@@ -1359,11 +1360,24 @@ body.online .solo-only {
   }
 }
 /* Pause actions have a clear hierarchy, independent of the full-screen overlay. */
-#resumeBtn {display:flex;align-items:center;justify-content:space-between;gap:35px;width:100%;margin:30px auto 0;padding:18px 24px;border:1px solid var(--accent);border-radius:10px;background:var(--accent);color:var(--on-accent);font:700 18px var(--font);cursor:pointer;box-shadow:0 8px 32px #a259ff35}
+#pause .card {width:min(100%,400px);max-height:100%;overflow-y:auto;padding:20px;border:1px solid var(--line);border-radius:12px;background:rgba(14,9,26,.88)}
+#pause h2 {font-size:28px}
+#pause .tag {margin:12px 0 16px;font-size:14px}
+#pause #resumeBtn {display:flex;align-items:center;justify-content:space-between;gap:24px;width:min(100%,280px);min-height:44px;margin:16px auto 0;padding:12px 18px;border:1px solid var(--accent);border-radius:8px;background:var(--accent);color:var(--on-accent);font:700 16px var(--font);cursor:pointer;box-shadow:0 8px 24px #a259ff25}
 #resumeBtn span {font-size:12px;opacity:.7}
 #resumeBtn:hover {filter:brightness(1.12)}
 #menuBtn {width:auto;margin:14px auto 0;padding:9px 18px;border:1px solid #ffffff20;background:#ffffff08;color:#a8acb8;font:500 13px var(--font);text-transform:none;letter-spacing:.02em;box-shadow:none}
 #menuBtn:hover {color:#e5e7ee;background:#ffffff12;box-shadow:none;transform:none}
+#pause #menuBtn {min-height:44px}
+.screen-options {margin:12px 0;display:flex;flex-wrap:wrap;gap:8px}
+.fullscreen-button {min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:600 13px var(--font);cursor:pointer}
+.fullscreen-notice {flex-basis:100%;margin:4px 0;color:var(--ink-dim);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.fullscreen-notice[hidden] {display:none}
+.pause-settings {margin-top:16px;text-align:left}
+.pause-settings summary {min-height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-dim);font-size:13px}
+.pause-settings .screen-options {justify-content:center}
+#gearboxBtn {display:block;margin:8px auto;min-height:44px}
+button:focus-visible,summary:focus-visible {outline:2px solid var(--accent-hi);outline-offset:3px}
 .paint-row,.paint-swatches {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .paint-swatches button {width:25px;height:25px;padding:0;border:2px solid #ffffff25;border-radius:50%;background:var(--paint);cursor:pointer;box-shadow:inset 0 0 0 2px #0002}
 .paint-swatches button[aria-pressed="true"] {outline:2px solid white;outline-offset:3px}
@@ -1371,3 +1385,14 @@ body.online .solo-only {
 #paintInput {width:32px;height:28px;padding:0;border:0;background:none;cursor:pointer}
 #highBeam {position:absolute;right:30px;bottom:175px;color:#73baff;font:700 12px var(--font);letter-spacing:.12em;text-shadow:0 0 16px #388bff}
 body.menu #highBeam {display:none}
+/* Instance selection is a native picker on phones and keyboard-accessible on desktop. */
+.server-picker select {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #ffffff26;
+  border-radius: 8px;
+  background: #111a28;
+  color: #e7efff;
+  font: inherit;
+}

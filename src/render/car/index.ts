@@ -249,8 +249,8 @@ function hookA45Lamps(model: THREE.Object3D, ind: Indicators): void {
 
 /** Something that turns and rolls a car's wheels. */
 export interface Wheels {
-  /** steer: front wheel angle (rad, + = right); spin: rolled angle (rad). */
-  update(steer: number, spin: number): void;
+  /** steer: rad, + = right; spin: fallback rad; optional independent FL/FR/RL/RR phases. */
+  update(steer: number, spin: number, perWheelAngles?: readonly number[]): void;
 }
 
 /*
@@ -263,7 +263,7 @@ const CORNERS = ['LF', 'RF', 'LR', 'RR'] as const;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 class ImportedWheels implements Wheels {
-  private readonly parts: { node: THREE.Object3D; rest: THREE.Quaternion; front: boolean; rolls: boolean }[] = [];
+  private readonly parts: { node: THREE.Object3D; rest: THREE.Quaternion; front: boolean; rolls: boolean; corner: number }[] = [];
   private readonly qs = new THREE.Quaternion();
   private readonly qr = new THREE.Quaternion();
 
@@ -271,7 +271,7 @@ class ImportedWheels implements Wheels {
     for (const [prefix, rolls] of [['WHEEL_', true], ['DISC_', true], ['SUSP_', false]] as const) {
       for (const c of CORNERS) {
         const node = model.getObjectByName(prefix + c);
-        if (node) this.parts.push({ node, rest: node.quaternion.clone(), front: c[1] === 'F', rolls });
+        if (node) this.parts.push({ node, rest: node.quaternion.clone(), front: c[1] === 'F', rolls, corner: CORNERS.indexOf(c) });
       }
     }
   }
@@ -281,14 +281,17 @@ class ImportedWheels implements Wheels {
     return this.parts.some((p) => p.rolls);
   }
 
-  update(steer: number, spin: number): void {
+  update(steer: number, spin: number, perWheelAngles?: readonly number[]): void {
     this.qs.setFromAxisAngle(Y_AXIS, -steer);
     this.qr.setFromAxisAngle(X_AXIS_W, spin);
     for (const p of this.parts) {
       if (!p.front && !p.rolls) continue;
       p.node.quaternion.copy(p.rest);
       if (p.front) p.node.quaternion.multiply(this.qs);
-      if (p.rolls) p.node.quaternion.multiply(this.qr);
+      if (p.rolls) {
+        this.qr.setFromAxisAngle(X_AXIS_W, perWheelAngles?.[p.corner] ?? spin);
+        p.node.quaternion.multiply(this.qr);
+      }
     }
   }
 }
@@ -297,8 +300,8 @@ const X_AXIS_W = new THREE.Vector3(1, 0, 0);
 /** Procedural wheels until the imported model has loaded, then the model's own (no doubled wheels). */
 class SwappableWheels implements Wheels {
   constructor(public target: Wheels) {}
-  update(steer: number, spin: number): void {
-    this.target.update(steer, spin);
+  update(steer: number, spin: number, perWheelAngles?: readonly number[]): void {
+    this.target.update(steer, spin, perWheelAngles);
   }
 }
 
@@ -329,6 +332,7 @@ export interface CarParts {
 let mercedesModel: THREE.Group | null = null;
 let mercedesLoading = false;
 const mercedesWaiters = new Set<(model: THREE.Group) => void>();
+let mercedesRequestOwner: Set<() => void> | null = null;
 
 /** Download state of a heavy car model (the loading indicator shows it). */
 export interface ModelLoad {
@@ -392,6 +396,8 @@ function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
     return;
   }
   mercedesWaiters.add(onLoad);
+  const unsubscribe = (): void => { mercedesWaiters.delete(onLoad); };
+  mercedesRequestOwner?.add(unsubscribe);
   if (mercedesLoading) return;
   mercedesLoading = true;
   const name = 'Mercedes-AMG A45 S';
@@ -504,10 +510,62 @@ const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
  * spares a session builds up front for shader warm-up).
  */
 export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean, full = true): CarParts {
-  if (id === 4) return createW204(paint, own, full, emitLoad);
+  if (id === 4) return independentImportedWheels(createW204(paint, own, full, emitLoad));
   if (id === 2) return buildR34(paint, length, width, own);
-  if (id === 3) return buildMercedesParts(paint, length, width, full, own);
-  return buildPorsche(paint, own, full, emitLoad);
+  if (id === 3) return full
+    ? withMercedesReadiness(() => buildMercedesParts(paint, length, width, full, own))
+    : buildMercedesParts(paint, length, width, full, own);
+  return independentImportedWheels(buildPorsche(paint, own, full, emitLoad));
+}
+
+/** Adapt existing authored spin pivots without rebuilding models, calipers or cabin materials. */
+function independentImportedWheels(parts: CarParts): CarParts {
+  let disposed = false;
+  const dispose = parts.dispose;
+  parts.dispose = () => { disposed = true; dispose?.(); };
+  const original = parts.wheels;
+  const spins: (THREE.Object3D | null)[] = [null, null, null, null];
+  const corners = ['FL', 'FR', 'RL', 'RR'];
+  void parts.ready?.then(() => {
+    if (disposed) return;
+    for (let i = 0; i < 4; i++) {
+      spins[i] = parts.wheelRoot.getObjectByName(`W204_Spin_${corners[i]}`)
+        ?? parts.wheelRoot.getObjectByName(`Wheel_${corners[i]}`)?.parent ?? null;
+    }
+  }).catch(() => {});
+  parts.wheels = { update(steer, spin, perWheelAngles) {
+    original.update(steer, spin);
+    if (perWheelAngles) for (let i = 0; i < 4; i++) if (spins[i]) spins[i]!.rotation.x = -perWheelAngles[i];
+  } };
+  return parts;
+}
+
+/** Keep request failure/cancellation outside the byte-protected A45 rendering builder. */
+function withMercedesReadiness(build: () => CarParts): CarParts {
+  const subscriptions = new Set<() => void>();
+  const previous = mercedesRequestOwner;
+  let parts: CarParts;
+  mercedesRequestOwner = subscriptions;
+  try { parts = build(); }
+  finally { mercedesRequestOwner = previous; }
+  const dispose = parts.dispose;
+  let cancel: () => void = () => {};
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    cancel = () => {
+      const error = new Error('Car model disposed before it was ready');
+      error.name = 'AbortError';
+      reject(error);
+    };
+  });
+  parts.ready = Promise.race([Promise.all([parts.ready, waitForCar(3)]).then(() => {}), cancelled]);
+  void parts.ready.catch(() => {});
+  parts.dispose = () => {
+    cancel();
+    for (const unsubscribe of subscriptions) unsubscribe();
+    subscriptions.clear();
+    dispose?.();
+  };
+  return parts;
 }
 
 function buildMercedesParts(paint: number, L: number, W: number, importedModel: boolean, own: boolean): CarParts {

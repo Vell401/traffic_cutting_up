@@ -169,7 +169,8 @@ describe('real keyboard auto-countersteer and drift trajectories', () => {
     expect(a).toEqual(b);
   });
 
-  it.each([[60, .5], [80, .45], [100, .55], [120, .6]])(
+  // Higher rear grip needs a deliberate longer entry; the keyboard survey still measures short taps.
+  it.each([[60, .7], [80, .7], [100, .8], [120, .9]])(
     'measures fixed human entries with +/-100 ms timing error at %s km/h', (kmh, entry) => {
       const measurements = [];
       for (const sign of [-1, 1]) for (const timing of [-.1, 0, .1]) {
@@ -190,8 +191,8 @@ describe('real keyboard auto-countersteer and drift trajectories', () => {
 
   it.each([-1, 1])('holds a real powered slide after a fixed key entry, direction %s', sign => {
     const c = car(25);
-    const samples = pad(c, 5, i => input(i < 60 ? sign : 0, i < 420 ? 1 : 0));
-    // W + D/A .5 s, release steering, hold W until 3.5 s, then lift. No feedback driver.
+    const samples = pad(c, 5, i => input(i < 102 ? sign : 0, i < 420 ? 1 : 0));
+    // More grip: W + D/A .85 s (was .5), release, W until 3.5 s, then lift. No feedback driver.
     const held = samples.slice(120, 300);
     expect(Math.min(...held.map(s => s.angle * sign))).toBeGreaterThan(15);
     expect(Math.max(...samples.map(s => Math.abs(s.angle)))).toBeLessThan(70);
@@ -204,7 +205,7 @@ describe('real keyboard auto-countersteer and drift trajectories', () => {
 
   it('gas sustains the rear breakaway while lift progressively restores grip', () => {
     const powered = car(25), lifted = car(25);
-    pad(powered, .5, input(1)); lifted.loadState(state(powered));
+    pad(powered, .85, input(1)); lifted.loadState(state(powered));
     const gas = pad(powered, 2, input(0)), coast = pad(lifted, 2, input(0, 0));
     expect(gas[120].angle).toBeGreaterThan(coast[120].angle + 10);
     expect(gas[120].spin).toBeGreaterThan(5);
@@ -215,7 +216,7 @@ describe('real keyboard auto-countersteer and drift trajectories', () => {
 
   it('released keys turn the actual wheels into opposite lock, with finite rack speed', () => {
     const c = car(25);
-    pad(c, .5, input(1));
+    pad(c, .85, input(1));
     expect(degrees(c)).toBeGreaterThan(3);
     const oldAngle = c.steerAngle, oldSlip = degrees(c), oldV = [c.vx, c.vy];
     const samples = pad(c, .5, input(0));
@@ -259,7 +260,7 @@ describe('real keyboard auto-countersteer and drift trajectories', () => {
 
   it('lifts/catches progressively and leaves the chosen exit heading, not the road heading', () => {
     const c = car(25);
-    pad(c, .5, input(1));
+    pad(c, .85, input(1));
     pad(c, .5, input(0));
     const slip = degrees(c);
     const recovery = pad(c, 4, input(0, 0));
@@ -273,9 +274,10 @@ describe('real keyboard auto-countersteer and drift trajectories', () => {
 
   it.each([-1, 1])('transitions with a fixed opposite-key pulse and catches the rear, from %s', sign => {
     const c = car(25);
-    pad(c, .6, input(sign));
-    pad(c, .4, input(0));
-    const samples = pad(c, 5, i => input(i < 168 ? -sign : 0, i < 360 ? 1 : 0));
+    // Longer deliberate entry and opposite pulse for the higher-grip rear tyres.
+    pad(c, .85, input(sign));
+    pad(c, .35, input(0));
+    const samples = pad(c, 5.8, i => input(i < 180 ? -sign : 0, i < 336 ? 1 : 0));
     expect(samples.some(s => Math.abs(s.angle) < 1)).toBe(true);
     expect(Math.min(...samples.map(s => s.angle * sign))).toBeLessThan(-20);
     expect(Math.max(...samples.map(s => Math.abs(s.angle)))).toBeLessThan(60);

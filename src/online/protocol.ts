@@ -4,6 +4,8 @@ import type { CarId } from '../sim/cars';
 import type { PhysicsId } from '../sim/physics';
 import type { OnlineRules } from './rules';
 import type { GlobalTuning } from '../sim/tuning';
+import type { MapId } from '../sim/maps';
+import { decodeWheelOmega, encodeWheelOmega, WHEEL_TELEMETRY_BYTES } from './wheelTelemetry';
 
 /*
  * Wire format.
@@ -43,14 +45,14 @@ export interface PlayerInfo {
 
 export type ClientMsg =
   /** seq: the client's last input number (0 for a fresh page): its next inputs follow it. */
-  | { t: 'hello'; v: number; rules: string; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string; color?: number }
+  | { t: 'hello'; v: number; rules: string; map?: MapId; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string; color?: number }
   | { t: 'respawn' }
   | { t: 'ping'; c: number };
 
 export type ServerMsg =
-  | { t: 'welcome'; id: number; token: string; rules: OnlineRules; tick: number; ringLen: number; players: PlayerInfo[]; tuning?: GlobalTuning }
+  | { t: 'welcome'; id: number; token: string; v: number; map: MapId; mapRevision: number; rulesHash: string; rules: OnlineRules; tick: number; ringLen: number; players: PlayerInfo[]; tuning?: GlobalTuning }
   | { t: 'tuning'; tuning: GlobalTuning }
-  | { t: 'reject'; reason: 'full' | 'version' | 'rules' | 'bad' | 'kicked' | 'banned'; text: string }
+  | { t: 'reject'; reason: 'full' | 'version' | 'rules' | 'map' | 'bad' | 'kicked' | 'banned'; text: string }
   | { t: 'players'; list: PlayerInfo[] }
   | { t: 'ev'; name: string; data: Record<string, unknown> }
   | { t: 'feed'; text: string }
@@ -120,6 +122,31 @@ export class Writer {
     this.room(8);
     this.view.setFloat64(this.pos, v, true);
     this.pos += 8;
+  }
+
+  /** Fixed-size traffic record: one capacity check and cursor update for all 26 bytes. */
+  trafficCar(c: TrafficCar, specIndex: number): void {
+    this.room(26);
+    const p = this.pos;
+    const v = this.view;
+    v.setUint16(p, c.id, true);
+    v.setUint8(p + 2, c.gen & 0xff);
+    v.setUint8(p + 3, specIndex);
+    v.setUint8(p + 4, c.colorIdx);
+    v.setInt8(p + 5, c.color2Idx);
+    v.setFloat32(p + 6, c.s, true);
+    v.setInt16(p + 10, clampInt(c.d * 1000, -32767, 32767), true);
+    v.setUint16(p + 12, clampInt(c.v * 100, 0, 65535), true);
+    v.setInt8(p + 14, clampInt(c.acc * 10, -127, 127));
+    v.setInt16(p + 15, clampInt(wrapPi(c.yaw) * 10000, -32767, 32767), true);
+    v.setInt16(p + 17, clampInt(c.yawRate * 1000, -32767, 32767), true);
+    v.setInt16(p + 19, clampInt(c.vd * 1000, -32767, 32767), true);
+    v.setUint8(p + 21, c.laneT < 0 ? 255 : clampInt(c.laneT * 250, 0, 250));
+    const blink = c.blink === -1 ? 1 : c.blink === 1 ? 2 : c.blink === 2 ? 3 : 0;
+    v.setUint8(p + 22, (c.targetLane & 15) | (blink << 4) | (c.braking ? 64 : 0) | (c.crashed ? 128 : 0));
+    v.setInt16(p + 23, clampInt(c.laneFromD * 1000, -32767, 32767), true);
+    v.setInt8(p + 25, clampInt(c.laneOff * 100, -127, 127));
+    this.pos = p + 26;
   }
 
   /** A copy of what was written (safe to hand to a socket while the writer is reused). */
@@ -289,6 +316,8 @@ export const REMOTE_BRAKE = 2;
 export const REMOTE_BLINK_LEFT = 4;
 export const REMOTE_BLINK_RIGHT = 8;
 export const REMOTE_HORN = 16;
+export const REMOTE_WHEELS = 32;
+export const REMOTE_DRIVER_BYTES = 28 + WHEEL_TELEMETRY_BYTES;
 
 export interface SnapScore {
   score: number;
@@ -310,9 +339,11 @@ export interface SnapDriver {
   vx: number;
   vy: number;
   r: number;
-  /** R34 body: actual road-wheel radians / 1.1. All other bodies keep their original input encoding. */
+  /** Protocol 12: actual road-wheel radians / 1.1 for every body, not a keyboard demand. */
   steer: number;
   gear: number;
+  /** Reused decoder buffer. Only authoritative when REMOTE_WHEELS is present. */
+  wheelOmega?: Float64Array;
 }
 
 export interface SnapCar {
@@ -396,9 +427,10 @@ export function writeSnapshotHead(w: Writer, own: SnapshotOwn): void {
   w.f32(sc.topKmh);
 }
 
-export function writeDriver(w: Writer, id: number, flags: number, s: number, d: number, psi: number, vx: number, vy: number, r: number, steer: number, gear: number): void {
+export function writeDriver(w: Writer, id: number, flags: number, s: number, d: number, psi: number, vx: number, vy: number, r: number, steer: number, gear: number, wheelOmega?: ArrayLike<number>): void {
   w.u8(id);
-  w.u8(flags);
+  const validWheels = !!wheelOmega && wheelOmega.length >= 4;
+  w.u8((flags & ~REMOTE_WHEELS) | (validWheels ? REMOTE_WHEELS : 0));
   w.f32(s);
   w.f32(d);
   w.f32(psi);
@@ -407,27 +439,12 @@ export function writeDriver(w: Writer, id: number, flags: number, s: number, d: 
   w.f32(r);
   w.i8(clampInt(steer * 127, -127, 127));
   w.u8(gear === -1 ? 255 : gear);
+  for (let i = 0; i < 4; i++) w.i16(validWheels ? encodeWheelOmega(wheelOmega![i]) : 0);
 }
 
 /** 26 bytes per traffic car. */
 export function writeCar(w: Writer, c: TrafficCar, specIndex: number): void {
-  w.u16(c.id);
-  w.u8(c.gen & 0xff);
-  w.u8(specIndex);
-  w.u8(c.colorIdx);
-  w.i8(c.color2Idx);
-  w.f32(c.s);
-  w.i16(clampInt(c.d * 1000, -32767, 32767));
-  w.u16(clampInt(c.v * 100, 0, 65535));
-  w.i8(clampInt(c.acc * 10, -127, 127));
-  w.i16(clampInt(wrapPi(c.yaw) * 10000, -32767, 32767));
-  w.i16(clampInt(c.yawRate * 1000, -32767, 32767));
-  w.i16(clampInt(c.vd * 1000, -32767, 32767));
-  w.u8(c.laneT < 0 ? 255 : clampInt(c.laneT * 250, 0, 250));
-  const blink = c.blink === -1 ? 1 : c.blink === 1 ? 2 : c.blink === 2 ? 3 : 0;
-  w.u8((c.targetLane & 15) | (blink << 4) | (c.braking ? 64 : 0) | (c.crashed ? 128 : 0));
-  w.i16(clampInt(c.laneFromD * 1000, -32767, 32767));
-  w.i8(clampInt(c.laneOff * 100, -127, 127));
+  w.trafficCar(c, specIndex);
 }
 
 export function newSnapshot(): Snapshot {
@@ -471,7 +488,7 @@ export function readSnapshot(r: Reader, out: Snapshot): boolean {
   sc.topKmh = r.f32();
 
   const nd = r.u8();
-  if (r.left < nd * 26 + 2) return false;
+  if (r.left < nd * REMOTE_DRIVER_BYTES + 2) return false;
   for (let i = 0; i < nd; i++) {
     const d = (out.drivers[i] ??= { id: 0, flags: 0, s: 0, d: 0, psi: 0, vx: 0, vy: 0, r: 0, steer: 0, gear: 1 });
     d.id = r.u8();
@@ -485,6 +502,8 @@ export function readSnapshot(r: Reader, out: Snapshot): boolean {
     d.steer = r.i8() / 127;
     const gear = r.u8();
     d.gear = gear === 255 ? -1 : gear;
+    const wheels = (d.wheelOmega ??= new Float64Array(4));
+    for (let j = 0; j < 4; j++) wheels[j] = decodeWheelOmega(r.i16());
   }
   out.driverCount = nd;
 

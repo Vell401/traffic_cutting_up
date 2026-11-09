@@ -11,8 +11,13 @@
  * another run). Without contacts the prediction is exact (0 corrections).
  */
 import { NetSession, link, type NetClient } from '../tests/netsim';
+import { resolveMap } from '../src/sim/maps';
 
-const seconds = Number(process.argv[2]) || 60;
+const args = process.argv.slice(2);
+const mapAt = args.indexOf('--map');
+const map = resolveMap(mapAt < 0 ? undefined : args[mapAt + 1] ?? '').id;
+if (mapAt >= 0) args.splice(mapAt, 2);
+const seconds = Number(args[0]) || 60;
 
 interface Case {
   name: string;
@@ -41,7 +46,7 @@ const cm = (m: number) => (m * 100).toFixed(1).padStart(6);
 console.log(`${seconds} s per case, 2 drivers (Grip + R34 RWD), server traffic as in a session\n`);
 console.log('case                    ahead   corrections  p50     p95     max (cm)   hits seen / runs ended');
 for (const c of CASES) {
-  const net = new NetSession(11);
+  const net = new NetSession(11, {}, false, map);
   const l = link(c.delay, c.jitter, c.stall);
   const clients: NetClient[] = [
     net.add({ name: 'A', physics: 1, up: l, down: l, fps: c.fps, bot: { kmh: 220, weave: !c.reckless, reckless: c.reckless } }),
