@@ -21,6 +21,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Provide the systemd unit's Node prerequisite
+        shell: bash
+        run: |
+          # setup-node installs into the tool cache; clean Ubuntu images need not
+          # have the /usr/bin/node executable required by our production unit.
+          if [ ! -e /usr/bin/node ]; then
+            sudo ln -s "$(command -v node)" /usr/bin/node
+          fi
+          test -x /usr/bin/node
       - name: Install
         run: npm ci --no-audit --no-fund
       - name: Typecheck (site and server)
