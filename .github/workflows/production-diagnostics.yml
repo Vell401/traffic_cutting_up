@@ -1,0 +1,38 @@
+name: Production diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, vps_ru]
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+      - name: Inspect public web container and networking (read only)
+        shell: bash
+        env:
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+        run: |
+          set -u
+          export SITE_ADDRESS="${SITE_ADDRESS:-$(hostname -I | awk '{print $1}')}"
+          docker compose ps --all
+          # Only Caddy logs, never game/admin logs, credentials, environment or DB contents.
+          docker compose logs --no-color --tail 60 web
+          container=$(docker compose ps -aq web)
+          if [ -n "$container" ]; then
+            docker inspect --format '{{.Config.Image}} status={{.State.Status}} restarts={{.RestartCount}} error={{.State.Error}}' "$container"
+            docker inspect --format '{{json .NetworkSettings.Ports}} {{json .NetworkSettings.Networks}}' "$container"
+          fi
+          docker network inspect traffic_client_proxy --format '{{json .IPAM.Config}}' || true
+          ss -ltn '( sport = :80 or sport = :443 )' || true
+          curl -sS --max-time 5 -o /dev/null -w 'Local HTTP: %{http_code}\n' -H "Host: $SITE_ADDRESS" http://127.0.0.1/ || true
+          curl -ksS --max-time 5 -o /dev/null -w 'Local HTTPS: %{http_code}\n' -H "Host: $SITE_ADDRESS" https://127.0.0.1/health || true
