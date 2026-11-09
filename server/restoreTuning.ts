@@ -8,5 +8,9 @@ export function restoreTuning(value: unknown): GlobalTuning {
     saved.r34Revision = 3;
     saved.cars['2'] = defaultTuning().cars['2'];
   }
+  // Add the new car without discarding any existing vehicle's persisted tuning.
+  if (saved?.cars && typeof saved.cars === 'object' && !Object.hasOwn(saved.cars, '5')) {
+    saved.cars['5'] = defaultTuning().cars['5'];
+  }
   return validateTuning(saved);
 }

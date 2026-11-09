@@ -19,7 +19,7 @@ const MODE_NAMES: Record<string, string> = {
   walls: 'Стенки',
   platoons: 'Колонны',
 };
-const PHYSICS_NAMES: Record<number, string> = { 1: 'Grip', 2: 'R34 RWD', 3: 'AMG 4MATIC+' };
+const PHYSICS_NAMES: Record<number, string> = { 1: 'Grip', 2: 'R34 RWD', 3: 'AMG 4MATIC+', 4: 'GT3 RS', 5: 'C63 AMG W204' };
 const STATE_NAMES: Record<string, string> = { active: 'на трассе', away: 'отошёл', offline: 'нет связи' };
 
 interface Driver {

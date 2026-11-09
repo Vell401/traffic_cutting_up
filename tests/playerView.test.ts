@@ -1,6 +1,41 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PlayerView } from '../src/render/playerView';
+import type { CarParts } from '../src/render/car';
+import { W204Car } from '../src/sim/vehicleW204';
+
+describe('PlayerView steering angle routing', () => {
+  it.each([1, 2, 3, 4] as const)('routes high-speed steering for CarId %i without changing other cars', (id) => {
+    const car = new W204Car();
+    car.reset(0, 0, 220 / 3.6);
+    const shadow = new THREE.Texture();
+    // Skip model downloads; spy on the wheel interface driven by the real PlayerView.
+    const view = new PlayerView(id, 0x3366ff, shadow, 4.6, 1.9, false, true);
+    const parts = (view as unknown as { parts: CarParts }).parts;
+    const wheels = vi.spyOn(parts.wheels, 'update');
+    const dt = 1 / 120;
+    try {
+      for (const steer of [1, -1]) {
+        for (let frame = 0; frame < 30; frame++) {
+          car.step(dt, { steer, throttle: .3, brake: 0 }, 0);
+        }
+        // Ensure this exercises speed-limited physical steering, not two equivalent inputs.
+        expect(car.vAlong * 3.6).toBeGreaterThan(200);
+        expect(car.steerAngle * steer).toBeGreaterThan(0);
+        expect(Math.abs(car.steerIn * .32)).toBeGreaterThan(Math.abs(car.steerAngle) * 10);
+
+        view.update(dt, car, new THREE.Vector3(), car.psi);
+        const expected = id === 3 ? car.steerIn * .32 : car.steerAngle;
+        expect(wheels).toHaveBeenLastCalledWith(expected, car.wheelSpin % (Math.PI * 2));
+      }
+      expect(wheels).toHaveBeenCalledTimes(2);
+    } finally {
+      wheels.mockRestore();
+      view.dispose();
+      shadow.dispose();
+    }
+  });
+});
 
 describe('PlayerView and shared model materials', () => {
   it('a car taken off the scene disposes its own materials, never the ones every car of a model shares', () => {

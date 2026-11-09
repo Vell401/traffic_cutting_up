@@ -11,6 +11,7 @@ import { WheelSet, sportRim, sportTyre, type WheelPos } from './wheels';
 import { buildPorsche, loadPorsche, porscheReady, PORSCHE_NAME } from './porsche';
 import { cloneInSlices } from './clone';
 import { buildR34Parts } from './r34Build';
+import { preloadW204, createW204 } from './w204';
 
 export type { Cockpit } from './r34Interior';
 
@@ -42,6 +43,14 @@ export interface CameraRig {
 
 /** Per-car camera rigs. Mutable: the debug panel edits them live. */
 export const CAMERA_RIGS: Record<CarId, CameraRig> = {
+  4: {
+    chase: { dist: 6.6, height: 2.15, lookAhead: 6, lookHeight: .9, fovMin: 58, fovMax: 76, yawLag: 7 },
+    far: { dist: 2.8, height: .95, lookAhead: 2, lookHeight: .3 },
+    hood: { f: .7, y: 1.12, lookHeight: .9 },
+    bumper: { f: 2.4, y: .52, lookHeight: .45 },
+    cockpit: { fov: 64, fovFast: 70, pitch: -.05 },
+    modes: ['chase', 'far', 'cockpit', 'hood', 'bumper'],
+  },
   1: {
     chase: { dist: 6.6, height: 2.2, lookAhead: 6, lookHeight: 0.9, fovMin: 58, fovMax: 76, yawLag: 7 },
     far: { dist: 2.6, height: 0.9, lookAhead: 2, lookHeight: 0.3 },
@@ -349,12 +358,17 @@ function emitLoad(s: ModelLoad): void {
 
 /** Start downloading a car's heavy model (on choosing it in the menu, before the run starts). */
 export function preloadCar(id: CarId): void {
+  if (id === 4) void preloadW204(emitLoad).catch(() => {});
   if (id === 1) void loadPorsche(emitLoad).catch(() => {});
   if (id === 3) loadMercedesModel(() => {});
 }
 
 /** Resolves only after the model is parsed and attached; failed downloads remain retryable. */
 export function waitForCar(id: CarId, progress: (fraction: number, unpacking: boolean) => void = () => {}): Promise<void> {
+  if (id === 4) {
+    const unsubscribe = onModelLoad(s => { if (s.name === 'Mercedes-Benz C63 AMG W204') progress(s.done ? 1 : Math.min(.99, s.loaded / Math.max(1, s.total)), s.unpacking); });
+    return preloadW204(emitLoad).then(() => {}).finally(unsubscribe);
+  }
   if (id === 1) {
     if (porscheReady()) return Promise.resolve();
     const unsubscribe = onModelLoad(s => { if (s.name === PORSCHE_NAME) progress(s.done ? 1 : Math.min(.99,s.loaded / Math.max(1,s.total)),s.unpacking); });
@@ -490,6 +504,7 @@ const TAIL_BRAKE = new THREE.Color(2.6, 0.07, 0.04);
  * spares a session builds up front for shader warm-up).
  */
 export function buildCar(id: CarId, paint: number, length: number, width: number, own: boolean, full = true): CarParts {
+  if (id === 4) return createW204(paint, own, full, emitLoad);
   if (id === 2) return buildR34(paint, length, width, own);
   if (id === 3) return buildMercedesParts(paint, length, width, full, own);
   return buildPorsche(paint, own, full, emitLoad);

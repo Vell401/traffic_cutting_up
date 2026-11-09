@@ -3,6 +3,7 @@ import { r34Tune } from './vehicleR34';
 import { R34_TUNE_FIELDS } from './r34TuningFields';
 import { mercedesTune } from './vehicleMercedes';
 import { porscheTune } from './vehiclePorsche';
+import { w204Tune } from './vehicleW204';
 
 export const TUNE_FIELDS = [
   { key: 'powerKW', label: 'Мощность, кВт', min: 30, max: 1500, step: 1 },
@@ -36,6 +37,7 @@ export interface GlobalTuning {
   traffic: { lanes: [number, number][]; truckMin: number; truckMax: number; wallMin: number; wallMax: number };
 }
 export const TUNE_CARS = [
+  { id: '5', name: 'Mercedes-Benz C63 AMG W204' },
   { id: '3', name: 'Mercedes-AMG A45 S' }, { id: '4', name: 'Porsche 911 GT3 RS' },
   { id: '2', name: 'R34 · RWD / Auto Countersteer' }, { id: '1', name: 'Grip (совместимость)' },
 ];
@@ -57,7 +59,7 @@ export function tuningFields(id: string) {
     return Math.abs(steps - Math.round(steps)) > 1e-7 ? { ...f, step: 'any' as const } : f;
   });
 }
-const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': r34Tune, '3': mercedesTune, '4': porscheTune };
+const tunes: Record<string, Record<string, unknown>> = { '1': carTune, '2': r34Tune, '3': mercedesTune, '4': porscheTune, '5': w204Tune };
 const baseline: GlobalTuning = {
   r34Revision: 3,
   cars: Object.fromEntries(Object.entries(tunes).map(([id, tune]) => [id, Object.fromEntries(tuningFields(id).flatMap(f => typeof tune[f.key] === 'number' ? [[f.key, tune[f.key]]] : []))])),

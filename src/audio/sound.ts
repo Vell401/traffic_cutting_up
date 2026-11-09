@@ -2,6 +2,7 @@ import { G, clamp, smoothstep } from '../core/math';
 import { ROAD_HALF } from '../config';
 import type { Sim } from '../sim/world';
 import { PorscheEngine, preloadPorscheAudio } from './porscheEngine';
+import { M156EngineSound, preloadW204Audio } from './m156Engine';
 import type { CarId } from '../sim/cars';
 
 /*
@@ -66,6 +67,7 @@ export class Sound {
   private carId:CarId=3;
   private cockpit=false;
   private porsche:PorscheEngine|null=null;
+  private m156:M156EngineSound|null=null;
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private dry!: GainNode;
@@ -163,12 +165,21 @@ export class Sound {
   }
 
   setCar(id:CarId):void {
+    if(id!==4){this.m156?.dispose();this.m156=null;}
     this.carId=id;
+    if(id===4){
+      void preloadW204Audio().catch(()=>{/* Keep the existing fallback on failure. */});
+      if(this.ctx&&!this.m156)this.m156=new M156EngineSound(this.ctx,this.bus.engine);
+    }
     if(id===1){
       void preloadPorscheAudio().catch(()=>{/* The voice reports a decode/fetch failure if used. */});
       if(this.ctx&&!this.porsche)this.porsche=new PorscheEngine(this.ctx,this.bus.engine);
     }
     this.popsLeft=0;this.burble=0;
+    if(id===4){this.boost=0;this.prevThrottle=0;}
+    // Silence the previous sampled engine even while paused (no update ticks).
+    if(id!==1)this.porsche?.update(this.sim.player.rpm,0,false,false,this.cockpit);
+    if(id===4&&this.ctx)this.turboGain.gain.setTargetAtTime(0,this.ctx.currentTime,.02);
   }
 
   setCockpit(on:boolean):void {this.cockpit=on;}
@@ -256,6 +267,7 @@ export class Sound {
     const E = this.bus.engine;
     const W = this.bus.world;
     if(this.carId===1)this.porsche=new PorscheEngine(ctx,E);
+    if(this.carId===4)this.m156=new M156EngineSound(ctx,E);
 
     const len = ctx.sampleRate * 2;
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -500,13 +512,14 @@ export class Sound {
 
     // R34's own body gets an inline-six voice; the other models keep their original audio paths.
     const isPorsche=this.carId===1;
-    const sampled=isPorsche&&!!this.porsche?.ready;
-    const four = !isPorsche&&p.physicsId === 3;
+    const isM156=this.carId===4;
+    const sampled=(isPorsche&&!!this.porsche?.ready)||(isM156&&!!this.m156?.ready);
+    const four = !isPorsche&&!isM156&&p.physicsId === 3;
 
     // Engine.
     this.load += (p.throttle - this.load) * Math.min(1, dt * 10);
     // R34: three firing pulses per revolution. Keep the legacy mapping for the other bodies.
-    const f = (p.rpm / 60) * (this.carId === 2 ? 3 : p.physicsId === 2 ? 4 : 3);
+    const f = (p.rpm / 60) * (isM156 ? 4 : this.carId === 2 ? 3 : p.physicsId === 2 ? 4 : 3);
     set(this.o1.frequency, f, 0.02);
     set(this.o2.frequency, f * 0.5, 0.02);
     set(this.intake.filter.frequency, f * 3);
@@ -525,6 +538,7 @@ export class Sound {
     }
     if (p.rpm >= t.redline * 0.995 && p.throttle > 0.5) eg *= Math.sin(this.t * Math.PI * 2 * 17) > 0 ? 1 : 0.35;
     this.porsche?.update(p.rpm,p.throttle,p.shiftT>0,isPorsche,this.cockpit);
+    this.m156?.update(p.rpm,p.throttle,p.shiftT>0,isM156,this.cockpit);
     if(sampled){
       set(this.engGain.gain,0,.04);set(this.i4Gain.gain,0,.04);
     } else if (four) {
@@ -545,7 +559,7 @@ export class Sound {
         this.popsLeft = 3 + Math.floor(Math.random() * 5);
         this.popT = 0.06;
       }
-      if (this.boost > 0.4) this.blowOff(this.boost);
+      if (!isM156 && this.boost > 0.4) this.blowOff(this.boost);
     }
     this.prevThrottle = p.throttle;
     if (this.popsLeft > 0) {
@@ -558,10 +572,10 @@ export class Sound {
     }
 
     // Turbo whistle follows boost (throttle × revs).
-    const boostTarget = p.throttle * smoothstep((rpmN - 0.35) / 0.5);
+    const boostTarget = isM156 ? 0 : p.throttle * smoothstep((rpmN - 0.35) / 0.5);
     this.boost += (boostTarget - this.boost) * Math.min(1, dt * (boostTarget > this.boost ? 2.5 : 6));
     set(this.turboOsc.frequency, 1400 + this.boost * 2200 + rpmN * 500);
-    set(this.turboGain.gain, isPorsche ? 0 : (four ? 0.014 : 0.008) * this.boost);
+    set(this.turboGain.gain, isPorsche||isM156 ? 0 : (four ? 0.014 : 0.008) * this.boost);
 
     // Speed: wind and tyre roar; louder roar in tunnels where it reverberates.
     const tunnel = sim.road.chunkAt(p.s).kind === 'tunnel';

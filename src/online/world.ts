@@ -5,7 +5,7 @@ import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
 import { Director, type TrafficMode, type TrafficPreset } from '../sim/director';
 import type { SimEvents } from '../sim/events';
 import type { CarId } from '../sim/cars';
-import { createCar, type PhysicsId } from '../sim/physics';
+import { createCar, physicsId, type PhysicsId } from '../sim/physics';
 import { SPAWN_D, SPAWN_GAP, SPAWN_PLACES, ringScript, spawnS } from '../sim/ring';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
@@ -271,7 +271,7 @@ export class OnlineWorld {
     this.journal?.({ k: 'join', t: this.tick, id, name: clean, physics, car, color: paint });
     let slot = 0;
     while (this.drivers.some((d) => d.slot === slot)) slot++;
-    const dr = new Driver(id, clean, physics === 2 || physics === 3 || physics === 4 ? physics : 1, paint, slot, this.rules.inputMax, this.ringLen);
+    const dr = new Driver(id, clean, physicsId(physics), paint, slot, this.rules.inputMax, this.ringLen);
     let at = 0;
     while (at < this.drivers.length && this.drivers[at].id < id) at++;
     dr.body = car;

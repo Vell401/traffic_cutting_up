@@ -160,7 +160,7 @@ export class PlayerView {
     this.pitch = damp(this.pitch, clamp(car.accLong * 0.004, -0.04, 0.03), 8, dt);
     this.roll = damp(this.roll, clamp(car.accLat * 0.005, -0.05, 0.05), 8, dt);
     p.body.rotation.set(this.pitch, 0, this.roll);
-    if (!this.cockpitOn) p.wheels.update(this.car===2?car.steerAngle:this.car===1?car.steerAngle:car.steerIn * 0.32, car.wheelSpin % (Math.PI * 2));
+    if (!this.cockpitOn) p.wheels.update(this.car === 1 || this.car === 2 || this.car === 4 ? car.steerAngle : car.steerIn * 0.32, car.wheelSpin % (Math.PI * 2));
     p.tail.color.copy(car.brake > 0.05 ? p.tailBrake : p.tailIdle);
     // Turn signals: a new side starts lit, like a real relay.
     if (car.blinker !== this.blinkSide) {

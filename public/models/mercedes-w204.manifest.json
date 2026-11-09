@@ -1,0 +1,975 @@
+{
+  "selectedPartCount": 91,
+  "selectedParts": [
+    "c63w204kene",
+    "c63w204kene_body_sedan",
+    "c63w204kene_dash",
+    "c63w204kene_gauges_imperial",
+    "c63w204kene_steer_paddles",
+    "c63w204kene_seat_FL",
+    "c63w204kene_seat_FR",
+    "c63w204kene_seats_R",
+    "c63w204kene_glassplane",
+    "c63w204kene_windshield",
+    "c63w204kene_backlight",
+    "c63w204kene_bumperbar_F",
+    "c63w204kene_fender_R",
+    "c63w204kene_fenderbadge_R",
+    "c63w204kene_fender_L",
+    "c63w204kene_fenderbadge_L",
+    "c63w204kene_headlight_halogen_R",
+    "c63w204kene_headlightpanel_R",
+    "c63w204kene_headlight_halogen_L",
+    "c63w204kene_headlightpanel_L",
+    "c63w204kene_taillight_R",
+    "c63w204kene_taillight_L",
+    "c63w204kene_door_FR",
+    "c63w204kene_mirror_R",
+    "c63w204kene_doorpanel_FR",
+    "c63w204kene_doorglass_FR",
+    "c63w204kene_doordetent_FR",
+    "c63w204kene_door_FL",
+    "c63w204kene_mirror_L",
+    "c63w204kene_doorpanel_FL",
+    "c63w204kene_doorglass_FL",
+    "c63w204kene_doordetent_FL",
+    "c63w204kene_door_RR",
+    "c63w204kene_doorpanel_RR",
+    "c63w204kene_doorglass_RR",
+    "c63w204kene_doordetent_RR",
+    "c63w204kene_door_RL",
+    "c63w204kene_doorpanel_RL",
+    "c63w204kene_doorglass_RL",
+    "c63w204kene_doordetent_RL",
+    "c63w204kene_hood",
+    "c63w204kene_trunk",
+    "c63w204kene_lettering",
+    "c63w204kene_lip",
+    "c63w204kene_licenseplate_R_EU",
+    "c63w204kene_bumper_F",
+    "c63w204kene_licenseplate_F_EU",
+    "c63w204kene_grille",
+    "c63w204kene_bumper_R",
+    "c63w204kene_innerfenders",
+    "c63w204kene_fueltank",
+    "c63w204kene_DSE",
+    "c63w204kene_DSE_ESC",
+    "c63w204kene_DSE_TC_RWD",
+    "c63w204kene_DSE_ABS",
+    "c63w204kene_DSE_drivemodes_stock_ICE",
+    "c63w204kene_DSE_drivemodes_default_comfort",
+    "c63w204kene_engine_v8_4.4_petrol",
+    "c63w204kene_enginemounts",
+    "c63w204kene_oilpan_v8",
+    "c63w204kene_intake_v8_4.4_petrol_ttSport",
+    "c63w204kene_exhaust_v8_4.4_petrol_ttSport",
+    "c63w204kene_exhausttips_i6_tt",
+    "c63w204kene_engine_v8_4.4_petrol_ecu_ttSport_470",
+    "c63w204kene_engine_ecu_speedlimit_290",
+    "c63w204kene_engine_v8_4.4_petrol_internals_ttsport",
+    "c63w204kene_transmission_7A",
+    "c63w204kene_transfer_case_RWD",
+    "c63w204kene_radiator_high_performance",
+    "c63w204kene_suspension_R",
+    "c63w204kene_brake_R_race",
+    "c63w204kene_differential_R_active_LSD",
+    "c63w204kene_driveshaft_R",
+    "c63w204kene_halfshafts_R",
+    "c63w204kene_finaldrive_R_323",
+    "c63w204kene_wheel_R",
+    "tire_R_245_40_18_michelin",
+    "c63w204kene_wheeldata_R",
+    "c63w204kene_spring_R_race",
+    "c63w204kene_shock_R_race",
+    "c63w204kene_swaybar_R_race",
+    "c63w204kene_suspension_F",
+    "c63w204kene_brake_F_race",
+    "c63w204kene_wheel_F",
+    "tire_F_245_40_18_michelin",
+    "c63w204kene_wheeldata_F",
+    "c63w204kene_strut_F_race",
+    "c63w204kene_swaybar_F_race",
+    "c63w204kene_steering",
+    "c63w204kene_power_steering_adaptive",
+    "c63w204kene_undertray"
+  ],
+  "missingParts": [
+    "brakepad_R_sport",
+    "brakepad_F_sport",
+    "soundscape_horn_7"
+  ],
+  "omittedMeshes": [
+    "c63w204kene_bumperbar_F",
+    "c63w204kene_diff",
+    "c63w204kene_driveshaft",
+    "c63w204kene_engine_v8",
+    "c63w204kene_enginebay",
+    "c63w204kene_enginev8",
+    "c63w204kene_fueltank",
+    "c63w204kene_halfshaft_R_wide",
+    "c63w204kene_header_v8",
+    "c63w204kene_heatshield",
+    "c63w204kene_hub_F",
+    "c63w204kene_hub_R",
+    "c63w204kene_lowerarm_F_a",
+    "c63w204kene_lowerarm_F_b",
+    "c63w204kene_lowerarm_R",
+    "c63w204kene_radiator",
+    "c63w204kene_radsupport",
+    "c63w204kene_shock_R",
+    "c63w204kene_spring_R",
+    "c63w204kene_steeringbox",
+    "c63w204kene_strut_F",
+    "c63w204kene_subframe_F",
+    "c63w204kene_subframe_R",
+    "c63w204kene_swaybar_F",
+    "c63w204kene_swaybar_R",
+    "c63w204kene_tierod_F",
+    "c63w204kene_tierod_R",
+    "c63w204kene_transmission",
+    "c63w204kene_trunkbay",
+    "c63w204kene_upperarm_R",
+    "c63w204kene_windshield_dmg",
+    "licenseplate-52-11",
+    "licenseplate-52-11-r1"
+  ],
+  "fallbackMaterials": [
+    "Material.001",
+    "Material.002",
+    "Matte__FF000000__spec_",
+    "Matte__FF969696__env_4_spec_",
+    "Matte__FFCCCCCC",
+    "abs",
+    "abswarn",
+    "battery",
+    "checkengine",
+    "decals_gauges",
+    "e63_engine",
+    "e63_engine__spec_",
+    "esc",
+    "etk800_extra",
+    "etk800_glass",
+    "foglight",
+    "forza_chassi__spec_",
+    "forza_underbody",
+    "hazard",
+    "highbeam",
+    "lights",
+    "lowbeam",
+    "lowfuel",
+    "lowpressure",
+    "mirror__env_9_spec_",
+    "oil",
+    "parkingbrake",
+    "rearfog",
+    "signal_L",
+    "signal_R",
+    "tcs",
+    "temp",
+    "vehiclelights128__env_19_spec_RR_"
+  ],
+  "wheelCenters": {
+    "Wheel_FL": [
+      -0.745,
+      0.33,
+      -1.4
+    ],
+    "Wheel_FR": [
+      0.745,
+      0.33,
+      -1.4
+    ],
+    "Wheel_RL": [
+      -0.73,
+      0.33,
+      1.295
+    ],
+    "Wheel_RR": [
+      0.73,
+      0.33,
+      1.295
+    ]
+  },
+  "wheelRadius": 0.325,
+  "wheelSpinAxis": [
+    1,
+    0,
+    0
+  ],
+  "frontSteerAxis": [
+    0,
+    1,
+    0
+  ],
+  "steering": {
+    "node": "SteeringWheel",
+    "pivot": [
+      -0.3438524007797241,
+      0.9266828298568726,
+      -0.2986871898174286
+    ],
+    "axis": [
+      -0.0,
+      0.39040011167526245,
+      0.9206452965736389
+    ],
+    "localAxis": [
+      0,
+      1,
+      0
+    ]
+  },
+  "anchors": {
+    "CockpitCamera": [
+      -0.344,
+      1.16,
+      0.17
+    ],
+    "Headlamp_L": [
+      -0.6,
+      0.7,
+      -2.04
+    ],
+    "Headlamp_R": [
+      0.6,
+      0.7,
+      -2.04
+    ],
+    "InstrumentCluster": [
+      -0.341,
+      0.95,
+      -0.59
+    ],
+    "DashboardScreen": [
+      0,
+      0.99,
+      -0.72
+    ]
+  },
+  "materials": {
+    "c63w204kene_chrome": "c63w204kene_chrome_PBR",
+    "c63w204kene_wheel": "c63w204kene_wheel_PBR",
+    "c63_tire_michlen": "c63_tire_michlen_PBR",
+    "c63w204kene_aluminium": "c63w204kene_aluminium_PBR",
+    "c63w204kene_c63_lights": "c63w204kene_c63_lights_PBR",
+    "c63w204kene_chrome_exterior": "c63w204kene_chrome_exterior_PBR",
+    "c63w204kene_paint": "W204_BodyPaint",
+    "c63w204kene_black": "c63w204kene_black_PBR",
+    "c63w204kene_plastic_exterior": "c63w204kene_plastic_exterior_PBR",
+    "c63w204kene_black_glossy": "c63w204kene_black_glossy_PBR",
+    "c63w204kene_c63_tex": "c63w204kene_c63_tex_PBR",
+    "c63w204kene_c63_tex_rear": "c63w204kene_c63_tex_rear_PBR",
+    "c63w204kene_c63_lights_trans_rear": "c63w204kene_c63_lights_trans_rear_PBR",
+    "c63w204kene_c63_lights_tails": "c63w204kene_c63_lights_tails_PBR",
+    "Matte__FF000000__spec_": "Matte__FF000000__spec__PBR",
+    "c63_tex__spec_": "c63_tex__spec__PBR",
+    "c63_tex__env_14_spec_": "c63_tex__env_14_spec__PBR",
+    "c63_tex__env_19_spec_": "c63_tex__env_19_spec__PBR",
+    "c63_tex__env_2_spec_": "c63_tex__env_2_spec__PBR",
+    "c63_tex__env_3_spec_": "c63_tex__env_3_spec__PBR",
+    "forza_chassi__spec_": "forza_chassi__spec__PBR",
+    "forza_underbody": "forza_underbody_PBR",
+    "e63_engine": "e63_engine_PBR",
+    "e63_engine__spec_": "e63_engine__spec__PBR",
+    "c63w204kene_vehiclelights128": "c63w204kene_vehiclelights128_PBR",
+    "Material.002": "Material.002_PBR",
+    "c63w204kene_interior_plastic": "c63w204kene_interior_plastic_PBR",
+    "c63w204kene_c63amg_seatbelt": "c63w204kene_c63amg_seatbelt_PBR",
+    "c63w204kene_kovriki": "c63w204kene_kovriki_PBR",
+    "mirror": "mirror_PBR",
+    "c63w204kene_c63amg_symbols_alt": "c63w204kene_c63amg_symbols_alt_PBR",
+    "c63w204kene_c63_interior": "c63w204kene_c63_interior_PBR",
+    "c63w204kene_c63_interior_alt": "c63w204kene_c63_interior_alt_PBR",
+    "c63w204kene_plastic": "c63w204kene_plastic_PBR",
+    "c63w204kene_common_grille": "c63w204kene_common_grille_PBR",
+    "c63w204kene_c63_interior_alte": "c63w204kene_c63_interior_alte_PBR",
+    "c63w204kene_c63_interioral": "c63w204kene_c63_interioral_PBR",
+    "c63w204kene_leather": "c63w204kene_leather_PBR",
+    "c63w204kene_c63amg_symbols5": "c63w204kene_c63amg_symbols5_PBR",
+    "c63w204_chmsl": "c63w204_chmsl_PBR",
+    "c63w204kene_carpet": "c63w204kene_carpet_PBR",
+    "c63w204kene_c63amg_carpet2": "c63w204kene_c63amg_carpet2_PBR",
+    "c63w204kene_c63amg_leather": "c63w204kene_c63amg_leather_PBR",
+    "c63w204kene_c63amg_misc": "c63w204kene_c63amg_misc_PBR",
+    "c63w204kene_c63amg_carpet": "c63w204kene_c63amg_carpet_PBR",
+    "c63w204kene_c63amg_speakers": "c63w204kene_c63amg_speakers_PBR",
+    "c63w204kene_c63amg_roof": "c63w204kene_c63amg_roof_PBR",
+    "c63w204kene_c63amg_symbols": "c63w204kene_c63amg_symbols_PBR",
+    "c63amg_symbols_alpha": "c63amg_symbols_alpha_PBR",
+    "vehiclelights128__env_19_spec_RR_": "vehiclelights128__env_19_spec_RR__PBR",
+    "etk800": "etk800_PBR",
+    "etk800_extra": "etk800_extra_PBR",
+    "etk800_glass": "etk800_glass_PBR",
+    "rubber": "rubber_PBR",
+    "c63w204kene_fullblackFULL": "c63w204kene_fullblackFULL_PBR",
+    "c63w204kene_dash": "c63w204kene_dash_PBR",
+    "c63w204kene_c63_interior_dash": "c63w204kene_c63_interior_dash_PBR",
+    "c63w204kene_c63amg_misc_alt": "c63w204kene_c63amg_misc_alt_PBR",
+    "c63w204kene_c63amg_misc_alt_b": "c63w204kene_c63amg_misc_alt_b_PBR",
+    "c63w204kene_c63_interior_work": "c63w204kene_c63_interior_work_PBR",
+    "c63w204kene_screen_dorest": "c63w204kene_screen_dorest_PBR",
+    "c63_interioral": "c63_interioral_PBR",
+    "Material.001": "Material.001_PBR",
+    "signal_L": "signal_L_PBR",
+    "signal_R": "signal_R_PBR",
+    "parkingbrake": "parkingbrake_PBR",
+    "abs": "abs_PBR",
+    "highbeam": "highbeam_PBR",
+    "esc": "esc_PBR",
+    "tcs": "tcs_PBR",
+    "lowbeam": "lowbeam_PBR",
+    "checkengine": "checkengine_PBR",
+    "lowpressure": "lowpressure_PBR",
+    "lowfuel": "lowfuel_PBR",
+    "foglight": "foglight_PBR",
+    "oil": "oil_PBR",
+    "temp": "temp_PBR",
+    "rearfog": "rearfog_PBR",
+    "decals_gauges": "decals_gauges_PBR",
+    "battery": "battery_PBR",
+    "hazard": "hazard_PBR",
+    "lights": "lights_PBR",
+    "abswarn": "abswarn_PBR",
+    "c63w204kene_gauges_screen": "c63w204kene_gauges_screen_PBR",
+    "c63w204kene_seat_f": "c63w204kene_seat_f_PBR",
+    "c63w204kene_seat_r": "c63w204kene_seat_r_PBR",
+    "c63w204kene_glass": "c63w204kene_glass_PBR",
+    "c63w204kene_glass_int": "c63w204kene_glass_int_PBR",
+    "c63w204kene_c63_hl": "c63w204kene_c63_hl_PBR",
+    "c63w204kene_c63_hl_running": "c63w204kene_c63_hl_running_PBR",
+    "c63w204kene_c63_hl_signal_r": "c63w204kene_c63_hl_signal_r_PBR",
+    "c63w204kene_c63_hl_signal_l": "c63w204kene_c63_hl_signal_l_PBR",
+    "c63w204kene_glass_headlights": "c63w204kene_glass_headlights_PBR",
+    "c63w204kene_glass_fog": "c63w204kene_glass_fog_PBR",
+    "c63w204kene_c63_taillights": "c63w204kene_c63_taillights_PBR",
+    "c63w204kene_c63_taillights_alpha": "c63w204kene_c63_taillights_alpha_PBR",
+    "c63w204kene_c63_taillights_stop": "c63w204kene_c63_taillights_stop_PBR",
+    "c63w204kene_c63_taillights_lowhighbeam": "c63w204kene_c63_taillights_lowhighbeam_PBR",
+    "c63w204kene_c63_taillights_alpha_bottom": "c63w204kene_c63_taillights_alpha_bottom_PBR",
+    "c63w204kene_c63_taillights_reverse": "c63w204kene_c63_taillights_reverse_PBR",
+    "c63w204kene_c63_taillights_signal_r": "c63w204kene_c63_taillights_signal_r_PBR",
+    "c63w204kene_c63_taillights_signal_l": "c63w204kene_c63_taillights_signal_l_PBR",
+    "c63w204kene_c63_lights_tail": "c63w204kene_c63_lights_tail_PBR",
+    "c63w204kene_c63_tex_tail": "c63w204kene_c63_tex_tail_PBR",
+    "c63w204kene_c63_lights_tail_alt": "c63w204kene_c63_lights_tail_alt_PBR",
+    "c63_lights__env_50_spec_trans_": "c63_lights__env_50_spec_trans__PBR",
+    "c63_tex__env_1_spec_": "c63_tex__env_1_spec__PBR",
+    "Matte__FFCCCCCC": "Matte__FFCCCCCC_PBR",
+    "c63w204kene_signal_R_mirrors": "c63w204kene_signal_R_mirrors_PBR",
+    "c63w204kene_plastic_seat": "c63w204kene_plastic_seat_PBR",
+    "c63_lights__env_19_spec_": "c63_lights__env_19_spec__PBR",
+    "c63_interior__env_4_spec_": "c63_interior__env_4_spec__PBR",
+    "c63_interior__env_9_spec_": "c63_interior__env_9_spec__PBR",
+    "mirror__env_9_spec_": "mirror__env_9_spec__PBR",
+    "Matte__FF969696__env_4_spec_": "Matte__FF969696__env_4_spec__PBR",
+    "c63w204kene_signal_L_mirrors": "c63w204kene_signal_L_mirrors_PBR",
+    "c63w204kene_c63amg_red": "c63w204kene_c63amg_red_PBR",
+    "vehiclelights128__env_19_spec_FR_": "vehiclelights128__env_19_spec_FR__PBR",
+    "c63w204kene_foglight": "c63w204kene_foglight_PBR",
+    "c63w204kene_c63_texal": "c63w204kene_c63_texal_PBR",
+    "c63_tex": "c63_tex_PBR",
+    "disc_brake": "disc_brake_PBR",
+    "c63w204kene_c63amg_logo2": "c63w204kene_c63amg_logo2_PBR",
+    "etk_common_acc": "etk_common_acc_PBR",
+    "c63w204kene_c63amg_stitch2": "c63w204kene_c63amg_stitch2_PBR",
+    "c63w204kene_Alcantara_DFS": "c63w204kene_Alcantara_DFS_PBR",
+    "c63w204kene_c63_interior_alt_b": "c63w204kene_c63_interior_alt_b_PBR",
+    "c63w204kene_c63amg_symbols4": "c63w204kene_c63amg_symbols4_PBR"
+  },
+  "triangles": 234632,
+  "uv1Objects": [
+    "c63w204kene_body_sedan_Selected",
+    "c63w204kene_interior_Selected",
+    "c63w204kene_kovriki_Selected",
+    "c63w204kene_main_Selected",
+    "c63w204kene_main_alt_Selected",
+    "c63w204kene_glassroof_Selected",
+    "c63w204kene_headlight_R_Selected",
+    "c63w204kene_headlight_L_Selected",
+    "c63w204kene_door_RR_sedan_Selected",
+    "c63w204kene_door_RL_sedan_Selected",
+    "c63w204kene_hood_Selected",
+    "c63w204kene_tubs_Selected",
+    "c63w204kene_exhaust_R_Selected",
+    "c63w204kene_exhaust_L_Selected",
+    "brake_caliper_4pot_red_amg_Selected",
+    "brake_caliper_4pot_red_amg_Selected.001",
+    "brake_caliper_6pot_red_amg_Selected",
+    "brake_caliper_6pot_red_amg_Selected.001"
+  ],
+  "asset": "/models/mercedes-w204.glb",
+  "sourceConfig": "mods_to_convert/MercedesW204/vehicles/c63w204kene/c63amg_dorest.pc",
+  "coordinateSystem": "+X right, +Y up, -Z forward; metres; root world coordinates",
+  "sourceToRuntime": "(x,y,z) => (-x,z,y)",
+  "sourceMassKg": 1800,
+  "sourceTyres": "245/40R18",
+  "bytes": 21045480,
+  "sha256": "be57e0d8f72f2bc75f19b591ef77d5594473236d3f7133eadbf081849cbe10d9",
+  "images": [
+    {
+      "name": "401722714b819d38",
+      "width": 256,
+      "height": 256,
+      "bytes": 7085,
+      "sha256": "bfcef5da1bd9027af61ac4185119fe69abaa06533470e622da3382e54729ce5c"
+    },
+    {
+      "name": "419039636e013838",
+      "width": 512,
+      "height": 512,
+      "bytes": 68435,
+      "sha256": "01755ee61dce3984cc06d991f58f17da75b2b192e202b124dd557cd3e789fd60"
+    },
+    {
+      "name": "ba858c6f4bf11ac3",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 76283,
+      "sha256": "3eaf9eb6d880d78c41a4542b1e78787de3402c943ce999ae10c339dba3413e53"
+    },
+    {
+      "name": "465bdb9e4169beb9",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 858748,
+      "sha256": "3229c9cb39901cedd11e4315c873a0d3b538806fde3931f82bbd52b8c5f0fbb5"
+    },
+    {
+      "name": "8202a76c95307618",
+      "width": 512,
+      "height": 512,
+      "bytes": 308445,
+      "sha256": "08363a2680ef0d79367c1677eaf2b279640c8b3eb2127d61db80ae0b8ef86fa5"
+    },
+    {
+      "name": "9290bb411ab347ad",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 302387,
+      "sha256": "3ef2da1b41358de7894f9983ba8331f84b8556dbf7bd1b152b4946ef8c62f9ea"
+    },
+    {
+      "name": "1a85b37245ff6ef2",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 991020,
+      "sha256": "7586a0557f2629688bf9cd1f8ecdcf5b929bec6e3acd025a8bddf2e43eea3c3b"
+    },
+    {
+      "name": "0bef80ca67a15daa",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 203429,
+      "sha256": "8c9b173b09dfd1f0bf07140f5ab4ea7950b0fa39a003a038b805c4438c257950"
+    },
+    {
+      "name": "5193eee36dd322ef",
+      "width": 512,
+      "height": 512,
+      "bytes": 607369,
+      "sha256": "ca367e07c8b82a8ee47ea83805df13ddf1099ea92d63f96c277af787e6937b79"
+    },
+    {
+      "name": "bed7eb85146b2b33",
+      "width": 512,
+      "height": 512,
+      "bytes": 22381,
+      "sha256": "c06b6e035aa324de20e1e0fa07e94b211a135b79b3b5d7bc9a8310e6f57926d3"
+    },
+    {
+      "name": "3833f6719132ffcf",
+      "width": 64,
+      "height": 64,
+      "bytes": 1665,
+      "sha256": "d962b4e7d0a80ed0401771851e11bd8d72fd05e5cf07c25f837bdfa5198f074a"
+    },
+    {
+      "name": "b19c0909406a5eab",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1118460,
+      "sha256": "e54748e89b3a5cac96ab2380dd7cc7a43e006e53d19d1b4cf3b83bc2ce5a9c7c"
+    },
+    {
+      "name": "6f73a6ff56590f19",
+      "width": 512,
+      "height": 512,
+      "bytes": 247731,
+      "sha256": "2b5d71005211ff243aae67cad72df260003cce2cbb2b96a3ba4b7a8e7d611a77"
+    },
+    {
+      "name": "b2eed817744d5417",
+      "width": 512,
+      "height": 512,
+      "bytes": 179563,
+      "sha256": "9a3608acd4d1696794f111bf285f378b68f97d6ec83dc3023d338f17e037788c"
+    },
+    {
+      "name": "f82237a55c11064f",
+      "width": 512,
+      "height": 512,
+      "bytes": 187997,
+      "sha256": "c957c2709602441ee073e152c638262e4d3f8d96f8797c487631142bb3c39d87"
+    },
+    {
+      "name": "bd8d1f26c285e96e",
+      "width": 1024,
+      "height": 886,
+      "bytes": 307171,
+      "sha256": "be7c50ed493eac8541cd93b204322f6a6a47b4de425917c2be823b83668d4d7c"
+    },
+    {
+      "name": "4763c9de4fe41b76",
+      "width": 4,
+      "height": 4,
+      "bytes": 288,
+      "sha256": "b80fe64f5e717d21b6d351638ca17edc83555b3d78907a90f8b741a2330089a6"
+    },
+    {
+      "name": "c6ba52c15300b00b",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 143828,
+      "sha256": "5d0f42b7b6da03f52e8efac094a47e0bea9cb02ac4e2d681d04d75d872066758"
+    },
+    {
+      "name": "5a1172c57acae567",
+      "width": 512,
+      "height": 512,
+      "bytes": 87885,
+      "sha256": "360b20aebc114bf0469cad127ec178da3d598aac8952f1cab7b6a4739bf0daf5"
+    },
+    {
+      "name": "954b382fdde12bd3",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 148808,
+      "sha256": "872315cdcc87cbbe8c3b06f721d44773f47c23a21d705fbcb9439b6090f155f7"
+    },
+    {
+      "name": "163107b6725ecd4f",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 62945,
+      "sha256": "6ad41b5ca22c1c6f2d405512529715aaba8654999a7ea8d24dbc89afb3376313"
+    },
+    {
+      "name": "e015ef0c0fa9ff4d",
+      "width": 512,
+      "height": 512,
+      "bytes": 48326,
+      "sha256": "6a81fb71e926ffa72256efba201667164ca9dede9ca8bbfadcf45f008176af26"
+    },
+    {
+      "name": "a7495bfe25a1d824",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 242097,
+      "sha256": "70a667f32fa1cf3b9bdcb77103d773694872a98d9009a7a12b11254b33a64f08"
+    },
+    {
+      "name": "163107b6725ecd4f",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 268802,
+      "sha256": "5a69d2977b5deabe7f6e44dfc47d159056c1bc717d91acca55eb4b707fca9031"
+    },
+    {
+      "name": "28ddb599f9afb4c0",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 61448,
+      "sha256": "b4b6729eb89618be353315b2654a587cc0f6c805c2b0e8265f157dbab0c6025b"
+    },
+    {
+      "name": "4213799f7b8a612b",
+      "width": 128,
+      "height": 256,
+      "bytes": 44823,
+      "sha256": "2571e88a7947eb4e9d863fe6b86b2d85cf972640f333080566605d1b27b084b7"
+    },
+    {
+      "name": "95cd2876aada80bb",
+      "width": 128,
+      "height": 256,
+      "bytes": 7287,
+      "sha256": "b2962ff28608fc0e00cedc366a4b51861833e554d318db48613f09df0ef101fe"
+    },
+    {
+      "name": "b355a816f42332bf",
+      "width": 512,
+      "height": 512,
+      "bytes": 228834,
+      "sha256": "595f08e34a38e86650b3b1f750d52ca8b4d3f8e8ceed5b9d8c589ff06b2327b4"
+    },
+    {
+      "name": "f60d8fb429df6000",
+      "width": 512,
+      "height": 512,
+      "bytes": 404745,
+      "sha256": "6116ab5b564b1df85c74efe4a396981b98d5c22e30166e58b7193866d0815b45"
+    },
+    {
+      "name": "585171e4b07b1211",
+      "width": 512,
+      "height": 512,
+      "bytes": 379899,
+      "sha256": "4915c57e9f990c95470d968cd32f499b22d079ffc5042311ccc543fdfac92a32"
+    },
+    {
+      "name": "259fe0c02af29e85",
+      "width": 512,
+      "height": 512,
+      "bytes": 102858,
+      "sha256": "d02058b2b03bba7c39d37a2cc0420891cd57e686a64f5bdee71dc39eba2e6295"
+    },
+    {
+      "name": "26be250a0c30e814",
+      "width": 256,
+      "height": 256,
+      "bytes": 66292,
+      "sha256": "4b5ff63c88263d225e0662dbe921b9b922dd3811df8d14f3a3bc7b102d42da8f"
+    },
+    {
+      "name": "e618df28274c443f",
+      "width": 256,
+      "height": 256,
+      "bytes": 11379,
+      "sha256": "7904c82f5496967783d419374c03f5a4be00723ea1201222da7e8959e6cfc9b8"
+    },
+    {
+      "name": "c652599a7fca0e01",
+      "width": 512,
+      "height": 384,
+      "bytes": 397647,
+      "sha256": "05adf892a1643d979887c5334a50b6674f9850f62aada39b5584a30cda0d4938"
+    },
+    {
+      "name": "98ef8d72eee34450",
+      "width": 512,
+      "height": 384,
+      "bytes": 125322,
+      "sha256": "57d8441d0f4fc73074bcd56917809534edb68f06ec520cdce44e41c1507465c3"
+    },
+    {
+      "name": "66dfc5d26e2618f6",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 984796,
+      "sha256": "f2b7011632aae416ff1b2e6934c16f09090b3c6e7dd645624b7350a465ec0586"
+    },
+    {
+      "name": "b32fafb5dd946680",
+      "width": 512,
+      "height": 512,
+      "bytes": 285581,
+      "sha256": "98f1030513ac86befef40513a964c4131f14a09c17ed58b24e3ac596243aef84"
+    },
+    {
+      "name": "6404c3672fa8920d-41c94a381b1a8380",
+      "width": 512,
+      "height": 512,
+      "bytes": 42660,
+      "sha256": "149630db0ea4e0ae9bb3bd6a26ff143e945ab0142aed791b8e67fca8ee944dc6"
+    },
+    {
+      "name": "85f221de49177d9f",
+      "width": 512,
+      "height": 512,
+      "bytes": 12418,
+      "sha256": "62c7b17312f44a6cdc70c48f6844e519bd6e199e76d5e6f7df5c416709e0957f"
+    },
+    {
+      "name": "302bc52bd3ddda0a",
+      "width": 512,
+      "height": 512,
+      "bytes": 415118,
+      "sha256": "ec501b93a8ee754bb610a0ff089b1ba8bd0a5ca964b37e3f053167a782772503"
+    },
+    {
+      "name": "2fa1b93cbdddf5dd-c0506792c7dfb105",
+      "width": 512,
+      "height": 512,
+      "bytes": 269393,
+      "sha256": "8b63321dcefac114969c95877b4a65354401925919d9af77f0ec98d3208fcac8"
+    },
+    {
+      "name": "b21bb3fcedbf8bb8",
+      "width": 512,
+      "height": 512,
+      "bytes": 15499,
+      "sha256": "e7073051d71308e8b68d723480b8f1d84d04214ac8884f2648988f36066373da"
+    },
+    {
+      "name": "049b4b4ed71300b5",
+      "width": 512,
+      "height": 512,
+      "bytes": 105827,
+      "sha256": "83ba6125a04acb1d9a97d5abc99f81d8fd4c660508163df405bfcef691674539"
+    },
+    {
+      "name": "695604c8875ebf48",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 117236,
+      "sha256": "0e6a1c90194f0fe833689d458cc26c1b06e633ebaba5667561ba6b7be7a95ece"
+    },
+    {
+      "name": "d4fc70cc0c753011",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 94030,
+      "sha256": "0166517206037761038c598775253d01f6e1236d639bb8ef09033155ef3f90fc"
+    },
+    {
+      "name": "ed8dd92bf3f4e14d",
+      "width": 512,
+      "height": 512,
+      "bytes": 44029,
+      "sha256": "1768c027fb77dcb902775a9e3be8454f642cbd207e9b4e4da122956559f78817"
+    },
+    {
+      "name": "3abc212697bac56f",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 144774,
+      "sha256": "20b49db2052fc862b90a971f3d7e15ceb4eca686cf652f8c949799d0bb13a6f0"
+    },
+    {
+      "name": "d4fc70cc0c753011",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 445875,
+      "sha256": "8b8c0af3ca90b9874af3194841f282aef82da7dcf093ecdb31c850e916ed9a2c"
+    },
+    {
+      "name": "7235824cd57fa0f4",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 110683,
+      "sha256": "a08800e98358e23a83650b69215267eebc54c84ccf28bf1bfef4eb139ff9cb6b"
+    },
+    {
+      "name": "b2f416712a4f8b0a",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 65119,
+      "sha256": "35dfbc14c8bc77ba902900943a485273f4324f7effa9a4a5c1de9f2b694fcdf3"
+    },
+    {
+      "name": "915c91eb3214d932",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 43723,
+      "sha256": "cfbba2d5f2334db0390957cfdfb5240b21c8253255061c08a643f41c47c25b54"
+    },
+    {
+      "name": "191912d5244cbaf8",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 88128,
+      "sha256": "e3312cd7c9a6fdb7b3b7c62b70db9b5e3698dba8ea600b0d98a61134d196a637"
+    },
+    {
+      "name": "9290bb411ab347ad",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1351361,
+      "sha256": "6a46f74c7b21f5f2bd9d813a2a05f54d37a87bf2ba5ad81bf194a3ad7c397925"
+    },
+    {
+      "name": "ba858c6f4bf11ac3",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 279168,
+      "sha256": "b2ba94a2ce57413081002784f15d0e606d8f1a434e13e4b8772ebe5b13bb9cdf"
+    },
+    {
+      "name": "1928cad1ecadf0e9",
+      "width": 256,
+      "height": 256,
+      "bytes": 107147,
+      "sha256": "35e067d646c328a63936ed631cd74e9c19f8819f56d73dfcb645b08fad11f9a9"
+    },
+    {
+      "name": "b4f220c2abbd28b6",
+      "width": 512,
+      "height": 512,
+      "bytes": 221126,
+      "sha256": "392fabd906bcd4dbf1c219c8a2f50791fd2d0df36673a7a20e5f3f7190ba7287"
+    },
+    {
+      "name": "65ac3921034150e2",
+      "width": 512,
+      "height": 512,
+      "bytes": 220888,
+      "sha256": "07641af3dd16d5f53dbcc3a86590ec3fd5ee5699883df4ceb07f8b1b83d4ebd0"
+    },
+    {
+      "name": "339a811b497319cc",
+      "width": 128,
+      "height": 128,
+      "bytes": 10493,
+      "sha256": "61fe5a5720e181bf20ede4a19af080b337a5c3f6668f6a3ae79919cd5ba0613d"
+    },
+    {
+      "name": "84ed87472edf742b",
+      "width": 512,
+      "height": 512,
+      "bytes": 556012,
+      "sha256": "88494fa148c51131f6b0b349c57435353d4f4b7073fd1fa209b9c171e8cf3d4a"
+    },
+    {
+      "name": "c25c21bcf0bfadbb",
+      "width": 512,
+      "height": 512,
+      "bytes": 47068,
+      "sha256": "c7825ae21c203a075d71fe573f9367dd964eee0ab6e6257c507fcf809dbc8ed9"
+    },
+    {
+      "name": "36932a73e8972395",
+      "width": 512,
+      "height": 512,
+      "bytes": 21545,
+      "sha256": "be2983fa2f5b69011b3f74da27d116dc6071c14cb7fef97a9d6412da0cc5d0e6"
+    },
+    {
+      "name": "cba1c6c9b80375ab",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 825766,
+      "sha256": "62f570b6717725c9b10d7fa99559401a866b575e06e306f2b6eed36cd4a5856a"
+    },
+    {
+      "name": "1c98f8851c90ace0",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 85788,
+      "sha256": "b1a881636640b6d107494a8c09ce81e8c1f7b0de59d097042cfac73cef82925c"
+    }
+  ],
+  "textureRgbaMipBytes": 184953600,
+  "uv1PrimitiveCount": 59,
+  "meshPrimitiveCount": 263,
+  "nodeCount": 102,
+  "meshopt": "EXT_meshopt_compression required; decoded byte-for-byte before inspection",
+  "visualInspection": "Four Cycles renders of decoded delivery generated; automated DAE normal/material checks passed. Visual approval and in-game frame timing remain unverified (image input unavailable).",
+  "normalVerification": {
+    "passed": true,
+    "input": "/tmp/opencode/w204/inspection.glb",
+    "delivered": "/home/duncha/Desktop/GitHub/traffic_cutting_up/public/models/mercedes-w204.glb",
+    "deliveredSha256": "be57e0d8f72f2bc75f19b591ef77d5594473236d3f7133eadbf081849cbe10d9",
+    "inspectionSha256": "e7060459320371a079a0eb7768512ab0e8d420e68e2887e269d2955d148742e0",
+    "byteRoundtripVerified": true,
+    "reference": "authored DAE corner normals; import.blend supplies source object transforms only",
+    "positionTolerance": 5e-05,
+    "normalToleranceDegrees": 1.0,
+    "panelCount": 10,
+    "authoredCornersVerified": 243873,
+    "panels": [
+      {
+        "object": "c63w204kene_body_sedan",
+        "trianglesMatched": 33691,
+        "authoredCornersVerified": 100893,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 180,
+        "normalMaxErrorDegrees": 0.03426402083239251,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 3.4240261593687705e-07
+      },
+      {
+        "object": "c63w204kene_bumper_F",
+        "trianglesMatched": 18779,
+        "authoredCornersVerified": 56337,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 0,
+        "normalMaxErrorDegrees": 0.07132625143984156,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 3.4240261593687705e-07
+      },
+      {
+        "object": "c63w204kene_bumper_R",
+        "trianglesMatched": 7323,
+        "authoredCornersVerified": 21969,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 0,
+        "normalMaxErrorDegrees": 0.03426402083239251,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 3.384893146634265e-07
+      },
+      {
+        "object": "c63w204kene_door_FL",
+        "trianglesMatched": 3687,
+        "authoredCornersVerified": 11058,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 3,
+        "normalMaxErrorDegrees": 0.12666880634500868,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 1.7881393432617188e-07
+      },
+      {
+        "object": "c63w204kene_door_FR",
+        "trianglesMatched": 3319,
+        "authoredCornersVerified": 9954,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 3,
+        "normalMaxErrorDegrees": 0.027976454840372228,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 1.4600096599955427e-07
+      },
+      {
+        "object": "c63w204kene_door_RL_sedan",
+        "trianglesMatched": 2839,
+        "authoredCornersVerified": 8499,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 18,
+        "normalMaxErrorDegrees": 0.027976454840372228,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 2.6656007498500226e-07
+      },
+      {
+        "object": "c63w204kene_door_RR_sedan",
+        "trianglesMatched": 2843,
+        "authoredCornersVerified": 8511,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 18,
+        "normalMaxErrorDegrees": 0.01978234059262607,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 3.03925246810483e-07
+      },
+      {
+        "object": "c63w204kene_fender_L",
+        "trianglesMatched": 1532,
+        "authoredCornersVerified": 4596,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 0,
+        "normalMaxErrorDegrees": 0.01978234059262607,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 2.980232238769531e-07
+      },
+      {
+        "object": "c63w204kene_fender_R",
+        "trianglesMatched": 1532,
+        "authoredCornersVerified": 4596,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 0,
+        "normalMaxErrorDegrees": 0.0,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 2.2302015940987714e-07
+      },
+      {
+        "object": "c63w204kene_hood",
+        "trianglesMatched": 5820,
+        "authoredCornersVerified": 17460,
+        "zeroNormalCornersExcluded": 0,
+        "degenerateCornersExcluded": 0,
+        "normalMaxErrorDegrees": 0.10467832529117166,
+        "normalP95ErrorDegrees": 0.0,
+        "positionMaxError": 3.371747880871523e-07
+      }
+    ]
+  },
+  "materialAliasCount": 80,
+  "emissiveTextureMaterialCount": 21,
+  "occlusionTextureMaterialCount": 14
+}

@@ -318,7 +318,7 @@ export class View {
 
   /** All online bodies are parsed, compiled and uploaded under the initial loading screen. */
   async prepareOnlineCars(): Promise<void> {
-    for (const id of [1, 2, 3] as const) {
+    for (const id of [1, 2, 3, 4] as const) {
       const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
       await spare.ready;
       revealMaterials(spare.root).value = 1;

@@ -13,7 +13,7 @@ import { SKY_PRESETS, skyPreset, skySwatch } from './render/sky';
 import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
-import type { PhysicsId } from './sim/physics';
+import { bodyPhysics, type PhysicsId } from './sim/physics';
 import { spawnS } from './sim/ring';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
@@ -91,7 +91,7 @@ if (!ONLINE && !TEST) window.setInterval(() => void syncGlobalTuning(), 15000);
 let showcase = 0;
 await loading.stage(18, 'Подготовка трассы и трафика');
 const initialCar = loadCar();
-const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: initialCar === 1 ? 4 : initialCar === 3 ? 3 : 2, online: ONLINE });
+const sim = new Sim(Math.random, { track: TEST ? SHOWCASES[0].script : undefined, physics: bodyPhysics(initialCar), online: ONLINE });
 sim.director.preset = loadTraffic();
 sim.score.best = ONLINE ? 0 : loadBest();
 sim.score.grace = Infinity; // the menu attract mode never scores
@@ -461,7 +461,7 @@ function choice<T extends number>(
 choice('carSeg', 'carDesc', CARS, car, (id) => {
   car = id;
   saveCar(id);
-  sim.setPhysics(id === 1 ? 4 : id === 3 ? 3 : 2);
+  sim.setPhysics(bodyPhysics(id));
   sound.setCar(id);
   paint = loadPaint(id);
   view.setPaint(paint);
