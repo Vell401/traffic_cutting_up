@@ -1,7 +1,12 @@
-name: Production diagnostics
+name: Production diagnostics and web recovery
 
 on:
   workflow_dispatch:
+    inputs:
+      recover_web:
+        description: Recreate only the existing web service with current Compose settings
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,6 +22,15 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v5
+      - name: Recover existing web service without rebuilding or touching game data
+        if: inputs.recover_web
+        shell: bash
+        env:
+          SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
+        run: |
+          set -euo pipefail
+          export SITE_ADDRESS="${SITE_ADDRESS:-$(hostname -I | awk '{print $1}')}"
+          docker compose up -d --no-deps --no-build --wait --wait-timeout 90 web
       - name: Inspect public web container and networking (read only)
         shell: bash
         env:

@@ -128,6 +128,17 @@ describe('map deployment routing', () => {
 });
 
 describe('map deployment safety gates', () => {
+  it('lets hardened Caddy read host-owned TLS keys and checks actual HTTPS readiness', () => {
+    const web = compose.slice(compose.indexOf('\n  web:'), compose.indexOf('\nnetworks:'));
+    expect(web).toContain('cap_drop: [ALL]');
+    expect(web).toContain('cap_add: [NET_BIND_SERVICE, DAC_READ_SEARCH]');
+    expect(web).not.toContain('DAC_OVERRIDE');
+    expect(web).toContain(':/certs:ro');
+    expect(web).toContain('https://127.0.0.1/health');
+    expect(web).toContain('Host: $$SITE_ADDRESS');
+    expect(web).toContain('no-new-privileges:true');
+  });
+
   it('isolates durable DB/radio state and preserves the established highway volume', () => {
     expect(compose).toContain('name: traffic');
     expect(compose).toContain('image: traffic-game');

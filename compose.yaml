@@ -96,8 +96,18 @@ services:
     tmpfs:
       - /tmp:size=32m,mode=1777
     cap_drop: [ALL]
-    cap_add: [NET_BIND_SERVICE]
+    # The existing 0600 key is owned by the host deploy account, not container root.
+    # Permit read/search only; keep write-DAC override and all other capabilities dropped.
+    cap_add: [NET_BIND_SERVICE, DAC_READ_SEARCH]
     security_opt: [no-new-privileges:true]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'wget --no-check-certificate -q --header="Host: $$SITE_ADDRESS" -O /dev/null https://127.0.0.1/health || exit 1'
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 networks:
   client_proxy:
