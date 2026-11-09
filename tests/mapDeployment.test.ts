@@ -134,8 +134,8 @@ describe('map deployment safety gates', () => {
     expect(web).toContain('cap_add: [NET_BIND_SERVICE, DAC_READ_SEARCH]');
     expect(web).not.toContain('DAC_OVERRIDE');
     expect(web).toContain(':/certs:ro');
-    expect(web).toContain('https://127.0.0.1/health');
-    expect(web).toContain('Host: $$SITE_ADDRESS');
+    expect(web).toContain('https://$$SITE_ADDRESS/health');
+    expect(web).not.toContain('https://127.0.0.1/health');
     expect(web).toContain('no-new-privileges:true');
   });
 

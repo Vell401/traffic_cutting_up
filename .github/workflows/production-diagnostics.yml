@@ -32,6 +32,7 @@ jobs:
           export SITE_ADDRESS="${SITE_ADDRESS:-$(hostname -I | awk '{print $1}')}"
           docker compose up -d --no-deps --no-build --wait --wait-timeout 90 web
       - name: Inspect public web container and networking (read only)
+        if: always()
         shell: bash
         env:
           SITE_ADDRESS: ${{ vars.SITE_ADDRESS }}
@@ -45,7 +46,9 @@ jobs:
           if [ -n "$container" ]; then
             docker inspect --format '{{.Config.Image}} status={{.State.Status}} restarts={{.RestartCount}} error={{.State.Error}}' "$container"
             docker inspect --format '{{json .NetworkSettings.Ports}} {{json .NetworkSettings.Networks}}' "$container"
+            docker inspect --format '{{if .State.Health}}health={{.State.Health.Status}}{{range .State.Health.Log}}{{println .Output}}{{end}}{{end}}' "$container"
           fi
+          docker compose exec -T web sh -c 'wget --no-check-certificate -T 5 -O /dev/null "https://$SITE_ADDRESS/health"' || true
           docker network inspect traffic_client_proxy --format '{{json .IPAM.Config}}' || true
           ss -ltn '( sport = :80 or sport = :443 )' || true
           curl -sS --max-time 5 -o /dev/null -w 'Local HTTP: %{http_code}\n' -H "Host: $SITE_ADDRESS" http://127.0.0.1/ || true

@@ -103,7 +103,8 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - 'wget --no-check-certificate -q --header="Host: $$SITE_ADDRESS" -O /dev/null https://127.0.0.1/health || exit 1'
+        # Keep TLS SNI and HTTP Host aligned with the configured certificate/site.
+        - 'wget --no-check-certificate -q -O /dev/null "https://$$SITE_ADDRESS/health" || exit 1'
       interval: 10s
       timeout: 5s
       start_period: 10s
