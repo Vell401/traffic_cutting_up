@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../public/audio/w204/manifest.json';
 import { M156EngineSound, m156LoadGain, preloadW204Audio } from '../src/audio/m156Engine';
@@ -10,6 +10,9 @@ import { Sim } from '../src/sim/world';
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 const root = new URL('../', import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root));
+// Source mods are local conversion inputs; CI verifies the committed delivery.
+// If a source mod is installed, require the complete original comparison too.
+const hasSourceMod = existsSync(new URL(`${manifest.source}/`, root));
 const param = () => ({ value: 0, setTargetAtTime: vi.fn(), setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() });
 function mockNode() {
     const n = {
@@ -43,18 +46,29 @@ describe('original W204 running sound assets', () => {
     expect(manifest.clips.reduce((n, c) => n + c.bytes, 0)).toBe(4089792);
     for (const c of manifest.clips) {
       const wav = read(`public/audio/w204/${c.file}`);
-      expect(wav.equals(read(`${manifest.source}/${c.source}`))).toBe(true);
+      if (hasSourceMod) expect(wav.equals(read(`${manifest.source}/${c.source}`))).toBe(true);
       expect(wav.length).toBe(c.bytes); expect(sha(wav)).toBe(c.sha256);
       expect(wav.toString('ascii', 0, 4)).toBe('RIFF'); expect(wav.toString('ascii', 8, 12)).toBe('WAVE');
       expect(c.rate).toBeGreaterThan(0); expect(c.frames / c.rate).toBe(c.seconds);
     }
-    for (const p of manifest.provenance) expect(sha(read(`${manifest.source}/${p.source}`))).toBe(p.sha256);
+    if (hasSourceMod)
+      for (const p of manifest.provenance) expect(sha(read(`${manifest.source}/${p.source}`))).toBe(p.sha256);
   });
   it('preserves every source RPM and both identical load lists, including the 04950 filename / 4949 RPM', () => {
+    const expectedRpms = [658, 1384, 1683, 1924, 2158, 2466, 2715, 3292, 3838, 4401, 4949, 5532, 6002, 6417, 6990, 7261];
+    expect(manifest.banks.map(b => b.channel)).toEqual(['engine', 'exhaust']);
     for (const b of manifest.banks) {
-      const source = JSON.parse(read(`${manifest.source}/art/sound/blends/V8_AMG_M156_${b.channel}.sfxBlend2D.json`).toString());
-      for (const [n, list] of [b.off, b.on].entries())
-        expect(list.map(i => [manifest.clips[i].source, manifest.clips[i].rpm])).toEqual(source.samples[n]);
+      const expectedSamples = expectedRpms.map(rpm => {
+        const prefix = b.channel === 'engine' ? 'EngB' : 'ExhL';
+        const fileRpm = b.channel === 'exhaust' && rpm === 4949 ? 4950 : rpm;
+        return [`art/sound/engine/AMG_M156/${prefix}_${String(fileRpm).padStart(5, '0')}.wav`, rpm];
+      });
+      for (const list of [b.off, b.on])
+        expect(list.map(i => [manifest.clips[i].source, manifest.clips[i].rpm])).toEqual(expectedSamples);
+      if (hasSourceMod) {
+        const source = JSON.parse(read(`${manifest.source}/art/sound/blends/V8_AMG_M156_${b.channel}.sfxBlend2D.json`).toString());
+        expect(source.samples).toEqual([expectedSamples, expectedSamples]);
+      }
       expect(b.off).toEqual(b.on);
       const rpms = b.off.map(i => manifest.clips[i].rpm);
       expect([rpms[0], rpms.at(-1)]).toEqual([658, 7261]);
