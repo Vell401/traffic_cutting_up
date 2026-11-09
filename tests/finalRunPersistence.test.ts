@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -18,7 +18,9 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 
 async function fixture(map: MapId) {
-  const directory = mkdtempSync(join(tmpdir(), 'opencode', 'final-run-'));
+  const root = join(tmpdir(), 'opencode');
+  mkdirSync(root, { recursive: true });
+  const directory = mkdtempSync(join(root, 'final-run-'));
   const path = join(directory, 'traffic.db');
   claimDatabaseMap(path, map);
   const store = new Store(path);
