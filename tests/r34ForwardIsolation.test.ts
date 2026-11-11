@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { DriveInput } from '../src/sim/vehicle';
 import { R34Car, r34Tune } from '../src/sim/vehicleR34';
+import { legacyForward, steps } from './fixtures/r34ForwardLegacy';
 
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 
@@ -21,19 +22,22 @@ describe('manual reverse pedal correction does not replace R34 physics', () => {
     expect(hash(source.slice(solverStart))).toBe('d3960c4f8f1775067798f5b14f4a84ac4a0ea22adb2dcea6f9ab63dc422a11b0');
   });
 
-  // Captured BEFORE changing R34's pedal routing. Forward trajectories include steering, shifts,
-  // throttle, service/handbraking, clutch and boost, with the complete rewindable physical state.
+  // Keep numeric checkpoints from the original pre-change traces. Hashing rounded floats is not
+  // portable: Node 22/24 differ by ~1 ulp near a rounding boundary (reproduced even on Windows).
+  // Check the complete rewindable state at steering/handbrake/clutch/throttle/braking milestones
+  // within 1e-6 absolute units; source/preset SHA guards above and frozenPhysics remain exact.
   for (const [manual, mode, expected] of [
-    [false, 'keyboard', 'af4f2fc4b71b8d700373246f09c3d3279f5edfe55d4fa9ff3a482585c00d9be9'],
-    [false, 'gamepad', 'd1002da4819b95a972298d60378710e2bcf488334941af6aff40f0f7faa1a307'],
-    [false, 'mouse', 'd1002da4819b95a972298d60378710e2bcf488334941af6aff40f0f7faa1a307'],
-    [true, 'keyboard', '43162d040b4f36ecd96dd74f3431ad3968ef6d8a49deaab9fcb7b089fd6a2bf7'],
-    [true, 'gamepad', '57b94d80fbb04dea79d4af6e79170d270309ce1f1552d9f240b983b408585601'],
-    [true, 'mouse', '57b94d80fbb04dea79d4af6e79170d270309ce1f1552d9f240b983b408585601'],
+    [false, 'keyboard', legacyForward.autoKeys],
+    [false, 'gamepad', legacyForward.autoDirect],
+    [false, 'mouse', legacyForward.autoDirect],
+    [true, 'keyboard', legacyForward.manualKeys],
+    [true, 'gamepad', legacyForward.manualDirect],
+    [true, 'mouse', legacyForward.manualDirect],
   ] as const) {
     it(`retains the original ${manual ? 'manual' : 'automatic'} ${mode} forward trajectory`, () => {
-       const car = new R34Car({ ...structuredClone(r34Tune), gripFront: 1.16, gripRear: .93, longGrip: 1.04 }); car.reset(0, 0, 25);
-      const samples: number[][] = [];
+      const car = new R34Car({ ...structuredClone(r34Tune), gripFront: 1.16, gripRear: .93, longGrip: 1.04 }); car.reset(0, 0, 25);
+      expect(expected).toHaveLength(steps.length);
+      let checkpoint = 0;
       for (let i = 0; i < 720; i++) {
         car.d = car.prevD = 0;
         const input: DriveInput = {
@@ -48,12 +52,17 @@ describe('manual reverse pedal correction does not replace R34 physics', () => {
         expect(car.gear).toBeGreaterThan(0);
         expect(car.throttle).toBe(input.throttle);
         expect(car.brake).toBe(input.brake);
-        if (i % 30 === 0) {
+        if (i === steps[checkpoint]) {
           const state = new Float64Array(car.stateSize); car.saveState(state);
-          samples.push([...state].map(x => Math.round(x * 1e8) / 1e8));
+          expect(expected[checkpoint]).toHaveLength(state.length);
+          for (let j = 0; j < state.length; j++) {
+            expect(Number.isFinite(state[j]), `step ${i}, state[${j}]`).toBe(true);
+            expect(Math.abs(state[j] - expected[checkpoint][j]), `step ${i}, state[${j}]`).toBeLessThanOrEqual(1e-6);
+          }
+          checkpoint++;
         }
       }
-      expect(hash(JSON.stringify(samples))).toBe(expected);
+      expect(checkpoint).toBe(steps.length);
       expect(car.speed).toBeGreaterThan(5);
     });
   }
