@@ -51,7 +51,7 @@ function makeGradeLUT(size = 32): LookupTexture {
 }
 
 /**
- * HDR post chain: scene → (chromatic aberration, only when moving fast) → bloom + ACES tone mapping
+ * HDR post chain: scene → optional score/speed or impact aberration → bloom + ACES tone mapping
  * + grading LUT + vignette in one merged pass. Bloom only picks up what is genuinely brighter than
  * white (lamp heads, head/tail lights, lit windows), so lit asphalt never smears.
  */
@@ -60,6 +60,8 @@ export class Post {
   private readonly caPass: EffectPass;
   private readonly ca: ChromaticAberrationEffect;
   private kick = 0;
+  private scoreKick = 0;
+  private scoreDistortion = 0;
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: QualityPreset) {
     renderer.toneMapping = THREE.NoToneMapping;
@@ -96,15 +98,26 @@ export class Post {
     this.composer.setSize(w, h, false);
   }
 
-  /** Short fringe pulse on near misses and hits. */
+  /** Impact fringe pulse, independent of the optional score/speed effect. */
   pulse(amount: number): void {
     this.kick = Math.max(this.kick, amount);
   }
 
+  /** Optional score/speed effect, 0..1. Impact feedback remains independent. */
+  setScoreDistortion(level: number): void {
+    this.scoreDistortion = Number.isFinite(level) ? clamp(level, 0, 1) : 0;
+    if (this.scoreDistortion === 0) this.scoreKick = 0;
+  }
+
+  scorePulse(amount: number): void {
+    if (this.scoreDistortion > 0) this.scoreKick = Math.max(this.scoreKick, amount);
+  }
+
   render(dt: number, kmh: number): void {
     this.kick = Math.max(0, this.kick - dt * 2.5);
+    this.scoreKick = Math.max(0, this.scoreKick - dt * 2.5);
     const speed = smoothstep((kmh - 160) / 160);
-    const amount = speed * speed * 0.0016 + this.kick * 0.004;
+    const amount = (speed * speed * 0.0016 + this.scoreKick * 0.004) * this.scoreDistortion + this.kick * 0.004;
     this.caPass.enabled = amount > 0.00015;
     this.ca.offset.set(amount, amount * 0.55);
     this.composer.render(dt);

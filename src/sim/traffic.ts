@@ -16,10 +16,8 @@ export const AHEAD = 850;
 const SPAWN_AHEAD_MIN = 680;
 /** A new car must not appear within this far behind another driver (or closer than SPAWN_AHEAD_MIN ahead). */
 const SEEN_BEHIND = 200;
-/** A wreck is cleared after CRASH_CLEAR s once nobody is within CLEAR_RADIUS of it, and never later than CRASH_MAX. */
-const CRASH_CLEAR = 15;
-const CLEAR_RADIUS = 150;
-const CRASH_MAX = 60;
+/** Shared by solo and the authoritative server: wrecks disappear ten seconds after impact. */
+export const WRECK_LIFETIME = 10;
 /** Leader/follower search horizon: beyond it the road counts as free (IDM barely reacts past ~300 m). */
 const LOOK = 1200;
 /** Longest vehicle's half length (search cut-off). */
@@ -236,13 +234,11 @@ export class Traffic {
     for (const c of this.cars) {
       if (!c.active) continue;
       let seen = false;
-      let near = false;
       for (let i = 0; i < nd; i++) {
         const r = this.rel(c.s, drivers[i].s);
         if (r >= -BEHIND && r <= AHEAD + 60) seen = true;
-        if (Math.abs(r) < CLEAR_RADIUS) near = true;
       }
-      const wreckGone = c.crashed && (c.crashT > CRASH_MAX || (c.crashT > CRASH_CLEAR && !near));
+      const wreckGone = c.crashed && c.crashT + dt >= WRECK_LIFETIME;
       if (!seen || c.s > this.limitS || wreckGone) {
         this.deactivate(c);
         continue;

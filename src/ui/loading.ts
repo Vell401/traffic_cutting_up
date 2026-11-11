@@ -43,15 +43,14 @@ class LoadingScreen {
     const revision = this.revision;
     this.set(100, 'Готово. Хорошей дороги!');
     this.root.setAttribute('aria-busy', 'false');
-    // Briefly display the completed state, then reveal the already-rendered scene.
+    // The first frame is ready: do not add a fixed one-second wait to every transition.
+    this.active = false;
+    this.lockUI(false);
+    this.root.classList.add('leaving');
     setTimeout(() => {
       if (revision !== this.revision) return;
-      this.root.classList.add('leaving');
-      setTimeout(() => {
-        if (revision !== this.revision) return;
-        this.root.hidden = true; this.active = false; this.lockUI(false);
-      }, 650);
-    }, 320);
+      this.root.hidden = true;
+    }, 180);
   }
 
   fail(text: string, retry: () => void = () => location.reload(), action = 'Повторить загрузку'): void {

@@ -1,53 +1,16 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three-stdlib';
-import { MeshoptDecoder } from 'meshoptimizer';
+import { ModelSource } from './modelSource';
 import { Indicators, type CarParts, type ModelLoad } from './index';
 import { cloneInSlices } from './clone';
 import { W204Cockpit } from './w204Cockpit';
 
 export const W204_NAME = 'Mercedes-Benz C63 AMG W204';
-let source: THREE.Group | null = null;
-let pending: Promise<THREE.Group> | null = null;
-const W204_BYTES = 21_045_480;
-let state: ModelLoad = { name: W204_NAME, loaded: 0, total: W204_BYTES, unpacking: false, done: false, failed: false };
-const listeners = new Set<(state: ModelLoad) => void>();
+const w204Source = new ModelSource(W204_NAME, '/models/mercedes-w204.glb', 21_045_480);
 const noop = (): void => {};
 
 /** One immutable source, concurrent progress subscribers, and a fresh request after failure. */
 export function preloadW204(emitLoad: (state: ModelLoad) => void = noop): Promise<THREE.Group> {
-  if (source) { emitLoad({ ...state }); return Promise.resolve(source); }
-  listeners.add(emitLoad);
-  if (pending) { emitLoad({ ...state }); return pending; }
-   state = { name: W204_NAME, loaded: 0, total: W204_BYTES, unpacking: false, done: false, failed: false };
-  const publish = (): void => { for (const listener of listeners) listener({ ...state }); };
-  publish();
-  // Defer the loader so even synchronous setup failures clear the assigned promise.
-  pending = Promise.resolve().then(() => new Promise<THREE.Group>((resolve, reject) => {
-    const loader = new GLTFLoader();
-    loader.setMeshoptDecoder(MeshoptDecoder);
-    loader.load('/models/mercedes-w204.glb', gltf => {
-      gltf.scene.traverse(object => {
-        const mesh = object as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        for (const mat of [mesh.material].flat()) mat.userData.shared = true;
-      });
-      resolve(gltf.scene);
-    }, event => {
-      state.loaded = event.loaded;
-      state.total = Math.max(event.lengthComputable && event.total > 0 ? event.total : state.total, event.loaded);
-      state.unpacking = event.loaded >= state.total;
-      publish();
-    }, reject);
-  })).then(model => {
-    source = model;
-    state = { ...state, loaded: state.total, unpacking: false, done: true };
-    publish(); listeners.clear(); return model;
-  }, error => {
-    pending = null;
-    state = { ...state, unpacking: false, failed: true };
-    publish(); listeners.clear(); throw error;
-  });
-  return pending;
+  return w204Source.load(emitLoad);
 }
 
 export function createW204(paint: number, own: boolean, full: boolean, emitLoad: (state: ModelLoad) => void = noop): CarParts {

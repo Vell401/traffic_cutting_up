@@ -79,6 +79,29 @@ describe('game traffic assets', () => {
     expect(mesh('traffic/semi/lod0/details').count).toBe(MAX_TRAFFIC);
     expect(mesh('traffic/shadows').count).toBe(MAX_TRAFFIC);
     const active = view.group.children.filter(o => o.visible && (o as T.InstancedMesh).count > 0);
-    expect(active.length).toBe(4);
+    expect(active.map(mesh => mesh.name).sort()).toEqual([
+      'traffic/lamp-glows', 'traffic/semi/lod0/body', 'traffic/semi/lod0/details', 'traffic/semi/lod0/lights', 'traffic/shadows',
+    ]);
+  });
+  it('uploads only occupied matrix/colour/signal ranges, never the unused pool or constant lamp colours', () => {
+    sim.traffic.cars.forEach(c => { c.active = false; });
+    const car = sim.traffic.cars[0];
+    car.active = true; car.spec = VEHICLES[0]; car.gen++; place(car, 20); tick();
+    for (const part of ['body', 'details', 'lights']) {
+      const m = mesh(`traffic/sedan/lod0/${part}`);
+      expect(m.instanceMatrix.updateRanges).toEqual([{ start: 0, count: 16 }]);
+      if (part !== 'lights') expect(m.instanceColor!.updateRanges).toEqual([{ start: 0, count: 3 }]);
+      else {
+        expect(m.instanceColor!.version).toBe(0);
+        expect((m.geometry.getAttribute('trafficSignal') as T.BufferAttribute).updateRanges).toEqual([{ start: 0, count: 3 }]);
+      }
+    }
+    const shadows = mesh('traffic/shadows');
+    expect(shadows.instanceMatrix.updateRanges).toEqual([{ start: 0, count: 16 }]);
+    const glows = mesh('traffic/lamp-glows');
+    expect(glows.instanceMatrix.updateRanges).toEqual([{ start: 0, count: glows.count * 16 }]);
+    const version = shadows.instanceMatrix.version;
+    car.active = false; tick();
+    expect(shadows.count).toBe(0); expect(shadows.instanceMatrix.version).toBe(version);
   });
 });

@@ -56,11 +56,14 @@ export class Hud {
     if (p.physicsId === 2) {
       const rack = p.tune as typeof p.tune & { steerAssist?: number };
       const autoSteer = (rack.steerAssist ?? 0) > 0;
-      this.assistStatus.textContent = `AUTO STEER ${autoSteer ? 'ON' : 'OFF'} · TC ${p.tune.tractionControl > 0 ? 'ON' : 'OFF'}`;
+      this.showAssist(`AUTO STEER ${autoSteer ? 'ON' : 'OFF'} · TC ${p.tune.tractionControl > 0 ? 'ON' : 'OFF'}`);
       this.assistStatus.classList.toggle('off', !autoSteer);
     } else if (assist.tractionControlEnabled !== undefined && assist.espEnabled !== undefined) {
-      this.assistStatus.textContent = `TC ${assist.tractionControlEnabled ? 'ON' : 'OFF'} · ESP ${assist.espEnabled ? 'ON' : 'OFF'}`;
+      this.showAssist(`TC ${assist.tractionControlEnabled ? 'ON' : 'OFF'} · ESP ${assist.espEnabled ? 'ON' : 'OFF'}`);
       this.assistStatus.classList.toggle('off', !assist.tractionControlEnabled || !assist.espEnabled);
+    } else {
+      this.showAssist(`TC ${p.tune.tractionControl > 0 ? 'ON' : 'OFF'} · ESP —`);
+      this.assistStatus.classList.toggle('off', p.tune.tractionControl <= 0);
     }
     const tire = p as typeof p & { slipRear?: number; slipAngleRear?: number };
     const slip = Math.max(Math.abs(tire.slipRear ?? 0) / 0.3, Math.abs(tire.slipAngleRear ?? 0) / 0.18);
@@ -71,7 +74,7 @@ export class Hud {
     this.set('score', this.score, fmt.format(Math.floor(sc.score)));
     this.set('mult', this.mult, `×${sc.mult.toFixed(sc.mult % 1 === 0 ? 0 : 2)}`);
     this.set('best', this.best, fmt.format(sc.best));
-    this.set('kmh', this.kmh, String(Math.round((p.physicsId === 2 ? p.speed : Math.max(0, p.vAlong)) * 3.6)));
+    this.set('kmh', this.kmh, String(Math.round((p.physicsId === 2 ? p.speed : Math.abs(p.vAlong)) * 3.6)));
     const gear = p.gear === 0 ? 'R' : p.gear === -1 ? 'N' : String(p.gear);
     this.set('gear', this.gear, p.manual && p.gear > 0 ? `M${gear}` : gear);
     this.boostBar.style.transform = `scaleX(${p.boost.toFixed(3)})`;
@@ -114,6 +117,10 @@ export class Hud {
   }
 
   /** Use the physical cluster instead of the floating speed/gear overlay. */
+  private showAssist(text: string): void {
+    if (this.assistStatus.textContent !== text) this.assistStatus.textContent = text;
+  }
+
   setPhysicalInstruments(on:boolean):void {
     if(on===this.physicalInstruments)return;
     this.physicalInstruments=on;this.speedo.style.visibility=on?'hidden':'';

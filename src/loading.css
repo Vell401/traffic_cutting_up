@@ -1,5 +1,5 @@
 body{margin:0}html:has(#loading:not([hidden])){overflow:hidden}
-#loading{position:fixed;inset:0;z-index:1000;background:#070913;color:#f7f5ff;font-family:'Exo 2',sans-serif;overflow:hidden;transition:opacity .65s ease,visibility .65s}
+#loading{position:fixed;inset:0;z-index:1000;background:#070913;color:#f7f5ff;font-family:'Exo 2',sans-serif;overflow:hidden;transition:opacity .18s ease,visibility .18s}
 #loading[hidden]{display:none}
 #loading.leaving{opacity:0;visibility:hidden;pointer-events:none}
 .loading-shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:loading-drift 18s ease-in-out infinite alternate}

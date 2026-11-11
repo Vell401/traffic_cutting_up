@@ -5,13 +5,12 @@ import { defaultTuning } from '../src/sim/tuning';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
-/** User boundary: only the three requested R34 grip defaults changed from 4d10523.
- * Freeze this checkpoint before the whole-project review and optimization phase.
- * Do not recapture these values merely to accommodate a review/performance edit. */
+/** Preserve the main checkpoint's presets/equations, not whole-file comments or input plumbing.
+ * Manual reverse and C63 keyboard-only rack aid are intentional additions, covered by gearbox /
+ * w204Controls / input tests. The hashes below are retained from before those additions. */
 const files: Record<string, string> = {
   'src/config.ts': '4e428b7fac93dc9d1d9395051af4dc0923569455c87fee1aa4462ee86f89c743',
   'src/core/math.ts': 'de290ece969c80ca51bc14725f9d2edee9f0eb9b6e9915dfbc5ff18cf607acc1',
-  'src/sim/vehicle.ts': 'e24c8be0aa3be355a3c1f92c9a63506f0d8ea877acfdad7607341788c95e2718',
   'src/sim/vehicleDrift.ts': '131e11f445b9b76d76890b2a794577efc1baf01effd5316f0793e5a68dff68ad',
   'src/sim/vehicleMercedes.ts': '3d584300c5ab160a71046d68135608a72f5c61aeba023f76bb6ce3e2ef674c94',
   'src/sim/vehiclePorsche.ts': 'f3297996ad65685ba59e0c57213463f06f2a3888a60c9ebc84dc6c770acaad82',
@@ -22,11 +21,42 @@ const files: Record<string, string> = {
   'src/sim/r34/sketchbookSteering.ts': 'b252d5d1a34f62ccc7bd4697dad5173f45ee4283803549e3f48cf7004347fad8',
 };
 
-describe('vehicle physics is frozen after the specifically requested R34 grip increase', () => {
+const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+
+/** Strip only the explicitly approved opt-in hook/pedal routing, never body forces or presets. */
+function beforeControlFixes(path: string): string {
+  let text = source(path);
+  if (path.endsWith('/vehicleDrift.ts')) text = text
+    .replace('this.assistedSteerAngle(dt, inp, this.steerIn * (this.steerIn > 0 ? lockRight : lockLeft))', 'this.steerIn * (this.steerIn > 0 ? lockRight : lockLeft)')
+    .replace('  /** Only variants opting in may add keyboard rack assistance; direct devices retain full authority. */\n  protected assistedSteerAngle(_dt: number, _inp: DriveInput, angle: number): number {\n    return angle;\n  }\n\n', '');
+  if (path.endsWith('/vehicleW204.ts')) text = text
+    .replace('import { clamp, moveTo }', 'import { clamp }')
+    .replace(/  protected override assistedSteerAngle\([\s\S]*?\n  }\n\n/, '');
+  if (path.endsWith('/vehicleR34.ts')) text = text.replace(
+    '    // Only automatic parking swaps pedals; a selected manual R uses the same W/S as forward gears.\n    const automaticReverse = this.gear === 0 && !this.manual;\n    this.throttle = clamp(automaticReverse ? inp.brake : inp.throttle, 0, 1);\n    this.brake = clamp(automaticReverse ? inp.throttle : inp.brake, 0, 1);',
+    '    this.throttle = clamp(this.gear === 0 ? inp.brake : inp.throttle, 0, 1);\n    this.brake = clamp(this.gear === 0 ? inp.throttle : inp.brake, 0, 1);');
+  return text;
+}
+
+describe('vehicle equations and presets remain frozen outside the requested control fixes', () => {
   it('retains all vehicle equations, shared contacts and the existing non-R34 configuration', () => {
     for (const [path, expected] of Object.entries(files)) {
-      const text = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+      const text = beforeControlFixes(path);
       expect(hash(text), path).toBe(expected);
+    }
+  });
+
+  it('retains the original base forward solver, steering, traction, boost and contact equations', () => {
+    const text = source('src/sim/vehicle.ts');
+    // Captured from origin/main (53648c9) and verified identical before integrating control fixes.
+    for (const [start, end, expected] of [
+      ['/** Reverse (gear 0):', '  /**\n   * Steering input ramp', 'cfa335348453b61d8add14a5cd805c4bb232c7ca29b0da6113b7e56442b91741'],
+      ['  protected controls(', '  /**\n   * Manual gearbox request', 'b46be8390566645463a50fc0bfde0ae7de5efefa31dcc07dd9c5e79140805a34'],
+      ['  protected rampSteer(', '', '31b6cb69703bf8e685316a0784ec14e588f72327d0680f6ab2df24eaccf0f140'],
+    ]) {
+      const a = text.indexOf(start), b = end ? text.indexOf(end, a) : text.length;
+      expect(a).toBeGreaterThanOrEqual(0); expect(b).toBeGreaterThan(a);
+      expect(hash(text.slice(a, b)), start).toBe(expected);
     }
   });
 

@@ -183,3 +183,15 @@ export function loadPaint(car?: number): number {
 export function savePaint(value: number, car?: number): void {
   try { localStorage.setItem(car ? `tcu.paint.${car}` : 'tcu.paint', `#${value.toString(16).padStart(6, '0')}`); } catch { /* optional storage */ }
 }
+
+/** Optional score/speed distortion. Existing players also start with a clean image. */
+export function loadScoreDistortion(): number {
+  try {
+    const value = Number(localStorage.getItem('tcu.effects.distortion'));
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+  } catch { return 0; }
+}
+
+export function saveScoreDistortion(value: number): void {
+  try { localStorage.setItem('tcu.effects.distortion', String(Math.max(0, Math.min(1, value)))); } catch { /* optional storage */ }
+}

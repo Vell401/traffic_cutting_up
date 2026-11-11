@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadMouseSens, loadPaint, saveMouseSens, savePaint } from '../src/settings';
+import { loadMouseSens, loadPaint, saveMouseSens, savePaint, loadScoreDistortion, saveScoreDistortion } from '../src/settings';
 import { GameServer } from '../src/online/gameServer';
 import { PROTOCOL_VERSION, rulesHash } from '../src/online/rules';
 import { replay, type Stimulus } from '../src/online/world';
@@ -7,6 +7,17 @@ import type { ServerMsg } from '../src/online/protocol';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('driver preferences', () => {
+  it('disables distortion by default and persists only bounded levels', () => {
+    const data = new Map<string, string>();
+    vi.stubGlobal('localStorage', { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value) });
+    expect(loadScoreDistortion()).toBe(0);
+    saveScoreDistortion(.4);
+    expect(loadScoreDistortion()).toBe(.4);
+    saveScoreDistortion(2);
+    expect(loadScoreDistortion()).toBe(1);
+    data.set('tcu.effects.distortion', 'NaN');
+    expect(loadScoreDistortion()).toBe(0);
+  });
   it('defaults to 0.3x, accepts 0.05x and restores valid saved settings', () => {
     const data = new Map<string,string>();
     vi.stubGlobal('localStorage', { getItem: (k:string) => data.get(k) ?? null, setItem: (k:string,v:string) => data.set(k,v) });

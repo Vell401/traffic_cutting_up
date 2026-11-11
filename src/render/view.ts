@@ -28,12 +28,15 @@ const ORIGIN_SHIFT = 1000;
 export class View {
   private paint: number;
   private highBeam = false;
+  private scoreDistortion = 0;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
 
   private readonly roadView: RoadView;
   private playerView: PlayerView;
+  private readonly playerViews = new Map<CarId, { view: PlayerView; length: number; width: number }>();
+  private readonly carPreparations = new WeakMap<PlayerView, Promise<void>>();
   private readonly trafficView: TrafficView;
   private readonly lampLights = new LampLights();
   private readonly sky: THREE.Group;
@@ -56,9 +59,10 @@ export class View {
   private time = 0;
   private warmedUp = false;
   /** Online: other drivers' cars (id → view, with the body and paint it was built with). */
-  private readonly remoteViews = new Map<number, { view: RemoteCar; color: number; car: CarId; physics: number; frame: number; prepared: boolean }>();
+  private readonly remoteViews = new Map<number, { view: RemoteCar; color: number; car: CarId; physics: number; frame: number; prepared: boolean; retryAt: number }>();
   private remoteQueue: Promise<void> = Promise.resolve();
   private readonly remoteSpares: PlayerView[] = [];
+  private onlinePreparation: Promise<void> | null = null;
   private frame = 0;
   private readonly shadowTex: THREE.Texture;
   private readonly v3 = new THREE.Vector3();
@@ -106,6 +110,7 @@ export class View {
     this.farGround = new FarGround(sim.map.theme);
     this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy(), sim.map.theme);
     this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width);
+    this.playerViews.set(car, { view: this.playerView, length: sim.player.tune.length, width: sim.player.tune.width });
     this.chase.setRig(CAMERA_RIGS[car]);
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
     this.trafficView = new TrafficView(shadowTex);
@@ -115,12 +120,10 @@ export class View {
     this.spawnPad = sim.online ? new SpawnPad(sim.map.spawn.places, sim.map.id) : null;
     if (this.spawnPad) this.scene.add(this.spawnPad.group);
     sim.events.on('nearMiss', (e) => {
-      this.chase.kick(0.25);
-      this.post.pulse(e.gap < 0.3 ? 0.8 : 0.45);
+      this.scoreFeedback(0.25, e.gap < 0.3 ? 0.8 : 0.45);
     });
     sim.events.on('laneSplit', () => {
-      this.chase.kick(0.35);
-      this.post.pulse(0.9);
+      this.scoreFeedback(0.35, 0.9);
     });
     sim.events.on('wallHit', (e) => {
       this.chase.kick(Math.min(0.9, 0.3 + e.speed * 0.08));
@@ -219,7 +222,7 @@ export class View {
       if (!entry) {
         const view = new RemoteCar(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width);
         this.scene.add(view.root);
-        entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame, prepared: false };
+        entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame, prepared: false, retryAt: 0 };
         this.remoteViews.set(r.id, entry);
       }
       entry.frame = frame;
@@ -231,10 +234,15 @@ export class View {
       entry.view.root.visible = near;
       if (!near) continue;
       const distance = Math.abs(s - ownS);
-      if (!entry.prepared && distance < 180) {
+      if (!entry.prepared && this.time >= entry.retryAt && distance < 180) {
         entry.prepared = true;
         const remote = entry.view;
         this.remoteQueue = this.remoteQueue.then(() => remote.prepare(this.renderer, this.camera, this.scene)).catch(error => {
+          const current = this.remoteViews.get(r.id);
+          if (current?.view === remote) {
+            current.prepared = false;
+            current.retryAt = this.time + 5;
+          }
           console.warn('Remote car preparation failed', error);
         });
       }
@@ -304,13 +312,25 @@ export class View {
     return this.chase.mode;
   }
 
-  /** Compile both Porsche material sets under the loading screen, before the first V key press. */
-  async prepareCar():Promise<void> {
-    await this.renderer.compileAsync(this.scene,this.camera);
-    if(this.playerView.car!==1||!this.playerView.hasCockpit)return;
-    this.playerView.setCockpit(this.cameraMode!=='cockpit');
-    try{await this.renderer.compileAsync(this.scene,this.camera);}
-    finally{this.playerView.setCockpit(this.cameraMode==='cockpit');}
+  /** Compile after attachment, once per cached car, including both Porsche material sets. */
+  prepareCar(): Promise<void> {
+    const player = this.playerView;
+    const existing = this.carPreparations.get(player);
+    if (existing) return existing;
+    const prepare = (async () => {
+      await player.ready;
+      if (player !== this.playerView) return;
+      await this.renderer.compileAsync(this.scene, this.camera);
+      if (player !== this.playerView || player.car !== 1 || !player.hasCockpit) return;
+      player.setCockpit(this.cameraMode !== 'cockpit');
+      try { await this.renderer.compileAsync(this.scene, this.camera); }
+      finally { player.setCockpit(this.cameraMode === 'cockpit'); }
+    })().then(() => {
+      // A superseded menu choice was not actually compiled; it is still preparable later.
+      if (player !== this.playerView) this.carPreparations.delete(player);
+    }, error => { this.carPreparations.delete(player); throw error; });
+    this.carPreparations.set(player, prepare);
+    return prepare;
   }
 
   adaptResolution(frameMs: number, cpuMs: number, active: boolean): void {
@@ -319,15 +339,20 @@ export class View {
     this.resize();
   }
 
-  /** Warm optional online bodies without making their downloads a prerequisite for our car. */
-  async prepareOnlineCars(): Promise<void> {
-    // A missing selected model is a real startup error, not a successful optional warmup.
+  /** Optional full remote warm-up. Avoid blocking boot on every model's texture upload. */
+  prepareOnlineCars(): Promise<void> {
+    return this.onlinePreparation ??= this.prepareOnlineCarSources().then(() => {
+      // Optional failures must not block play, but a later explicit warmup can retry missing bodies.
+      if (this.remoteSpares.length < 4) this.onlinePreparation = null;
+    }, error => { this.onlinePreparation = null; throw error; });
+  }
+
+  private async prepareOnlineCarSources(): Promise<void> {
     await this.playerView.ready;
     for (const id of [1, 2, 3, 4] as const) {
       if (this.remoteSpares.some(spare => spare.car === id)) continue;
-      let spare: PlayerView | undefined;
+      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
       try {
-        spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
         await spare.ready;
         revealMaterials(spare.root).value = 1;
         spare.root.position.copy(this.playerView.root.position);
@@ -349,7 +374,7 @@ export class View {
         }
         this.remoteSpares.push(spare); // Keep shared shader programs resident for future joins.
       } catch (error) {
-        spare?.dispose();
+        spare.dispose();
         console.warn(`Optional online car warmup failed (${id}); it can be retried`, error);
       }
     }
@@ -368,14 +393,22 @@ export class View {
       this.applyCameraMode();
       return this.chase.mode;
     }
-    const old = this.playerView;
     this.tyreEffects.resetTrails();
-    const next = new PlayerView(car, this.paint, this.shadowTex, this.sim.player.tune.length, this.sim.player.tune.width);
+    const { length, width } = this.sim.player.tune;
+    const cached = this.playerViews.get(car);
+    if (cached && (cached.length !== length || cached.width !== width)) {
+      cached.view.dispose();
+      this.playerViews.delete(car);
+    }
+    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width);
+    this.playerViews.set(car, { view: next, length, width });
+    next.setPaint(this.paint);
     next.setHighBeam(this.highBeam);
-    old.dispose();
+    next.setGhost(this.sim.player.ghost);
+    // Keep the four bounded car instances and their programs/textures resident across menu choices.
+    // Detaching also removes the old headlights; a hidden Group would still complicate warm-up.
+    this.playerView.root.removeFromParent();
     this.playerView = next;
-    // Compile before adding: the scene's lights plus the new car's own spot, as they will be drawn.
-    this.renderer.compile(next.root, this.camera, this.scene);
     this.scene.add(next.root);
     const m = this.chase.setRig(CAMERA_RIGS[car], mode);
     this.applyCameraMode();
@@ -390,6 +423,15 @@ export class View {
 
   setPaint(color: number): void { this.paint = color; this.playerView.setPaint(color); }
   setHighBeam(on: boolean): void { this.highBeam = on; this.playerView.setHighBeam(on); }
+  setScoreDistortion(level: number): void {
+    this.scoreDistortion = Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : 0;
+    this.post.setScoreDistortion(this.scoreDistortion);
+  }
+
+  private scoreFeedback(kick: number, pulse: number): void {
+    if (this.scoreDistortion > 0) this.chase.kick(kick * this.scoreDistortion);
+    this.post.scorePulse(pulse);
+  }
 
   /** Sparks where the car's flank rubs the barrier; they trail behind at part of the car's speed. */
   private sparkAtWall(count: number, spread: number): void {

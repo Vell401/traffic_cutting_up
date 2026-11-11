@@ -381,7 +381,7 @@ export class DriftCar extends PlayerCar {
     // The mouse turns the wheel itself: full lock at any speed.
     const lockRight = inp.direct ? t.maxSteerLow : Math.min(t.maxSteerLow, lock + Math.max(0, slide));
     const lockLeft = inp.direct ? t.maxSteerLow : Math.min(t.maxSteerLow, lock - Math.min(0, slide));
-    this.steerAngle = this.steerIn * (this.steerIn > 0 ? lockRight : lockLeft);
+    this.steerAngle = this.assistedSteerAngle(dt, inp, this.steerIn * (this.steerIn > 0 ? lockRight : lockLeft));
     this.cosD = Math.cos(this.steerAngle);
     this.sinD = Math.sin(this.steerAngle);
 
@@ -394,6 +394,11 @@ export class DriftCar extends PlayerCar {
 
     this.resolveWalls(dt);
     this.onShoulder = Math.abs(this.d) > ROAD_HALF;
+  }
+
+  /** Only variants opting in may add keyboard rack assistance; direct devices retain full authority. */
+  protected assistedSteerAngle(_dt: number, _inp: DriveInput, angle: number): number {
+    return angle;
   }
 
   /** Engine torque at full throttle, N·m: turbo spool, 700 N·m plateau, constant power, fade. */

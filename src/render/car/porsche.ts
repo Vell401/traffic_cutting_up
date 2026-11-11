@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three-stdlib';
-import { MeshoptDecoder } from 'meshoptimizer';
+import { ModelSource } from './modelSource';
 import { PorscheInstruments } from './porscheCockpit';
 import type { PlayerCar } from '../../sim/vehicle';
 import { Indicators, type CarParts, type ModelLoad } from './index';
@@ -8,39 +7,21 @@ import { cloneInSlices } from './clone';
 
 export const PORSCHE_PAINT = 0xfee1f9;
 export const PORSCHE_NAME = 'Porsche 911 GT3 RS · IRL Spec 10';
-let source: THREE.Group | null = null;
-let pending: Promise<THREE.Group> | null = null;
-export const porscheReady = (): boolean => source !== null;
-
-export function loadPorsche(report: (state: ModelLoad) => void): Promise<THREE.Group> {
-  if (source) return Promise.resolve(source);
-  if (pending) return pending;
-  const state: ModelLoad = { name: PORSCHE_NAME, loaded: 0, total: 1, unpacking: false, done: false, failed: false };
-  report(state);
-  pending = new Promise<THREE.Group>((resolve,reject) => {
-    const loader = new GLTFLoader();loader.setMeshoptDecoder(MeshoptDecoder);
-    loader.load('/models/porsche-911-irl10.glb?v=irl10-opt4', gltf => {
-      source = gltf.scene;
-      const materials=new Set<THREE.MeshStandardMaterial>();
-      source.traverse(o=>{const mat=(o as THREE.Mesh).material;for(const m of Array.isArray(mat)?mat:mat?[mat]:[]){m.userData.shared=true;materials.add(m as THREE.MeshStandardMaterial);}});
-      const symbols=[...materials].find(m=>m.name==='TwiXeR_992_inttex_web')?.map;
-      for(const mat of materials){
-        // Several mod materials use a grey bump image as their albedo. Restore the preset's black
-        // leather/plastic, retaining its normal/colour texture detail instead of a silver dashboard.
-        if(/leather/i.test(mat.name)){mat.color.setRGB(.016,.017,.018);mat.metalness=0;mat.roughness=.76;}
-        if(/ID01_plastic_lgl_010101FF/.test(mat.name)){mat.color.setRGB(.022,.024,.026);mat.metalness=.12;mat.roughness=.6;}
-        if(mat.name==='TwiXeR_992_Interior_D_web'){mat.color.setRGB(.35,.35,.35);mat.metalness=.12;mat.roughness=.52;}
-        if(symbols&&/TwiXeR_992_symbols_[56]_web/.test(mat.name)){mat.map=symbols;mat.color.setRGB(.8,.8,.8);mat.metalness=0;}
-      }
-      report({...state,loaded:state.total,unpacking:false,done:true});resolve(source);
-    }, event => {
-      state.loaded=event.loaded;
-      state.total=event.lengthComputable&&event.total>0?Math.max(event.total,event.loaded):Math.max(state.total,event.loaded+1);
-      state.unpacking=event.lengthComputable&&event.loaded>=event.total;report({...state});
-    }, error => { pending=null;report({...state,failed:true});reject(error); });
-  });
-  return pending;
-}
+const porscheSource = new ModelSource(PORSCHE_NAME, '/models/porsche-911-irl10.glb?v=irl10-opt4', 11_139_228, source => {
+  const materials=new Set<THREE.MeshStandardMaterial>();
+  source.traverse(o=>{const mat=(o as THREE.Mesh).material;for(const m of Array.isArray(mat)?mat:mat?[mat]:[])materials.add(m as THREE.MeshStandardMaterial);});
+  const symbols=[...materials].find(m=>m.name==='TwiXeR_992_inttex_web')?.map;
+  for(const mat of materials){
+    // Several mod materials use a grey bump image as their albedo. Restore the preset's black
+    // leather/plastic, retaining its normal/colour texture detail instead of a silver dashboard.
+    if(/leather/i.test(mat.name)){mat.color.setRGB(.016,.017,.018);mat.metalness=0;mat.roughness=.76;}
+    if(/ID01_plastic_lgl_010101FF/.test(mat.name)){mat.color.setRGB(.022,.024,.026);mat.metalness=.12;mat.roughness=.6;}
+    if(mat.name==='TwiXeR_992_Interior_D_web'){mat.color.setRGB(.35,.35,.35);mat.metalness=.12;mat.roughness=.52;}
+    if(symbols&&/TwiXeR_992_symbols_[56]_web/.test(mat.name)){mat.map=symbols;mat.color.setRGB(.8,.8,.8);mat.metalness=0;}
+  }
+});
+export const porscheReady = (): boolean => porscheSource.ready;
+export const loadPorsche = (report: (state: ModelLoad) => void): Promise<THREE.Group> => porscheSource.load(report);
 
 /** The BeamNG configuration is baked once; runtime keeps only four wheels and the steering prop animated. */
 export function buildPorsche(paint: number, own: boolean, full: boolean, report: (state:ModelLoad)=>void): CarParts {
@@ -138,7 +119,7 @@ export function buildPorsche(paint: number, own: boolean, full: boolean, report:
     }
     body.add(imported);wheelRoot.add(detachedWheels);
     applyCockpit();
-  }).catch(()=>{/* The loading screen offers retry; keep the rest of the scene alive. */}):Promise.resolve();
+  }):Promise.resolve();
   return {
     ready,
     dispose(){disposed=true;instruments?.dispose();tail.dispose();for(const material of copies.values())material.dispose();for(const material of simpleMaterials.values())material.dispose();},

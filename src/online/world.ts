@@ -5,7 +5,7 @@ import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
 import { Director, type TrafficMode, type TrafficPreset } from '../sim/director';
 import type { SimEvents } from '../sim/events';
 import type { CarId } from '../sim/cars';
-import { createCar, physicsId, type PhysicsId } from '../sim/physics';
+import { bodyPhysics, createCar, physicsId, type PhysicsId } from '../sim/physics';
 import { getMap, isSpawnProtected, type MapDefinition, type MapId } from '../sim/maps';
 import { Road } from '../sim/road';
 import { Scoring } from '../sim/scoring';
@@ -95,6 +95,7 @@ export type Stimulus =
   | { k: 'tuning'; t: number; value: GlobalTuning }
   | { k: 'join'; t: number; id: number; name: string; physics: PhysicsId; car?: CarId; color?: number }
   | { k: 'paint'; t: number; id: number; color: number }
+  | { k: 'garage'; t: number; id: number; car: CarId; color: number }
   | { k: 'config'; t: number; cfg: WorldConfig }
   | { k: 'leave'; t: number; id: number }
   | { k: 'in'; t: number; id: number; seq: number; q: number[] }
@@ -110,7 +111,7 @@ export function cleanName(name: unknown, id: number): string {
 export class Driver {
   readonly events = new Emitter<SimEvents>();
   readonly score: Scoring;
-  readonly car: PlayerCar;
+  car: PlayerCar;
   /** Body model the others see (cosmetic, never simulated). */
   body: CarId = 1;
   state: 'active' | 'away' = 'away';
@@ -142,7 +143,7 @@ export class Driver {
   constructor(
     readonly id: number,
     readonly name: string,
-    readonly physics: PhysicsId,
+    public physics: PhysicsId,
     public color: number,
     /** Spawn place this driver owns (joins and respawns there). */
     readonly slot: number,
@@ -298,6 +299,25 @@ export class OnlineWorld {
     if (!Number.isInteger(color) || color! < 0 || color! > 0xffffff || dr.color === color) return;
     dr.color = color!;
     this.journal?.({ k: 'paint', t: this.tick, id: dr.id, color: color! });
+  }
+
+  /** A garage selection is a new run, not a cosmetic body swap. Caller validates the selection. */
+  changeCar(dr: Driver, car: CarId, color: number): void {
+    this.journal?.({ k: 'garage', t: this.tick, id: dr.id, car, color });
+    // End the old run before changing physics (leaderboards record the old chassis).
+    dr.score.endRun();
+    const oldS = dr.car.s;
+    dr.physics = bodyPhysics(car);
+    dr.body = car;
+    dr.color = color;
+    dr.car = createCar(dr.physics);
+    dr.car.s = oldS;
+    dr.hits.clear();
+    // Everything queued before the garage request belongs to the old car. Acknowledge and discard
+    // it; inputs arriving after the request are replayed using the new chassis on both sides.
+    dr.clearQueue();
+    dr.ack = dr.lastQueued;
+    this.place(dr, 'respawn');
   }
 
   /** Queue inputs [firstSeq, firstSeq + count). Old or repeated seqs are ignored; a gap is skipped over. */
@@ -716,6 +736,8 @@ export function replay(seed: number, rules: Partial<OnlineRules>, journal: reado
       if (!dr) continue;
       if (rec.k === 'paint') {
         w.paint(dr, rec.color);
+      } else if (rec.k === 'garage') {
+        w.changeCar(dr, rec.car, rec.color);
       } else if (rec.k === 'respawn') {
         w.respawn(dr);
       } else if (rec.k === 'resync') {

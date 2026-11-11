@@ -65,7 +65,7 @@ describe('default pre-facelift C63 AMG W204', () => {
     expect(c.vAlong).toBeLessThan(.1); expect(c.s).toBeGreaterThan(28); expect(c.s).toBeLessThan(38);
     expect(Math.abs(c.d)).toBeLessThan(1e-8);
     c.reset(0, 0, 0); c.gear = 0;
-    for (let i = 0; i < 240; i++) c.step(1 / 120, { steer: 0, throttle: 0, brake: 1, manual: true }, 0);
+    for (let i = 0; i < 240; i++) c.step(1 / 120, { steer: 0, throttle: 1, brake: 0, manual: true }, 0);
     expect(c.vx).toBeLessThan(-1);
     expect(c.rpm).toBeCloseTo(Math.max(750, Math.abs(c.vx) / .325 * 3.41 * 3.231 * 30 / Math.PI), 8);
   });

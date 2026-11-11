@@ -4,6 +4,7 @@ import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
 import { buildCar, isShared, waitForCar, type CarParts } from './car';
 import { createTyreFeedback, sampleTyreFeedback } from '../presentation/tyres';
+import { W204Cockpit } from './car/w204Cockpit';
 
 /** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
 const BLINK_PERIOD = 0.7;
@@ -69,6 +70,7 @@ export class PlayerView {
       };
     });
     this.readiness = Promise.race([loaded, cancelled]);
+    if (p.cockpit instanceof W204Cockpit) p.cockpit.group.visible = false;
 
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(W * 1.45, L * 1.2).rotateX(-Math.PI / 2),
@@ -164,6 +166,7 @@ export class PlayerView {
   setPaint(color: number): void { this.parts.setPaint(color); }
 
   setHighBeam(on: boolean): void {
+    if (this.parts.cockpit instanceof W204Cockpit) this.parts.cockpit.setHighBeam(on);
     for (const beam of this.headlights) {
       const side = Math.sign(beam.position.x);
       beam.intensity = on ? 1500 : 520;
@@ -235,6 +238,7 @@ export class PlayerView {
     } else this.blinkT += dt;
     this.blinkLit = this.blinkSide !== 0 && this.blinkT % BLINK_PERIOD < BLINK_LIT;
     p.indicators.set(this.blinkLit && this.blinkSide === 1, this.blinkLit && this.blinkSide === 2, car.brake > 0.05);
+    if (p.cockpit instanceof W204Cockpit) p.cockpit.setSignals(this.blinkLit && this.blinkSide === 1, this.blinkLit && this.blinkSide === 2);
     if (p.updateCabin) p.updateCabin(car, dt);
     else if (this.cockpitOn||this.car===1) p.cockpit?.update(car, dt);
   }

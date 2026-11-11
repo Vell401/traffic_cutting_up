@@ -8,15 +8,17 @@ export interface DriveInput {
   brake: number;
   /** Analog stick: follow the input almost directly instead of the keyboard ramp. */
   analog?: boolean;
+  /** Steering device ownership survives a centred stick; false disables keyboard-only rack aid. */
+  keyboardSteer?: boolean;
   /** Manual gearbox: gears change only on `shift` requests (else the automatic shifts). */
   manual?: boolean;
   /** Shift request for this step: 1 up, -1 down, 0 none (one step per key press). */
   shift?: number;
   /** Turn signal: 0 off, 1 left, 2 right (cosmetic; others see it online). */
   blinker?: number;
-   /** C held: spend the boost reserve on extra push. */
+  /** Shift held: spend the boost reserve on extra push. */
   boost?: boolean;
-  /** Shift held: disconnect engine torque from the driven wheels. */
+  /** F held: disconnect engine torque from the driven wheels. */
   clutch?: boolean;
   /**
    * Mouse steering: the input is the wheel angle itself, a share of full lock at any speed (the
@@ -371,8 +373,9 @@ export class PlayerCar {
    * pressScale scales the keyboard press rate (1 = as tuned).
    */
   /**
-   * Direction: holding the brake at a standstill engages reverse (gear 0), while W/throttle drives
-   * backwards; the brake stops it and returns to first. Manual selection uses X/Z as before.
+   * Direction: the automatic selects reverse (gear 0) with the brake at a standstill, retaining
+   * each variant's parking pedals. Manual R always uses throttle to drive and brake to stop;
+   * only shift requests select another gear.
    * In reverse this runs the step and returns true.
    */
   protected reverse(dt: number, inp: DriveInput, kRoad: number): boolean {
@@ -405,30 +408,19 @@ export class PlayerCar {
     if (!inp.manual) return;
     if (this.shiftT > 0) this.shiftT = Math.max(0, this.shiftT - 1 / 120);
     if ((inp.shift ?? 0) === 0 || this.shiftT > 0) return;
-    const dir = inp.shift!;
-    const stopped = Math.abs(this.vx) < 0.3;
-    if (this.gear === 0 && !stopped) return;
-    if (this.gear === 0 && dir > 0) this.gear = -1;
-    else if (this.gear === 0 && dir < 0) return;
-    else if (this.gear === -1 && dir > 0) this.gear = 1;
-    else if (this.gear === -1 && dir < 0) this.gear = 0;
-    else if (this.gear === 1 && dir < 0) this.gear = -1;
-    else if (this.gear > 0) {
-      const k = this.tune.redline * Math.max(this.vx, 0) * 3.6;
-      this.manualShift(dir, k);
-      return;
-    } else return;
-    this.shiftT = this.tune.shiftTime;
+    const k = this.tune.redline * Math.max(this.vx, 0) * 3.6;
+    this.manualShift(inp.shift!, k);
   }
 
-  /** Reverse: a slow kinematic bicycle backwards; throttle drives, brake stops. */
+  /** Reverse: a slow kinematic bicycle; manual pedals are never swapped. */
   protected stepReverse(dt: number, inp: DriveInput, kRoad: number): void {
     const t = this.tune;
     const L = t.cgToFront + t.cgToRear;
     this.rampSteer(dt, inp);
     this.steerAngle = this.steerIn * t.maxSteerLow;
-    this.throttle = clamp(this.throttleDrivenReverse ? inp.throttle : inp.brake, 0, 1);
-    this.brake = clamp(this.throttleDrivenReverse ? inp.brake : inp.throttle, 0, 1);
+    const throttleDriven = inp.manual || this.throttleDrivenReverse;
+    this.throttle = clamp(throttleDriven ? inp.throttle : inp.brake, 0, 1);
+    this.brake = clamp(throttleDriven ? inp.brake : inp.throttle, 0, 1);
     const v0 = this.vx;
     let vx = this.vx;
     if (vx > -REVERSE_MAX) vx = Math.max(-REVERSE_MAX, vx - this.throttle * REVERSE_ACC * dt);
@@ -479,6 +471,13 @@ export class PlayerCar {
     this.shiftRefused = false;
     const t = this.tune;
     if (dir === 0 || this.shiftT > 0) return;
+    // Reverse is a low-speed parking model: engaging it while rolling would replace the entire
+    // body's velocity with its kinematic reverse state. Check total motion, including a sideways slide.
+    const reverseGate = (dir < 0 && this.gear === -1) || (dir > 0 && this.gear === 0);
+    if (reverseGate && (this.speed >= 0.3 || Math.abs(this.r) >= 0.2)) {
+      this.shiftRefused = true;
+      return;
+    }
     if (dir > 0 && this.gear === 0) {
       this.gear = -1;
       this.shiftT = t.shiftTime;
@@ -488,7 +487,7 @@ export class PlayerCar {
     } else if (dir < 0 && this.gear === 1) {
       this.gear = -1;
       this.shiftT = t.shiftTime;
-    } else if (dir < 0 && this.gear === -1 && Math.abs(this.vx) < 0.3) {
+    } else if (dir < 0 && this.gear === -1) {
       this.gear = 0;
       this.shiftT = t.shiftTime;
     } else if (dir > 0 && this.gear > 0 && this.gear < t.gearTopKmh.length) {

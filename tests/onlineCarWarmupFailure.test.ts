@@ -72,12 +72,12 @@ describe('boot readiness call site', () => {
       prepareOnlineCars: () => view.prepareOnlineCars(), render, prepareCar,
     }, waitForCar);
     await expect(boot.done).resolves.toBeUndefined();
-    expect(view.remoteSpares.map(spare => spare.car)).toEqual([2]);
+    expect(view.remoteSpares).toHaveLength(0);
+    expect(requests).toHaveLength(0); // Boot no longer initiates any optional model download.
     expect(render).toHaveBeenCalledTimes(1);
     expect(prepareCar).toHaveBeenCalledTimes(1);
     expect(boot.loading.fail).not.toHaveBeenCalled();
-    expect(console.warn).toHaveBeenCalledWith('Optional online model preload failed (1)', expect.any(Error));
-    expect(console.warn).toHaveBeenCalledWith('Optional online model preload failed (3)', expect.any(Error));
+    expect(console.warn).not.toHaveBeenCalled();
   });
 
   it.each([false, true])('keeps a selected failure honest and retries only on the reload gesture (online=%s)', async online => {
@@ -101,12 +101,12 @@ describe('boot readiness call site', () => {
   });
 
   it('also explains selected attachment/preparation failure instead of completing a missing car', async () => {
-    const view = { prepareOnlineCars: vi.fn().mockRejectedValue(new Error('Selected attachment failed')), render: vi.fn(), prepareCar: vi.fn() };
+    const view = { prepareOnlineCars: vi.fn(), render: vi.fn(), prepareCar: vi.fn().mockRejectedValue(new Error('Selected attachment failed')) };
     const boot = bootCallsite(Promise.resolve(), true, view, vi.fn().mockResolvedValue(undefined));
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(boot.loading.fail).toHaveBeenCalledTimes(1);
     expect(boot.report).toHaveBeenCalledWith('error', 'Selected car startup preparation failed', 'Error: Selected attachment failed');
-    expect(view.render).not.toHaveBeenCalled();
+    expect(view.prepareCar).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -168,7 +168,7 @@ describe('optional online car warmup failure', () => {
   it.each([1, 3, 4] as const)('exposes selected-model %i failure, then a fresh instance attaches on retry', async id => {
     failFile = files[id];
     const { view, selected, renderer, PlayerView } = await harness(id);
-    const explanation = id === 3 ? 'Cannot load Mercedes-AMG A45 S' : 'Download failed';
+    const explanation = 'Download failed';
     await expect(selected.ready).rejects.toThrow(explanation);
     await expect(view.prepareOnlineCars()).rejects.toThrow(explanation);
     expect(view.remoteSpares).toHaveLength(0);

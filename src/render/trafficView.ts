@@ -4,7 +4,9 @@ import type { RoadPoint } from '../sim/road';
 import { MAX_TRAFFIC, type TrafficCar } from '../sim/traffic';
 import { VEHICLES } from '../sim/vehicles';
 import type { Sim } from '../sim/world';
-import { buildModel, defaults, type Kind, type LOD } from './trafficModels';
+import { defaults, type Kind, type LOD } from './trafficModels';
+import { cloneTrafficModel } from './trafficAssets';
+import { TRAFFIC_LIGHTING, trafficGlowMaterial, trafficLampLayout, type TrafficLamp } from './trafficViewLights';
 
 interface Batch {
   meshes: THREE.InstancedMesh[];
@@ -12,7 +14,13 @@ interface Batch {
   count: number;
 }
 
-/** Three draws per occupied type/LOD, plus shared blob shadows. Wheels are baked in.
+function uploadUsed(attribute: THREE.BufferAttribute, count: number): void {
+  attribute.clearUpdateRanges();
+  attribute.addUpdateRange(0, count * attribute.itemSize);
+  attribute.needsUpdate = true;
+}
+
+/** Three draws per occupied type/LOD, shared blob shadows and one shared halo/asphalt-wash pass. Wheels are baked in.
  * Cargo tint and lamp states use semantic attributes, not extra per-car meshes.
  */
 export class TrafficView {
@@ -20,6 +28,9 @@ export class TrafficView {
   private readonly types = new Map<string, Batch[]>();
   private readonly levels = new WeakMap<TrafficCar, { gen: number; lod: LOD }>();
   private readonly shadows: THREE.InstancedMesh;
+  private readonly glows: THREE.InstancedMesh;
+  private readonly glowStates: THREE.InstancedBufferAttribute;
+  private readonly lamps = new Map<string, TrafficLamp[]>();
   private readonly m = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
   private readonly p = new THREE.Vector3();
@@ -46,16 +57,16 @@ export class TrafficView {
       shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', `
         #include <color_vertex>
         if (partRole < 1.5) vColor.xyz = vec3(2.4, 2.25, 1.9);
-        else if (partRole < 2.5) vColor.xyz = mix(vec3(.9, .04, .03), vec3(2.6, .07, .04), trafficSignal.x);
+        else if (partRole < 2.5) vColor.xyz = mix(vec3(2.4, .025, .012), vec3(7.5, .08, .025), trafficSignal.x);
         else vColor.xyz = mix(vec3(.1, .05, .01), vec3(3.2, 1.45, .08), partRole < 3.5 ? trafficSignal.y : trafficSignal.z);
       `);
     };
-    lights.customProgramCacheKey = () => 'traffic-lamps-v1';
+    lights.customProgramCacheKey = () => 'traffic-lamps-v2';
     const materials = [paint, neutral, lights];
     for (const spec of VEHICLES) {
       const batches = ([0, 1, 2] as LOD[]).map(lod => {
-        // White cargo lets the instance colour select its final shade; neutral details retain theirs.
-        const model = buildModel(spec.name as Kind, lod, { ...defaults, cargoColor: '#ffffff' });
+        const model = cloneTrafficModel(spec.name as Kind, lod);
+        if (lod === 0) this.lamps.set(spec.name, trafficLampLayout(model.parts[2]));
         const signals = new THREE.InstancedBufferAttribute(new Float32Array(MAX_TRAFFIC * 3), 3).setUsage(THREE.DynamicDrawUsage);
         model.parts[2].setAttribute('trafficSignal', signals);
         const meshes = model.parts.map((geo, i) => {
@@ -73,6 +84,14 @@ export class TrafficView {
     );
     this.shadows.name = 'traffic/shadows';
     this.shadows.renderOrder = 1;
+    const glowGeometry = new THREE.PlaneGeometry(1, 1);
+    this.glowStates = new THREE.InstancedBufferAttribute(new Float32Array(MAX_TRAFFIC * TRAFFIC_LIGHTING.instancesPerCar * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    glowGeometry.setAttribute('trafficLampState', this.glowStates);
+    this.glows = new THREE.InstancedMesh(glowGeometry, trafficGlowMaterial(), MAX_TRAFFIC * TRAFFIC_LIGHTING.instancesPerCar);
+    this.glows.name = 'traffic/lamp-glows';
+    this.glows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.glows.frustumCulled = false; this.glows.count = 0; this.glows.renderOrder = 2;
+    this.group.add(this.glows);
   }
 
   private instanced(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.InstancedMesh {
@@ -90,7 +109,7 @@ export class TrafficView {
     for (const batches of this.types.values()) for (const b of batches) b.count = 0;
     // Distance to the player is independent of floating-origin resets and ring wrapping.
     sim.road.toWorld(lerp(sim.player.prevS, sim.player.s, alpha), lerp(sim.player.prevD, sim.player.d, alpha), this.eye);
-    let n = 0;
+    let n = 0, glowCount = 0;
     const blinkOn = time % .8 < .4;
     for (const c of sim.traffic.cars) {
       if (!c.active) continue;
@@ -120,16 +139,32 @@ export class TrafficView {
       this.sc.set(c.spec.wid * 1.5, 1, c.spec.len * 1.25);
       this.m.compose(this.p, this.q, this.sc);
       this.shadows.setMatrixAt(n++, this.m);
+      if (distance < TRAFFIC_LIGHTING.haloFadeEnd) for (const lamp of this.lamps.get(c.spec.name)!) {
+        if (lamp.role === 3 && distance >= TRAFFIC_LIGHTING.washFadeEnd) continue;
+        this.p.copy(lamp.position).applyQuaternion(this.q);
+        this.p.x += this.pt.x - ox; this.p.z += this.pt.z - oz;
+        if (lamp.role === 3) this.sc.set(lamp.width, 1, lamp.height);
+        else this.sc.set(lamp.width, lamp.height, 1);
+        this.m.compose(this.p, this.q, this.sc);
+        this.glows.setMatrixAt(glowCount, this.m);
+        this.glowStates.setXY(glowCount++, lamp.role, Number(c.braking));
+      }
     }
     for (const batches of this.types.values()) for (const b of batches) {
-      for (const mesh of b.meshes) {
+      for (const [i, mesh] of b.meshes.entries()) {
         mesh.count = b.count;
         mesh.visible = b.count > 0;
-        if (b.count) { mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor!.needsUpdate = true; }
+        if (b.count) {
+          uploadUsed(mesh.instanceMatrix, b.count);
+          // Lamp colours come from partRole/trafficSignal, not per-instance paint.
+          if (i < 2) uploadUsed(mesh.instanceColor!, b.count);
+        }
       }
-      if (b.count) b.signals.needsUpdate = true;
+      if (b.count) uploadUsed(b.signals, b.count);
     }
     this.shadows.count = n;
-    this.shadows.instanceMatrix.needsUpdate = true;
+    if (n) uploadUsed(this.shadows.instanceMatrix, n);
+    this.glows.count = glowCount; this.glows.visible = glowCount > 0;
+    if (glowCount) { uploadUsed(this.glows.instanceMatrix, glowCount); uploadUsed(this.glowStates, glowCount); }
   }
 }

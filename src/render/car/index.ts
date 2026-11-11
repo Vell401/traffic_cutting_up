@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three-stdlib';
-import { MeshoptDecoder } from 'meshoptimizer';
+import { ModelSource, type ModelLoad } from './modelSource';
+import { configureA45Textures } from './a45TexturePolicy';
 import { damp } from '../../core/math';
 import { report } from '../../diag';
 import type { CarId } from '../../sim/cars';
@@ -8,12 +8,13 @@ import type { PlayerCar } from '../../sim/vehicle';
 import { sideExtrude } from '../carModels';
 import type { Cockpit } from './r34Interior';
 import { WheelSet, sportRim, sportTyre, type WheelPos } from './wheels';
-import { buildPorsche, loadPorsche, porscheReady, PORSCHE_NAME } from './porsche';
+import { buildPorsche, loadPorsche, PORSCHE_NAME } from './porsche';
 import { cloneInSlices } from './clone';
 import { buildR34Parts } from './r34Build';
 import { preloadW204, createW204 } from './w204';
 
 export type { Cockpit } from './r34Interior';
+export type { ModelLoad } from './modelSource';
 
 export type CameraMode = 'chase' | 'far' | 'cockpit' | 'hood' | 'bumper';
 
@@ -329,25 +330,13 @@ export interface CarParts {
   cockpit: Cockpit | null;
 }
 
-let mercedesModel: THREE.Group | null = null;
-let mercedesLoading = false;
-const mercedesWaiters = new Set<(model: THREE.Group) => void>();
-let mercedesRequestOwner: Set<() => void> | null = null;
-
-/** Download state of a heavy car model (the loading indicator shows it). */
-export interface ModelLoad {
-  name: string;
-  /** Bytes so far and in all (the size is known even when the server does not send it). */
-  loaded: number;
-  total: number;
-  /** Downloaded and being unpacked. */
-  unpacking: boolean;
-  done: boolean;
-  failed: boolean;
-}
-
-/** Size of mercedes-a45s.glb, for progress when the response has no length. */
-const A45_BYTES = 36_109_040;
+const A45_NAME = 'Mercedes-AMG A45 S';
+const mercedesSource = new ModelSource(A45_NAME, '/models/mercedes-a45s.glb?v=lossless-textures-1', 36_109_040, scene => {
+  scene.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh) mesh.castShadow = mesh.receiveShadow = true;
+  });
+}, configureA45Textures);
 const modelLoadListeners = new Set<(s: ModelLoad) => void>();
 
 /** Follow heavy model downloads; returns an unsubscribe function. */
@@ -364,7 +353,7 @@ function emitLoad(s: ModelLoad): void {
 export function preloadCar(id: CarId): void {
   if (id === 4) void preloadW204(emitLoad).catch(() => {});
   if (id === 1) void loadPorsche(emitLoad).catch(() => {});
-  if (id === 3) loadMercedesModel(() => {});
+  if (id === 3) void loadMercedesModel().catch(() => {});
 }
 
 /** Resolves only after the model is parsed and attached; failed downloads remain retryable. */
@@ -374,61 +363,16 @@ export function waitForCar(id: CarId, progress: (fraction: number, unpacking: bo
     return preloadW204(emitLoad).then(() => {}).finally(unsubscribe);
   }
   if (id === 1) {
-    if (porscheReady()) return Promise.resolve();
     const unsubscribe = onModelLoad(s => { if (s.name === PORSCHE_NAME) progress(s.done ? 1 : Math.min(.99,s.loaded / Math.max(1,s.total)),s.unpacking); });
     return loadPorsche(emitLoad).then(() => {}).finally(unsubscribe);
   }
-  if (id !== 3 || mercedesModel) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const unsubscribe = onModelLoad(s => {
-      if (s.name !== 'Mercedes-AMG A45 S') return;
-      progress(s.done ? 1 : Math.min(.99, s.loaded / Math.max(1, s.total)), s.unpacking);
-      if (s.failed) { unsubscribe(); reject(new Error(`Cannot load ${s.name}`)); }
-      else if (s.done) { unsubscribe(); resolve(); }
-    });
-    preloadCar(id);
-  });
+  if (id !== 3) return Promise.resolve();
+  const unsubscribe = onModelLoad(s => { if (s.name === A45_NAME) progress(s.done ? 1 : Math.min(.99, s.loaded / Math.max(1, s.total)), s.unpacking); });
+  return loadMercedesModel().then(() => {}).finally(unsubscribe);
 }
 
-function loadMercedesModel(onLoad: (model: THREE.Group) => void): void {
-  if (mercedesModel) {
-    onLoad(mercedesModel);
-    return;
-  }
-  mercedesWaiters.add(onLoad);
-  const unsubscribe = (): void => { mercedesWaiters.delete(onLoad); };
-  mercedesRequestOwner?.add(unsubscribe);
-  if (mercedesLoading) return;
-  mercedesLoading = true;
-  const name = 'Mercedes-AMG A45 S';
-  const state: ModelLoad = { name, loaded: 0, total: A45_BYTES, unpacking: false, done: false, failed: false };
-  emitLoad(state);
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  loader.load('/models/mercedes-a45s.glb?v=lossless-textures-1', ({ scene }) => {
-    scene.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) m.userData.shared = true;
-    });
-    mercedesModel = scene;
-    for (const waiter of mercedesWaiters) waiter(scene);
-    mercedesWaiters.clear();
-    emitLoad({ ...state, loaded: state.total, unpacking: false, done: true });
-  }, (e) => {
-    // A compressed response may report its compressed length (or none): never show past 100 %.
-    state.total = Math.max(e.lengthComputable && e.total > 0 ? e.total : A45_BYTES, e.loaded);
-    state.loaded = e.loaded;
-    state.unpacking = e.loaded >= state.total;
-    emitLoad({ ...state });
-  }, (e) => {
-    report('error', 'model load failed: mercedes-a45s.glb', String((e as { message?: string })?.message ?? e));
-    mercedesLoading = false;
-    mercedesWaiters.clear();
-    emitLoad({ ...state, failed: true });
-  });
+function loadMercedesModel(): Promise<THREE.Group> {
+  return mercedesSource.load(emitLoad);
 }
 
 /*
@@ -540,14 +484,9 @@ function independentImportedWheels(parts: CarParts): CarParts {
   return parts;
 }
 
-/** Keep request failure/cancellation outside the byte-protected A45 rendering builder. */
+/** Keep request failure/cancellation separate from the A45 rendering builder. */
 function withMercedesReadiness(build: () => CarParts): CarParts {
-  const subscriptions = new Set<() => void>();
-  const previous = mercedesRequestOwner;
-  let parts: CarParts;
-  mercedesRequestOwner = subscriptions;
-  try { parts = build(); }
-  finally { mercedesRequestOwner = previous; }
+  const parts = build();
   const dispose = parts.dispose;
   let cancel: () => void = () => {};
   const cancelled = new Promise<never>((_resolve, reject) => {
@@ -561,8 +500,6 @@ function withMercedesReadiness(build: () => CarParts): CarParts {
   void parts.ready.catch(() => {});
   parts.dispose = () => {
     cancel();
-    for (const unsubscribe of subscriptions) unsubscribe();
-    subscriptions.clear();
     dispose?.();
   };
   return parts;
@@ -653,7 +590,7 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
   let disposed = false;
   let finishReady: () => void = () => {};
   const ready = importedModel ? new Promise<void>(resolve => { finishReady = resolve; }) : Promise.resolve();
-  if (importedModel) loadMercedesModel((model) => {
+  if (importedModel) void loadMercedesModel().then((model) => {
     void (async () => {
       const imported = own ? model.clone(true) : await cloneInSlices(model, () => disposed);
       if (!imported || disposed) return;
@@ -696,6 +633,9 @@ function buildMercedesParts(paint: number, L: number, W: number, importedModel: 
         wheelDrive.target = modelWheels;
       }
     })().catch(error => report('error', 'Mercedes model preparation failed', String(error))).finally(finishReady);
+  }, error => {
+    report('error', 'model load failed: mercedes-a45s.glb', String(error));
+    finishReady();
   });
   // Beams from the projectors (±0.61 m, 0.66 m up), just ahead of the lamp glass.
   return { body, wheels: wheelDrive, wheelRoot, tail, tailIdle: TAIL_IDLE, tailBrake: TAIL_BRAKE, lamp: new THREE.Vector3(0, 0.66, -2.16), lampX: 0.61, cockpit, indicators,

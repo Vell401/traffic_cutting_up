@@ -143,8 +143,10 @@ export class R34Car extends PlayerCar {
         this.gear = 1; this.shiftT = 0;
       }
     }
-    this.throttle = clamp(this.gear === 0 ? inp.brake : inp.throttle, 0, 1);
-    this.brake = clamp(this.gear === 0 ? inp.throttle : inp.brake, 0, 1);
+    // Only automatic parking swaps pedals; a selected manual R uses the same W/S as forward gears.
+    const automaticReverse = this.gear === 0 && !this.manual;
+    this.throttle = clamp(automaticReverse ? inp.brake : inp.throttle, 0, 1);
+    this.brake = clamp(automaticReverse ? inp.throttle : inp.brake, 0, 1);
     // 480 Hz divides 30/60/120/240 Hz clients exactly; wheel contact is solved implicitly.
     const n = Math.max(1, Math.ceil(dt * 480 - 1e-9)), h = dt / n;
     for (let i = 0; i < n; i++) this.integrate(h, inp, kRoad);

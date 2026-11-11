@@ -1,4 +1,4 @@
-import { clamp } from '../core/math';
+import { clamp, moveTo } from '../core/math';
 import { DriftCar, driftTune, type DriftTune } from './vehicleDrift';
 import type { DriveInput } from './vehicle';
 
@@ -40,6 +40,20 @@ const TORQUE = [[0, 0], [500, 260], [1000, 332.7], [1500, 469.1],
 export class W204Car extends DriftCar {
   override readonly physicsId = 5;
   constructor() { super(w204Tune); }
+
+  protected override assistedSteerAngle(dt: number, inp: DriveInput, angle: number): number {
+    const t = this.tune;
+    if (inp.keyboardSteer === false || inp.analog || inp.direct || this.vx <= t.lowSpeed) return angle;
+    const rearSlip = Math.atan2(this.vy - t.cgToRear * this.r, this.vx);
+    // Stay out of ordinary grip steering. In a slide let the front wheels follow their contact
+    // velocity, with a little yaw damping; the keys still add the driver's steering request.
+    const assist = clamp((Math.abs(rearSlip) - 0.08) / 0.14, 0, 1);
+    if (assist === 0) return angle;
+    const caster = Math.atan2(this.vy + t.cgToFront * this.r, this.vx) - this.r * 0.12;
+    const target = clamp(angle + caster * assist, -t.maxSteerLow, t.maxSteerLow);
+    // steerAngle is already rewindable: no hidden assist state or body-force correction is needed.
+    return moveTo(this.steerAngle, target, t.maxSteerLow * 4 * dt);
+  }
 
   override engineTorque(rpm: number): number {
     const r = clamp(rpm, 0, this.tune.redline);

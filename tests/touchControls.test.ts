@@ -68,7 +68,7 @@ describe('production multitouch and Input composition', () => {
     up(12, 'pointercancel'); input.poll(); expect(input.drive.throttle).toBe(0);
   });
   it('touch steering owns centre too; pedals max and buttons OR; release restores live keyboard/gamepad', () => {
-    key('KeyA'); key('KeyW'); key('ControlLeft'); key('ShiftLeft');
+    key('KeyA'); key('KeyW'); key('KeyF'); key('ShiftLeft');
     pads = [{ connected: true, axes: [0.8], buttons: [] } as unknown as Gamepad];
     input.poll(); const padSteer = input.drive.steer;
     down('steer', 1, 100); down('brake', 2); input.poll();
@@ -77,10 +77,10 @@ describe('production multitouch and Input composition', () => {
     pads = []; key('KeyW', 'keyup'); input.poll();
     expect(input.drive).toMatchObject({ steer: -1, throttle: 0, brake: 0 });
   });
-  it('preserves keydown onPress-before-held and repeat semantics, Shift boost / Ctrl clutch', () => {
+  it('preserves keydown onPress-before-held and repeat semantics, Shift boost / F clutch', () => {
     const presses: boolean[] = [];
     input.onPress = code => presses.push(input.isDown(code));
-    key('ShiftLeft'); key('ShiftLeft', 'keydown', true); key('ControlLeft');
+    key('ShiftLeft'); key('ShiftLeft', 'keydown', true); key('KeyF');
     expect(presses).toEqual([false, false]); input.poll();
     expect(input.drive).toMatchObject({ boost: true, clutch: true });
     input.releaseAll(); input.poll(); expect(input.drive).toMatchObject({ boost: false, clutch: false });
@@ -103,7 +103,7 @@ describe('production multitouch and Input composition', () => {
     down('brake', 1); input.poll(); expect(input.drive).toMatchObject({ throttle: 0, brake: 1 });
     const pedal = { ...input.drive };
     touch.releaseAll(); key('KeyS'); input.poll();
-    expect(input.drive).toEqual(pedal);
+    expect(input.drive).toEqual({ ...pedal, keyboardSteer: true });
     for (const body of [1, 2, 3, 4] as const) {
       const car = createCar(bodyPhysics(body)), keyboard = createCar(bodyPhysics(body));
       car.reset(0, 0, 0); keyboard.reset(0, 0, 0);

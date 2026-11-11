@@ -26,6 +26,25 @@ export const MSG_SNAPSHOT = 2;
 /** Most inputs one INPUT message carries. */
 export const MAX_INPUT_BATCH = 120;
 
+/** Chat is plain text, at most 200 UTF-16 code units (without splitting a surrogate pair). */
+export const CHAT_MAX_LENGTH = 200;
+/** One accepted chat message / garage change per driver per second, including reconnects. */
+export const CHAT_INTERVAL_SECONDS = 1;
+export const GARAGE_INTERVAL_SECONDS = 1;
+
+export function cleanChat(text: unknown): string {
+  if (typeof text !== 'string') return '';
+  return text.replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '').trim()
+    .slice(0, CHAT_MAX_LENGTH).replace(/[\ud800-\udbff]$/, '');
+}
+
+/** The identity is always filled in by the server, never taken from a client message. */
+export interface ChatMessage {
+  id: number;
+  name: string;
+  text: string;
+}
+
 // ------------------------------------------------------------------------- JSON messages
 
 export interface PlayerInfo {
@@ -45,7 +64,12 @@ export interface PlayerInfo {
 
 export type ClientMsg =
   /** seq: the client's last input number (0 for a fresh page): its next inputs follow it. */
-  | { t: 'hello'; v: number; rules: string; map?: MapId; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string; color?: number }
+  | { t: 'hello'; v: number; rules: string; map?: MapId; name: string; physics: PhysicsId; car: CarId; seq: number; token?: string; color?: number; resume?: boolean }
+  | { t: 'chat'; text: string }
+  /** Physics must match bodyPhysics(car); paint is an integer RGB value. */
+  | { t: 'garage'; request: number; car: CarId; physics: PhysicsId; color: number }
+  /** Intentional departure: release the slot instead of keeping it for reconnect. */
+  | { t: 'leave' }
   | { t: 'respawn' }
   | { t: 'ping'; c: number };
 
@@ -54,6 +78,10 @@ export type ServerMsg =
   | { t: 'tuning'; tuning: GlobalTuning }
   | { t: 'reject'; reason: 'full' | 'version' | 'rules' | 'map' | 'bad' | 'kicked' | 'banned'; text: string }
   | { t: 'players'; list: PlayerInfo[] }
+  | ({ t: 'chat' } & ChatMessage)
+  /** Accepted selections are complete only once a snapshot at/after this epoch arrives. */
+  | { t: 'garage'; request: number; ok: true; epoch: number }
+  | { t: 'garage'; request: number; ok: false; reason: 'bad' | 'rate'; text: string }
   | { t: 'ev'; name: string; data: Record<string, unknown> }
   | { t: 'feed'; text: string }
   /** A message from the admin page: a banner on every screen (menus too). */
@@ -220,8 +248,9 @@ export const IN_ESP_ON = 2048;
 export const IN_ASSIST_STATE = 4096;
 export const IN_CLUTCH = 8192;
 export const IN_ASSIST_AND_CLUTCH = 16384;
+export const IN_NO_KEYBOARD_STEER = 32768;
 /** Every input flag bit a client may set (the server masks the rest off). */
-export const IN_ALL = 32767;
+export const IN_ALL = 65535;
 
 /** Bytes of one input step in an INPUT message. */
 export const INPUT_BYTES = 6;
@@ -251,7 +280,8 @@ export function quantizeInput(inp: DriveInput, out: InputQ): InputQ {
     (inp.tractionControlEnabled !== undefined || inp.espEnabled !== undefined ? IN_ASSIST_STATE : 0) |
     (inp.clutch !== undefined ? IN_ASSIST_AND_CLUTCH : 0) |
     (inp.tractionControlEnabled === true ? IN_TC_ON : 0) |
-    (inp.espEnabled === true ? IN_ESP_ON : 0);
+    (inp.espEnabled === true ? IN_ESP_ON : 0) |
+    (inp.keyboardSteer === false ? IN_NO_KEYBOARD_STEER : 0);
   if (inp.clutch) out.flags |= IN_CLUTCH;
   return out;
 }
@@ -262,6 +292,7 @@ export function inputFromQ(q: InputQ, out: DriveInput): DriveInput {
   out.throttle = q.throttle / 255;
   out.brake = q.brake / 255;
   out.analog = (q.flags & IN_ANALOG) !== 0;
+  out.keyboardSteer = q.flags & IN_NO_KEYBOARD_STEER ? false : undefined;
   out.manual = (q.flags & IN_MANUAL) !== 0;
   out.shift = q.flags & IN_SHIFT_UP ? 1 : q.flags & IN_SHIFT_DOWN ? -1 : 0;
   out.blinker = q.flags & IN_BLINK_LEFT ? 1 : q.flags & IN_BLINK_RIGHT ? 2 : 0;
@@ -269,11 +300,11 @@ export function inputFromQ(q: InputQ, out: DriveInput): DriveInput {
   out.direct = (q.flags & IN_DIRECT) !== 0;
   out.handbrake = (q.flags & IN_HANDBRAKE) !== 0;
   out.horn = (q.flags & IN_HORN) !== 0;
-  if (q.flags & IN_ASSIST_AND_CLUTCH) out.clutch = (q.flags & IN_CLUTCH) !== 0;
-  if (q.flags & IN_ASSIST_STATE) {
-    out.tractionControlEnabled = (q.flags & IN_TC_ON) !== 0;
-    out.espEnabled = (q.flags & IN_ESP_ON) !== 0;
-  }
+  // `out` is reused across cars and rewind/replay. Missing optional state must not inherit values
+  // from a future predicted input or from the chassis that was just replaced in the garage.
+  out.clutch = q.flags & IN_ASSIST_AND_CLUTCH ? (q.flags & IN_CLUTCH) !== 0 : undefined;
+  out.tractionControlEnabled = q.flags & IN_ASSIST_STATE ? (q.flags & IN_TC_ON) !== 0 : undefined;
+  out.espEnabled = q.flags & IN_ASSIST_STATE ? (q.flags & IN_ESP_ON) !== 0 : undefined;
   return out;
 }
 

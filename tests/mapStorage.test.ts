@@ -94,7 +94,7 @@ describe('separate map HTTP/storage instances', () => {
       expect(i.store.setting('profile')).toEqual({ map: i.map });
       const login = await (await i.post('/api/admin/login', { password: 'test-password' })).json() as { token: string };
       const admin = await (await fetch(`${i.base}/api/admin/state`, { headers: { authorization: `Bearer ${login.token}` } })).json();
-      expect(admin).toMatchObject({ map: i.map, mapRevision: 1, server: { map: i.map, protocol: 12 }, radio: { playlists: [{ name: i.map }] } });
+      expect(admin).toMatchObject({ map: i.map, mapRevision: 1, server: { map: i.map, protocol: 13 }, radio: { playlists: [{ name: i.map }] } });
     }
   });
 });

@@ -75,17 +75,28 @@ export class RemoteCar {
   setPaint(color: number): void { this.color = color; this.paint.color.setHex(color); this.detail?.setPaint(color); }
 
   async prepare(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene): Promise<void> {
-    if (this.disposed || this.preparing) return;
+    if (this.disposed || this.preparing || this.detail?.root.parent) return;
     this.preparing = true;
-    // Called outside render(), and serialized by View to avoid join/reconnect bursts.
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    if (this.disposed) return;
-    const view = this.detail = new PlayerView(this.car, this.color, this.shadow, this.length, this.width, false);
-    await view.ready;
-    if (this.disposed) return;
-    this.reveal = revealMaterials(view.root);
-    await renderer.compileAsync(view.root, camera, scene);
-    if (!this.disposed) { view.root.visible = false; this.root.add(view.root); }
+    try {
+      // Called outside render(), and serialized by View to avoid join/reconnect bursts.
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+      if (this.disposed) return;
+      const view = this.detail = new PlayerView(this.car, this.color, this.shadow, this.length, this.width, false);
+      await view.ready;
+      if (this.disposed) return;
+      this.reveal = revealMaterials(view.root);
+      await renderer.compileAsync(view.root, camera, scene);
+      if (!this.disposed) { view.root.visible = false; this.root.add(view.root); }
+    } catch (error) {
+      this.detail?.dispose();
+      this.detail = null;
+      this.reveal = null;
+      this.fade = 0;
+      this.proxy.visible = true;
+      throw error;
+    } finally {
+      this.preparing = false;
+    }
   }
 
   update(dt: number, car: PlayerCar, pos: THREE.Vector3, yaw: number, distance: number): void {

@@ -420,7 +420,7 @@ describe('R34 controls, contact continuity and prediction', () => {
   it.each([1, 0])('held clutch disconnects forward/reverse drive and releases without a fake body kick, gear %s', gear => {
     const c = car(0);
     c.gear = gear;
-    const gas: DriveInput = { ...input(0, gear === 0 ? 0 : 1, gear === 0 ? 1 : 0), manual: true, clutch: true, boost: true };
+    const gas: DriveInput = { ...input(0, 1, 0), manual: true, clutch: true, boost: true };
     pad(c, .5, gas);
     expect(c.gear).toBe(gear);
     expect(c.rpm).toBeGreaterThan(7000);

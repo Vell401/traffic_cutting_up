@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { IN_ALL, inputFromQ, quantizeInput, type InputQ } from '../src/online/protocol';
 import { createCar } from '../src/sim/physics';
 import type { DriveInput, PlayerCar } from '../src/sim/vehicle';
+import { DriftCar } from '../src/sim/vehicleDrift';
 
 const DT = 1 / 120;
 const run = (car: PlayerCar, inp: DriveInput, seconds: number) => {
@@ -10,7 +11,7 @@ const run = (car: PlayerCar, inp: DriveInput, seconds: number) => {
 const kmh = (car: PlayerCar) => car.vAlong * 3.6;
 
 describe('manual gearbox', () => {
-  for (const physics of [1, 2, 3, 4] as const) {
+  for (const physics of [1, 2, 3, 4, 5] as const) {
     describe(`physics ${physics}`, () => {
       it('holds the gear flat out and stops at the limiter (the automatic would shift up)', () => {
         const auto = createCar(physics);
@@ -99,7 +100,7 @@ describe('input flags', () => {
     expect(enabled.tractionControlEnabled).toBe(true);
     expect(enabled.espEnabled).toBe(true);
   });
-  it('clutch and C nitro survive online input quantization', () => {
+  it('clutch and Shift boost survive online input quantization', () => {
     const q: InputQ = { steer: 0, throttle: 0, brake: 0, flags: 0 };
     const input: DriveInput = { steer: 0, throttle: 1, brake: 0, clutch: true, boost: true };
     const back = inputFromQ(quantizeInput(input, q), { steer: 0, throttle: 0, brake: 0, clutch: false, boost: false });
@@ -109,7 +110,7 @@ describe('input flags', () => {
 });
 
 describe('manual gearbox, nearly stopped', () => {
-  for (const physics of [1, 2, 3, 4] as const) {
+  for (const physics of [1, 2, 3, 4, 5] as const) {
     it(`physics ${physics}: selected gear is retained until the driver shifts`, () => {
       const car = createCar(physics);
       car.reset(0, 0, 3 / 3.6);
@@ -156,6 +157,83 @@ describe('manual neutral while moving', () => {
     car.step(DT, selectFirst, 0);
     expect(car.gear).toBe(1);
   });
+});
+
+describe('manual reverse direction gate', () => {
+  const motion = ['s', 'd', 'psi', 'vx', 'vy', 'r'] as const;
+  for (const physics of [1, 2, 3, 4, 5] as const) {
+    for (const [vx, vy, r] of [[20, 0, 0], [-2, 0, 0], [0, 6, 0], [0, 0, .8]]) {
+      it(`physics ${physics}: refuses N → R with motion (${vx}, ${vy}, ${r}) without changing momentum`, () => {
+        const car = createCar(physics), coast = createCar(physics);
+        for (const c of [car, coast]) {
+          c.reset(0, 0, vx);
+          c.vy = vy; c.r = r; c.gear = -1;
+        }
+        const input: DriveInput = { steer: 0, throttle: 0, brake: 0, manual: true, clutch: true };
+        car.step(DT, { ...input, shift: -1 }, 0);
+        coast.step(DT, input, 0);
+        expect(car.gear).toBe(-1);
+        expect(car.shiftRefused).toBe(true);
+        for (const key of motion) expect(car[key], key).toBe(coast[key]);
+      });
+    }
+
+    it(`physics ${physics}: R → N is refused while reversing and works once stopped`, () => {
+      const car = createCar(physics), coast = createCar(physics);
+      const input: DriveInput = { steer: 0, throttle: 0, brake: 0, manual: true };
+      for (const c of [car, coast]) { c.reset(0, 0, -2); c.gear = 0; }
+      car.step(DT, { ...input, shift: 1 }, 0);
+      coast.step(DT, input, 0);
+      expect(car.gear).toBe(0);
+      expect(car.shiftRefused).toBe(true);
+      for (const key of motion) expect(car[key], key).toBe(coast[key]);
+      car.reset(0, 0, 0); car.gear = 0;
+      car.step(DT, { ...input, shift: 1 }, 0);
+      expect(car.gear).toBe(-1);
+      expect(car.shiftRefused).toBe(false);
+    });
+  }
+});
+
+describe('reverse pedals respect the gearbox mode', () => {
+  const variants = [
+    ...([1, 2, 3, 4, 5] as const).map(id => ({ name: `physics ${id}`, make: () => createCar(id), automaticThrottle: id === 1 })),
+    { name: 'legacy DriftCar', make: () => new DriftCar(), automaticThrottle: false },
+  ];
+  for (const { name, make, automaticThrottle } of variants) {
+    it(`${name}: manual R always drives with W and stops with S without selecting another gear`, () => {
+      const car = make(); car.reset(0, 0, 0);
+      const input: DriveInput = { steer: 0, throttle: 0, brake: 0, manual: true };
+      car.step(DT, { ...input, shift: -1 }, 0);
+      expect(car.gear).toBe(-1);
+      run(car, input, .5);
+      car.step(DT, { ...input, shift: -1 }, 0);
+      expect(car.gear).toBe(0);
+      run(car, input, .5);
+      run(car, { ...input, brake: 1 }, .5);
+      expect(car.vx).toBe(0);
+      expect(car.throttle).toBe(0);
+      expect(car.brake).toBe(1);
+      run(car, { ...input, throttle: 1 }, 2);
+      expect(car.vx).toBeLessThan(-3);
+      expect(car.throttle).toBe(1);
+      expect(car.brake).toBe(0);
+      run(car, { ...input, brake: 1 }, 2);
+      expect(Math.abs(car.vx)).toBeLessThan(.05);
+      expect(car.gear).toBe(0);
+      expect(car.throttle).toBe(0);
+    });
+
+    it(`${name}: automatic R retains its original ${automaticThrottle ? 'W' : 'S'} accelerator`, () => {
+      const car = make(); car.reset(0, 0, 0); car.gear = 0;
+      const input: DriveInput = { steer: 0, throttle: +automaticThrottle, brake: +!automaticThrottle };
+      run(car, input, 2);
+      expect(car.gear).toBe(0);
+      expect(car.vx).toBeLessThan(-3);
+      expect(car.throttle).toBe(1);
+      expect(car.brake).toBe(0);
+    });
+  }
 });
 
 describe('AWD pulling away (physics 3)', () => {

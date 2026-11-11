@@ -148,7 +148,7 @@ describe('map deployment safety gates', () => {
     expect(compose).toContain('- miami_data:/data');
     expect(compose).toContain('RADIO_DIR: /data/radio');
     expect(compose).toContain('<<: *game-service');
-    expect(compose).toContain('game-miami:\n        condition: service_healthy');
+    expect(compose).toMatch(/game-miami:\r?\n        condition: service_healthy/);
     expect(compose).toContain('read_only: true');
     expect(compose).toContain('cap_drop: [ALL]');
     expect(compose).toContain('security_opt: [no-new-privileges:true]');

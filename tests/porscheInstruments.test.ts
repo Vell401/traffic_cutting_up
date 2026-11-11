@@ -4,6 +4,13 @@ import { PorscheCar } from '../src/sim/vehiclePorsche';
 import { PlayerView } from '../src/render/playerView';
 import * as THREE from 'three';
 
+// This headless UI fixture tests generated cluster materials, not HTTP/image decoding. A ready
+// placeholder source avoids relying on the old loader incorrectly swallowing a relative-URL error.
+vi.mock('../src/render/car/modelSource', async () => {
+ const T=await import('three');
+ return {ModelSource:class{ready=true;load(){return Promise.resolve(new T.Group());}}};
+});
+
 describe('Porsche dashboard upload budget',()=>{
  it('does not paint a rectangular plate outside the five instrument pods',()=>{
   const clearRect=vi.fn(),fillRect=vi.fn(),gradient={addColorStop:vi.fn()};

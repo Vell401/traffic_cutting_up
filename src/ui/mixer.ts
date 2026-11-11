@@ -1,4 +1,5 @@
 import { CHANNELS, type Sound } from '../audio/sound';
+import { loadScoreDistortion, saveScoreDistortion } from '../settings';
 
 /**
  * Volume mixer of the start menu and the pause screen (bottom right): master, engine, road and
@@ -8,7 +9,7 @@ export class Mixer {
   private readonly root = document.getElementById('mixer')!;
   private readonly muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
 
-  constructor(private readonly sound: Sound) {
+  constructor(private readonly sound: Sound, setScoreDistortion: (level: number) => void = () => {}) {
     const rows = document.getElementById('mixerRows')!;
     for (const ch of CHANNELS) {
       const row = document.createElement('label');
@@ -26,6 +27,23 @@ export class Mixer {
       });
       rows.appendChild(row);
     }
+    const effects = document.createElement('div');
+    effects.className = 'visual-mix';
+    effects.innerHTML = '<div class="mh">Визуальные эффекты</div><label class="mrow"><span>Дисторшн</span><input type="range" min="0" max="100" step="1" aria-label="Дисторшн за очки и на скорости" /><b class="num"></b></label>';
+    const distortion = effects.querySelector('input')!;
+    const output = effects.querySelector('b')!;
+    const showDistortion = (level: number) => {
+      distortion.value = String(Math.round(level * 100));
+      output.textContent = level === 0 ? 'Выкл' : `${Math.round(level * 100)}`;
+      setScoreDistortion(level);
+    };
+    showDistortion(loadScoreDistortion());
+    distortion.addEventListener('input', () => {
+      const level = Number(distortion.value) / 100;
+      saveScoreDistortion(level);
+      showDistortion(level);
+    });
+    this.root.appendChild(effects);
     this.muteBtn.addEventListener('click', () => {
       sound.toggleMute();
       this.sync();

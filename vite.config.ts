@@ -1,10 +1,24 @@
 import { defineConfig, type ViteUserConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
+import { resolve } from 'node:path';
+import { precompressModels } from './scripts/lib/precompressModels.ts';
 
 /** Local game server (npm run server). The dev site proxies /ws and /health to it, like nginx would in production. */
 const GAME_SERVER = process.env.GAME_SERVER ?? 'http://localhost:8787';
 const GAME_MIAMI_SERVER = process.env.GAME_MIAMI_SERVER ?? 'http://localhost:8788';
 
+function compressedModels(): Plugin {
+  let directory = '';
+  return {
+    name: 'precompressed-models',
+    apply: 'build',
+    configResolved(config) { directory = resolve(config.root, config.build.outDir, 'models'); },
+    async closeBundle() { await precompressModels(directory); },
+  };
+}
+
 export default defineConfig(({ isSsrBuild }): ViteUserConfig => ({
+  plugins: isSsrBuild ? [] : [compressedModels()],
   server: {
     port: 5173,
     strictPort: true,

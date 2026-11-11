@@ -34,7 +34,24 @@ export class OnlineHud {
 
   setMe(id: number): void {
     this.myId = id;
+    this.board.hidden = false;
     this.sim.spawn.mine = -1;
+  }
+
+  /** A deliberate exit keeps this UI instance, but none of the old session's DOM references. */
+  reset(): void {
+    window.clearTimeout(this.announceTimer);
+    this.announceEl.classList.remove('on');
+    this.setStatus('');
+    this.tagLayer.replaceChildren();
+    this.feed.replaceChildren();
+    this.rows.replaceChildren();
+    this.net.textContent = '';
+    this.board.hidden = true;
+    this.tags.clear();
+    this.dist.clear();
+    this.myId = 0;
+    this.netT = this.distT = 0;
   }
 
   players(list: PlayerInfo[]): void {

@@ -23,6 +23,7 @@ type Data = ArrayBuffer | Uint8Array | string;
 /** In-order delayed delivery. */
 class Delay {
   private last = 0;
+  private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   constructor(private readonly c: LinkConditions) {}
   run(fn: () => void): void {
     const c = this.c;
@@ -35,7 +36,16 @@ class Delay {
     if (c.stall > 0 && Math.random() < c.stall) at += 250;
     at = Math.max(at, this.last);
     this.last = at;
-    setTimeout(fn, at - now);
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      fn();
+    }, at - now);
+    this.timers.add(timer);
+  }
+
+  cancel(): void {
+    for (const timer of this.timers) clearTimeout(timer);
+    this.timers.clear();
   }
 }
 
@@ -53,7 +63,9 @@ export class Link {
     this.inc = new Delay(conditions);
     this.ws = new WebSocket(url);
     this.ws.binaryType = 'arraybuffer';
-    this.ws.onopen = () => this.onOpen?.();
+    this.ws.onopen = () => {
+      if (!this.closed) this.onOpen?.();
+    };
     this.ws.onmessage = (e) => {
       const data = e.data as ArrayBuffer | string;
       this.inc.run(() => {
@@ -63,6 +75,8 @@ export class Link {
     this.ws.onclose = (e) => {
       if (this.closed) return;
       this.closed = true;
+      this.out.cancel();
+      this.inc.cancel();
       this.onClose?.(e.code, e.reason);
     };
   }
@@ -75,12 +89,17 @@ export class Link {
     // Copy: the sender reuses its buffer, and the send may be delayed.
     const payload = typeof data === 'string' ? data : data instanceof Uint8Array ? data.slice() : data;
     this.out.run(() => {
-      if (this.ws.readyState === WebSocket.OPEN) this.ws.send(payload);
+      if (!this.closed && this.ws.readyState === WebSocket.OPEN) this.ws.send(payload);
     });
   }
 
-  close(): void {
+  /** A final control frame bypasses simulated delay; no pending game messages survive closing. */
+  close(finalMessage?: string): void {
+    if (this.closed) return;
     this.closed = true;
+    this.out.cancel();
+    this.inc.cancel();
+    if (finalMessage && this.ws.readyState === WebSocket.OPEN) this.ws.send(finalMessage);
     this.ws.close(1000, 'bye');
   }
 }

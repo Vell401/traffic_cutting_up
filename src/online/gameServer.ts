@@ -1,11 +1,14 @@
-import { carId } from '../sim/cars';
-import { physicsId } from '../sim/physics';
+import { CARS, carId } from '../sim/cars';
+import { bodyPhysics, physicsId } from '../sim/physics';
 import type { SimEvents } from '../sim/events';
 import {
   MSG_INPUT,
+  CHAT_INTERVAL_SECONDS,
+  GARAGE_INTERVAL_SECONDS,
   Reader,
   Writer,
   readInputs,
+  cleanChat,
   type ClientMsg,
   type InputQ,
   type PlayerInfo,
@@ -77,6 +80,8 @@ interface Slot {
   conn: Conn | null;
   /** Tick the connection was lost at (for the reconnect window). */
   offlineAt: number;
+  chatAt: number;
+  garageAt: number;
 }
 
 interface InputBudget {
@@ -263,6 +268,15 @@ export class GameServer {
       case 'respawn':
         this.respawn(conn);
         break;
+      case 'chat':
+        this.chat(conn, msg);
+        break;
+      case 'garage':
+        this.garage(conn, msg);
+        break;
+      case 'leave':
+        this.leave(conn);
+        break;
       case 'ping':
         if (typeof msg.c === 'number') this.send(conn, { t: 'pong', c: msg.c, tick: this.world.tick });
         break;
@@ -307,6 +321,7 @@ export class GameServer {
     }
     const physics = physicsId(msg.physics);
     const car = carId(msg.car);
+    const resume = msg.resume === true;
 
     // Reconnect: the slot (car, score, best) is kept for a while after a drop.
     let slot: Slot | undefined;
@@ -315,7 +330,7 @@ export class GameServer {
     }
     // A vehicle/physics change is a new run, not a cosmetic reconnect. Otherwise selecting
     // AMG/Porsche after R34 would keep simulating the previous chassis behind the new body.
-    if (slot && slot.driver.physics !== physics) {
+    if (slot && !resume && slot.driver.physics !== physics) {
       if (slot.conn && slot.conn !== conn) this.kick(slot.conn, 4000, 'vehicle changed');
       this.removeDriver(slot);
       slot = undefined;
@@ -324,14 +339,17 @@ export class GameServer {
       if (slot.conn && slot.conn !== conn) this.kick(slot.conn, 4000, 'replaced');
       slot.conn = conn;
       conn.slot = slot;
-      // The body is cosmetic: a reload may come back in another car.
-      slot.driver.body = car;
-      this.world.paint(slot.driver, msg.color);
+      // An automatic reconnect resumes the authoritative selection, including a garage request
+      // accepted just before the link dropped (its ACK/player list may never have reached the tab).
+      if (!resume) {
+        slot.driver.body = car;
+        this.world.paint(slot.driver, msg.color);
+      }
       this.log('info', `reconnect #${slot.driver.id} ${slot.driver.name}`);
     } else {
       const dr = this.world.join(typeof msg.name === 'string' ? msg.name : '', physics, car, msg.color);
       if (!dr) return this.reject(conn, 'full', `Сервер заполнен (${this.world.rules.maxPlayers} игроков)`);
-      slot = { driver: dr, token: this.token(), conn, offlineAt: 0 };
+      slot = { driver: dr, token: this.token(), conn, offlineAt: 0, chatAt: -Infinity, garageAt: -Infinity };
       this.slots.set(dr.id, slot);
       conn.slot = slot;
       this.totals.joins++;
@@ -358,6 +376,54 @@ export class GameServer {
       players: this.playerList(),
       tuning: this.tuning,
     });
+    this.pushPlayers(true);
+  }
+
+  private chat(conn: Conn, msg: Extract<ClientMsg, { t: 'chat' }>): void {
+    const slot = conn.slot;
+    if (!slot) return this.violation(conn, 'chat before hello');
+    if (typeof msg.text !== 'string') return this.violation(conn, 'bad chat');
+    const text = cleanChat(msg.text);
+    if (!text || this.world.tick - slot.chatAt < CHAT_INTERVAL_SECONDS * this.world.rules.tickHz) return;
+    slot.chatAt = this.world.tick;
+    this.broadcast({ t: 'chat', id: slot.driver.id, name: slot.driver.name, text });
+  }
+
+  private garage(conn: Conn, msg: Extract<ClientMsg, { t: 'garage' }>): void {
+    const slot = conn.slot;
+    if (!slot) return this.violation(conn, 'garage before hello');
+    if (!Number.isInteger(msg.request) || msg.request <= 0 || msg.request > 0xffffffff) return this.violation(conn, 'bad garage request');
+    if (!CARS.some((car) => car.id === msg.car) || msg.physics !== bodyPhysics(msg.car) ||
+      !Number.isInteger(msg.color) || msg.color < 0 || msg.color > 0xffffff) {
+      this.send(conn, { t: 'garage', request: msg.request, ok: false, reason: 'bad', text: 'Некорректная машина или цвет' });
+      return this.violation(conn, 'bad garage');
+    }
+    const dr = slot.driver;
+    if (dr.body === msg.car && dr.physics === msg.physics && dr.color === msg.color) {
+      this.send(conn, { t: 'garage', request: msg.request, ok: true, epoch: dr.epoch & 0xffff });
+      return;
+    }
+    if (this.world.tick - slot.garageAt < GARAGE_INTERVAL_SECONDS * this.world.rules.tickHz) {
+      this.send(conn, { t: 'garage', request: msg.request, ok: false, reason: 'rate', text: 'Менять машину можно раз в секунду' });
+      return;
+    }
+    slot.garageAt = this.world.tick;
+    this.world.changeCar(dr, msg.car, msg.color);
+    this.send(conn, { t: 'garage', request: msg.request, ok: true, epoch: dr.epoch & 0xffff });
+    this.pushPlayers(true);
+  }
+
+  private leave(conn: Conn): void {
+    const slot = conn.slot;
+    if (!slot) return this.violation(conn, 'leave before hello');
+    const dr = slot.driver;
+    this.world.leave(dr.id);
+    this.slots.delete(dr.id);
+    conn.slot = null;
+    conn.peer.close(1000, 'bye');
+    conn.close();
+    this.log('info', `leave #${dr.id} ${dr.name}`);
+    this.feed(`${dr.name} уехал`);
     this.pushPlayers(true);
   }
 

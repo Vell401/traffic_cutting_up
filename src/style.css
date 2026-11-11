@@ -116,14 +116,21 @@ body.menu #hud {
 }
 #assistStatus {
   position: absolute;
-  top: 22px;
-  right: 24px;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--ink-dim);
+  bottom: 18px;
+  right: 28px;
+  min-width: 220px;
+  padding: 7px 12px;
+  border: 1px solid rgba(157, 219, 191, .18);
+  border-radius: 7px;
+  background: rgba(9, 18, 20, .66);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-align: center;
+  color: #a8d3be;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
 }
-#assistStatus.off { color: var(--hot); }
+#assistStatus.off { color: var(--hot); border-color: #ffd23e38; background: #221a0bb3; }
 #tireSlip {
   position: absolute; top: 48px; left: 24px; display: flex; align-items: center; gap: 8px;
   width: 152px; height: 18px; color: #8d989e; font: 600 9px 'Chakra Petch', sans-serif;
@@ -297,7 +304,7 @@ body.menu #hud {
 .speedo {
   position: absolute;
   right: 28px;
-  bottom: 24px;
+  bottom: 58px;
   width: 220px;
 }
 .speedo .rpm {
@@ -616,6 +623,9 @@ body:not(.menu):not(.paused) .mixer {
 .mixer.muted .mrow {
   opacity: 0.45;
 }
+.mixer .visual-mix { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.mixer .visual-mix .mh { font-size: 10px; letter-spacing: .12em; }
+.mixer.muted .visual-mix .mrow { opacity: 1; }
 @media (max-width: 760px) {
   .mixer {
     display: none;
@@ -1092,7 +1102,7 @@ body.menu #testPanel {
   }
   .speedo {
     right: 16px;
-    bottom: 16px;
+    bottom: 58px;
     width: 170px;
   }
   #kmh {
@@ -1378,6 +1388,52 @@ body.online .solo-only {
 .pause-settings .screen-options {justify-content:center}
 #gearboxBtn {display:block;margin:8px auto;min-height:44px}
 button:focus-visible,summary:focus-visible {outline:2px solid var(--accent-hi);outline-offset:3px}
+
+/* Pause garage: the same choices as the start screen, without rebuilding the game. */
+#pause { padding: 24px; overflow-y: auto; }
+.pause-card { width: 640px; max-width: 100%; max-height: calc(100dvh - 48px); padding: 26px; overflow-y: auto; background: rgba(16, 10, 28, .9); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 90px #0006; }
+.pause-card h2 { margin: 0; }
+.pause-card .tag { margin: 12px 0; }
+.pause-card #resumeBtn { margin-top: 18px; }
+.pause-options { margin-top: 22px; border-top: 1px solid var(--line); text-align: left; }
+.pause-options section { padding: 15px 0 0; }
+.pause-options h3 { margin: 0 0 10px; color: var(--accent-hi); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
+.pause-options .seg { display: flex; flex-wrap: wrap; gap: 6px; border: 0; border-radius: 0; overflow: visible; }
+.pause-options .seg button { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; letter-spacing: .03em; }
+.pause-options .odesc { font-size: 12px; line-height: 1.5; }
+.pause-options .keysbox { margin: 15px 0 0; padding-top: 15px; border-top: 1px solid var(--line); }
+.pause-options .keys { font-size: 12px; gap: 8px 14px; }
+.pause-sens { display: flex; align-items: center; gap: 10px; color: var(--ink-dim); font-size: 12px; }
+.pause-sens[hidden] { display: none; }
+.pause-sens input { min-width: 60px; flex: 1; accent-color: var(--accent); }
+.pause-sens b { min-width: 36px; }
+#pauseMixer .mixer { display: block; position: static; width: 100%; margin-top: 20px; opacity: 1; pointer-events: auto; box-shadow: none; }
+
+/* Mid-left chat, glass rather than an opaque panel over the road. */
+#chat { position: fixed; z-index: 4; top: 46%; left: 24px; transform: translateY(-50%) translateX(-8px); width: min(380px, calc(100vw - 48px)); padding: 12px 14px 10px; border: 1px solid #c2a5ff21; border-left: 2px solid #ac78f999; border-radius: 4px 12px 12px 4px; background: linear-gradient(110deg, #100e1b99, #100e1b44); box-shadow: 0 8px 24px #0002; font: 13px var(--font); opacity: 0; pointer-events: none; transition: opacity .55s ease, transform .4s ease; }
+#chat.visible { opacity: 1; transform: translateY(-50%); }
+#chat.editing { pointer-events: auto; background: linear-gradient(110deg, #100e1bcc, #100e1b99); border-color: #b28bed55; }
+.chat-heading { display: flex; align-items: center; gap: 8px; color: #d5c5eb; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px; }
+.chat-heading i { width: 5px; height: 5px; border-radius: 50%; background: #b58cff; }
+.chat-heading kbd { margin-left: auto; height: 18px; min-width: 34px; font-size: 9px; opacity: .65; }
+#chatMessages { max-height: min(180px, 24vh); overflow: hidden; display: flex; flex-direction: column; gap: 7px; scrollbar-width: thin; scrollbar-color: #b28bed55 transparent; }
+#chat.editing #chatMessages { overflow-y: auto; }
+.chat-message { line-height: 1.45; overflow-wrap: anywhere; flex-shrink: 0; text-shadow: 0 1px 3px #0009; }
+.chat-message b { font-size: 11px; color: #c5a3fa; margin-right: 8px; }
+.chat-message span { color: #eee8f4; }
+.chat-message.system span { color: #b7a9c9; font-style: italic; }
+#chatForm { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+#chatForm[hidden] { display: none; }
+.chat-prompt { color: #c5a3fa; font-size: 22px; }
+#chatInput { min-width: 0; width: 100%; padding: 5px 0; border: 0; outline: 0; color: #fff; background: transparent; font: 13px var(--font); user-select: text; }
+#chatInput::placeholder { color: #9c90ae; }
+#chatForm button { padding: 3px 8px; background: #b28bed22; border: 1px solid #b28bed33; color: #d8c3f4; border-radius: 5px; cursor: pointer; }
+.chat-hint { margin-top: 9px; color: #bfb0d0; font-size: 9px; letter-spacing: .04em; }
+body.menu #chat, body.paused #chat { opacity: 0; pointer-events: none; }
+@media (max-width: 1200px) { body.paused #radio { display: none; } }
+@media (max-width: 900px) { #pause { padding: 16px; justify-content: center; } .pause-card { max-height: calc(100dvh - 32px); } }
+@media (max-width: 600px) { #chat { left: 12px; width: min(340px, calc(100vw - 24px)); } #assistStatus { right: 12px; bottom: 12px; min-width: 190px; font-size: 9px; } .speedo { right: 12px; bottom: 50px; } #board { bottom: 155px; } .pause-card { padding: 18px; } }
+@media (prefers-reduced-motion: reduce) { #chat { transition: none; } }
 .paint-row,.paint-swatches {display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .paint-swatches button {width:25px;height:25px;padding:0;border:2px solid #ffffff25;border-radius:50%;background:var(--paint);cursor:pointer;box-shadow:inset 0 0 0 2px #0002}
 .paint-swatches button[aria-pressed="true"] {outline:2px solid white;outline-offset:3px}

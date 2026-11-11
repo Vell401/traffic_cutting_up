@@ -426,7 +426,7 @@ describe('R34 complete rewind state and preset isolation', () => {
     expect(original.gear).toBe(-1);
     manualShift(original, -1);
     expect(original.gear).toBe(0);
-    pad(original, 2, { ...controls(.5, 0, 1), manual: true, horn: true, blinker: 2 });
+    pad(original, 2, { ...controls(.5, 1, 0), manual: true, horn: true, blinker: 2 });
     pad(dirty, .5, { ...controls(-1, 1), handbrake: true, boost: true });
     expect(original.gear).toBe(0);
     expect(original.vx).toBeLessThan(-.5);
@@ -434,8 +434,8 @@ describe('R34 complete rewind state and preset isolation', () => {
     for (let i = 0; i < 300; i++) {
       const input: DriveInput = {
         steer: i < 90 ? -.5 : i < 180 ? .5 : 0,
-        throttle: i < 120 ? 0 : 1,
-        brake: i < 90 ? 1 : 0,
+        throttle: i < 90 ? 1 : 0,
+        brake: i < 120 ? 0 : 1,
         manual: true,
         shift: i === 240 ? 1 : 0,
         handbrake: i >= 90 && i < 120,

@@ -29,15 +29,15 @@ describe('per-map handshake fencing', () => {
     for (const car of Object.values(tuning.cars)) if (car.powerKW !== undefined) car.powerKW *= 1.1;
     applyTuning(tuning);
     expect([rulesHash(), rulesHash('miami')]).toEqual(before);
-    expect(PROTOCOL_VERSION).toBe(12);
+    expect(PROTOCOL_VERSION).toBe(13);
   });
 
   it.each(['highway', 'miami'] as const)('%s validates map and rules before token reconnect/join', map => {
     const game = new GameServer({ seed: 3, map, token: () => 'secret' });
     const first = connect(game);
     const welcome = first.messages.find((m): m is Extract<ServerMsg, { t: 'welcome' }> => m.t === 'welcome')!;
-    expect(welcome).toMatchObject({ map, mapRevision: getMap(map).revision, v: 12, ringLen: 12000, rulesHash: rulesHash(map) });
-    for (const over of [{ map: map === 'miami' ? 'highway' : 'miami' }, { map: 'bogus' }, { map: null }, { rules: rulesHash(map === 'miami' ? 'highway' : 'miami') }, { v: 11 }]) {
+    expect(welcome).toMatchObject({ map, mapRevision: getMap(map).revision, v: PROTOCOL_VERSION, ringLen: 12000, rulesHash: rulesHash(map) });
+    for (const over of [{ map: map === 'miami' ? 'highway' : 'miami' }, { map: 'bogus' }, { map: null }, { rules: rulesHash(map === 'miami' ? 'highway' : 'miami') }, { v: PROTOCOL_VERSION - 1 }]) {
       const bad = connect(game, { token: welcome.token, ...over });
       expect(bad.messages.some(m => m.t === 'welcome')).toBe(false);
       expect(bad.close).toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('map-aware prediction and authoritative lifecycle', () => {
     const live = net.server.world;
     expect(replay(43, {}, net.journal, live.tick, undefined, map).hash()).toBe(live.hash());
     expect(live.drivers.find(d => d.physics === 2)!.car.stateSize).toBe(58);
-    expect(net.server.health(false)).toMatchObject({ map, protocol: 12, ringLen: 12000 });
+    expect(net.server.health(false)).toMatchObject({ map, protocol: PROTOCOL_VERSION, ringLen: 12000 });
   });
 
   it.each([-1, 1])('Miami crosses the seam on lap %s without a correction', lap => {

@@ -106,10 +106,11 @@ export class Sim {
     this.score.resetRun();
   }
 
-  /** Swap the car physics in place (start menu): same spot, lane and speed. */
-  setPhysics(id: PhysicsId): void {
+  /** Same spot/lane/speed; a solo garage selection ends the old run before replacing its identity. */
+  setPhysics(id: PhysicsId, endRun = false): void {
     const old = this.player;
     if (old.physicsId === id) return;
+    if (endRun) this.score.endRun();
     const car = createCar(id);
     car.reset(old.s, old.d, Math.max(old.vAlong, 0));
     car.psi = car.prevPsi = old.psi;

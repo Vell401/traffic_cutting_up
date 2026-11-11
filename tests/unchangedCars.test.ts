@@ -12,7 +12,6 @@ const files: Record<string,string> = {
   'src/config.ts':'4e428b7fac93dc9d1d9395051af4dc0923569455c87fee1aa4462ee86f89c743',
   'src/sim/vehicleMercedes.ts':'3d584300c5ab160a71046d68135608a72f5c61aeba023f76bb6ce3e2ef674c94',
   'src/sim/vehiclePorsche.ts':'f3297996ad65685ba59e0c57213463f06f2a3888a60c9ebc84dc6c770acaad82',
-  'src/render/car/porsche.ts':'d12ef1cd54555c64ca6847eb5bdae67e1c579b9eb57248462dffd2968d9527c6',
   'src/render/car/porscheCockpit.ts':'071803795bf178f32a97f7740281e2f12db986955d4c6acc251e5ce3510e010c',
   'public/models/mercedes-a45s.glb':'0f9f6d8bc2f9d67274bb0dbe21ec8d4ed6b8659be0b470e4ed5182269e7bccd4',
   'public/models/porsche-911-irl10.glb':'9ca92aa496626e11b8cf310d257644bd3f7f52f3613f815cff110f757f3373d4',
@@ -38,10 +37,19 @@ describe('A45 and Porsche remain exactly at the user-approved main version', () 
     expect(hash(JSON.stringify(mercedesTune))).toBe('23e5395672613bf3ca3e21aa5edb5969f1125b1f0f5c8d2e273372df225a691c');
     expect(hash(JSON.stringify(porscheTune))).toBe('9bc11f9247d1ee4f00b4dddf1c99c8c63df68c557f4727ec3c33c8ea8f1528b6');
     const builders = readFileSync(new URL('../src/render/car/index.ts',import.meta.url),'utf8').replaceAll('\r\n','\n');
+    // Shared loading/cache plumbing may evolve (covered by modelSource.test.ts), but these hashes
+    // still come from the original approved builders: never regenerate them from changed geometry.
     for (const [start,end,expected] of [
-      ['function buildMercedesParts(','function buildR34(','e380f6d44ae61061baf59ab0f178870a4616565a4e2dd79c18a66b24ac63cf6f'],
+      ['function buildMercedesParts(','  // Last: with the model already cached','d0de4e60ec80fcb2e02380635cb1e36441c5212c43e70d2d45dce474be3f8c2c'],
+      ['      const imported = own ? model.clone(true)','    })().catch(error =>','8a772025e3a69ce0a56aac6d23bc7111d22f54d2e364cda9a72843d95273690e'],
+      ['  // Beams from the projectors','function buildR34(','8e7138f1aac26c19f58c61a859a26b9dfa2e96606c69a9002ea76309724cea81'],
       ['class A45Cockpit','const TAIL_IDLE','a99cc882bf5ed2a28ba46c4c41d4fa4e7b19e478f25a61123fa5f107acb23c21'],
     ]) expect(hash(builders.slice(builders.indexOf(start),builders.indexOf(end,builders.indexOf(start)))),start).toBe(expected);
+    const porsche = readFileSync(new URL('../src/render/car/porsche.ts', import.meta.url), 'utf8').replaceAll('\r\n','\n')
+      // Exception propagation is loading policy, not rendering. Compare against the original
+      // approved builder while testing rejection/retry separately in porscheLoading/remoteLoading.
+      .replace('  }):Promise.resolve();', '  }).catch(()=>{/* The loading screen offers retry; keep the rest of the scene alive. */}):Promise.resolve();');
+    expect(hash(porsche.slice(porsche.indexOf('export function buildPorsche(')))).toBe('f55f387516fecfe8ccc6ece3f1609b4ce653e8b84aa0f831acd61589c5407e6f');
   });
   for (const [name, Type, expected] of [
     ['A45', MercedesCar, '62ea39a8aa447d67daaeae7e3eed35fce17b59816362321aeec3c03200b487f7'],

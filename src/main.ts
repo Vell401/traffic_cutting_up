@@ -25,7 +25,7 @@ import { Mixer } from './ui/mixer';
 import { Radio } from './ui/radio';
 import { initModelLoad } from './ui/modelLoad';
 import { OnlineSession } from './online/session';
-import { applyTuning } from './sim/tuning';
+import { syncHttpTuning } from './online/tuningSync';
 import type { Debug } from './ui/debug';
 import {
   QUALITY,
@@ -55,6 +55,7 @@ import { OnlineHud } from './ui/onlineHud';
 import { TouchControls } from './ui/touchControls';
 import { Fullscreen } from './ui/fullscreen';
 import { loadMapSky, mapNavigation, modeNavigation, mountServerPicker, saveMapSky, saveSelectedMap, selectedMap } from './ui/serverPicker';
+import { Chat } from './ui/chat';
 
 const params = new URLSearchParams(location.search);
 /** Test showcases retain their original road/theme; regular play keeps the selected instance. */
@@ -81,20 +82,15 @@ const saveBest = (v: number): void => {
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 /**
- * Online by default: the shared ring on the game server (its own page lifecycle: leaving reloads the
- * page). ?solo: single player. (?online still works for old links.)
+ * Online by default: the shared ring on the game server. ?solo: single player.
+ * Both return to their resident menu without losing decoded assets or the WebGL context.
  */
 const ONLINE = !TEST && !params.has('solo');
 const SERVER_URL = serverUrl(params, MAP_ID);
 const API = apiBase(SERVER_URL);
-async function syncGlobalTuning(): Promise<void> {
-  try {
-    const response = await fetch(`${API}/tuning`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-    if (response.ok) applyTuning(await response.json());
-  } catch { /* An offline solo run keeps the shipped defaults. Online also syncs in welcome. */ }
-}
-await syncGlobalTuning();
-if (!ONLINE && !TEST) window.setInterval(() => void syncGlobalTuning(), 15000);
+// Do not leave model downloads idle behind a slow/offline tuning endpoint.
+void syncHttpTuning(API, ONLINE);
+if (!ONLINE && !TEST) window.setInterval(() => void syncHttpTuning(API, ONLINE), 15000);
 let showcase = 0;
 await loading.stage(18, 'Подготовка трассы и трафика');
 const initialCar = loadCar();
@@ -125,7 +121,7 @@ initDiag(API, ONLINE ? 'online' : TEST ? 'test' : 'solo', quality, canvas, view.
 const input = new Input();
 const sound = new Sound(sim);
 sound.setCar(car);
-const mixer = new Mixer(sound);
+const mixer = new Mixer(sound, level => view.setScoreDistortion(level));
 const radio = new Radio(API, sound);
 const metrics = new Metrics(view.renderer, sim, () => `quality ${quality}  audio ${sound.state}`);
 // Audio may only start after a user gesture.
@@ -159,8 +155,8 @@ for (const id of ['screenOptions', 'pauseScreenOptions']) {
 let touchSnapshot = '';
 function syncTouch(): void {
   const paused = state === 'pause' || onlineMenu;
-  const driving = touchLayout.matches && state === 'play' && !onlineMenu && !loading.active;
-  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}`;
+  const driving = touchLayout.matches && state === 'play' && !onlineMenu && !chat.active && !loading.active;
+  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}/${chat.active}`;
   if (snapshot === touchSnapshot) return;
   touchSnapshot = snapshot;
   mixer.setVisible(state === 'menu' || paused);
@@ -174,7 +170,12 @@ function syncTouch(): void {
     if (mobileAudio.parentElement !== parent) parent.append(mobileAudio);
     for (const { element } of audioPanels) if (element.parentElement !== mobileAudio) mobileAudio.append(element);
   } else {
-    for (const { element, home } of audioPanels) if (element.previousSibling !== home) home.after(element);
+    for (const { element, home } of audioPanels) {
+      if (element.id === 'mixer' && paused) {
+        const parent = document.getElementById('pauseMixer')!;
+        if (element.parentElement !== parent) parent.append(element);
+      } else if (element.previousSibling !== home) home.after(element);
+    }
     mobileAudio.remove();
   }
 }
@@ -221,6 +222,7 @@ function setPaused(paused: boolean): void {
   touch.releaseAll();
   input.releaseAll();
   pendingShift = 0;
+  if (chat.active) chat.close();
   document.body.classList.toggle('paused', paused);
   if (paused && mouse.locked) document.exitPointerLock();
   if (ONLINE) {
@@ -251,6 +253,7 @@ function menuMessage(text: string, bad = false): void {
 
 function startOnline(): void {
   if (session && session.state !== 'failed') return;
+  session?.leave();
   loading.begin('online', `Подключаемся · ${MAP.name}`);
   loading.set(20, 'Соединение с сервером');
   const name = playerName();
@@ -280,6 +283,7 @@ function startOnline(): void {
         report('warn', `online failed: ${text}`);
         ohud.setStatus('');
         menuMessage(text, true);
+        chat.reset();
         if (state !== 'menu') {
           // Back to the menu card; the car stays where the server left it.
           state = 'menu';
@@ -296,12 +300,14 @@ function startOnline(): void {
     },
     onPlayers: (list) => ohud.players(list),
     onFeed: (text) => ohud.addFeed(text),
+    onChat: (message) => chat.receive(message.name, message.text),
     onAnnounce: (text) => {
       ohud.announce(text);
       sound.notice();
     },
     onTeleport: () => {
       view.snapCamera();
+      void syncAuthoritativeCar();
       if (Math.abs(sim.road.rel(sim.player.s, mapSpawnS(MAP, 0))) < 3) hud.tag('SPAWN · ВЫ НЕВИДИМЫ, ПОКА НА ПЛОЩАДКЕ', 2.5);
     },
   });
@@ -377,21 +383,31 @@ if (import.meta.env.DEV) Object.assign(window, { __game: { sim, view, input, hud
 const mouse = new MouseControl(
   canvas,
   {
-    look: (dx, dy) => view.look(dx, dy),
-    driving: () => state === 'play' && !(ONLINE && onlineMenu),
-    released: () => setPaused(true),
+    look: (dx, dy) => { if (!chat.active) view.look(dx, dy); },
+    driving: () => state === 'play' && !chat.active && !loading.active && !(ONLINE && onlineMenu),
+    released: () => { if (!chat.active) setPaused(true); },
   },
   loadSteerMode(),
   loadMouseSens(),
 );
 input.mouse = mouse;
+const chat = new Chat({
+  available: () => state === 'play' && !onlineMenu && session?.state === 'joined',
+  send: text => session?.sendChat(text) ?? false,
+  focus: active => {
+    input.setEnabled(!active);
+    if (active) pendingShift = 0;
+    if (active && mouse.locked) document.exitPointerLock();
+    syncTouch();
+  },
+});
 const mouseWheel = document.getElementById('mouseWheel')!;
 const mouseWheelMark = mouseWheel.querySelector('i')!;
 const mouseHint = document.getElementById('mouseHint')!;
 
 /** Per frame: the wheel position strip while steering with the mouse, the capture hint before. */
 function updateMouseHud(): void {
-  const on = mouse.mode === 'mouse' && state === 'play' && !(ONLINE && onlineMenu);
+  const on = mouse.mode === 'mouse' && state === 'play' && !chat.active && !(ONLINE && onlineMenu);
   mouseWheel.hidden = !(on && mouse.locked);
   mouseHint.hidden = !(on && !mouse.locked);
   if (!mouseWheel.hidden) mouseWheelMark.style.left = `${50 + mouse.steer * 50}%`;
@@ -446,9 +462,14 @@ function updateBlinker(): void {
   hud.setBlinkers(p.blinker, lit);
 }
 
-input.onPress = (code) => {
+input.onPress = (code, event) => {
   if (loading.active) return;
-  if (code === 'Backquote') void toggleDebug();
+  if (code === 'Enter' && state === 'play' && !onlineMenu) {
+    // Focusing a form during this keydown must not submit it with the opening Enter's default action.
+    event?.preventDefault();
+    chat.open();
+  }
+  else if (code === 'Backquote') void toggleDebug();
   else if (code === 'F1') metrics.toggle();
   else if (code === 'KeyV') {
     const mode = view.cycleCamera();
@@ -517,11 +538,15 @@ function choice<T extends number>(
   items: readonly { id: T; name: string; desc: string }[],
   current: T,
   onPick: (id: T) => void,
-): void {
+): (id: T) => void {
   const seg = document.getElementById(segId)!;
   const desc = document.getElementById(descId)!;
   const show = (id: T) => {
-    for (const b of seg.children) b.classList.toggle('on', (b as HTMLElement).dataset.id === String(id));
+    for (const b of seg.children) {
+      const selected = (b as HTMLElement).dataset.id === String(id);
+      b.classList.toggle('on', selected);
+      b.setAttribute('aria-pressed', String(selected));
+    }
     desc.textContent = items.find((it) => it.id === id)?.desc ?? '';
   };
   for (const it of items) {
@@ -537,28 +562,87 @@ function choice<T extends number>(
     seg.appendChild(b);
   }
   show(current);
+  return show;
 }
-choice('carSeg', 'carDesc', CARS, car, (id) => {
-  car = id;
-  saveCar(id);
-  sim.setPhysics(bodyPhysics(id));
-  sound.setCar(id);
-  paint = loadPaint(id);
-  view.setPaint(paint);
-  showPaint();
-  void (async () => {
-    loading.begin('car', 'Готовим твою машину');
+const showCar = choice('carSeg', 'carDesc', CARS, car, id => void chooseCar(id));
+const showPauseCar = choice('pauseCarSeg', 'pauseCarDesc', CARS, car, id => void chooseCar(id));
+let carRevision = 0;
+let choosingCar = false;
+let restoringCar = false;
+async function chooseCar(id: CarId): Promise<void> {
+  if (id === car) return;
+  choosingCar = true;
+  const revision = ++carRevision;
+  loading.begin('car', 'Готовим твою машину');
+  try {
     await loading.stage(10, 'Подготовка модели');
-    try {
-      await waitForCar(id, (fraction, unpacking) => loading.set(15 + fraction * 70, unpacking ? 'Подготовка материалов' : 'Загрузка автомобиля'));
-      view.setCar(id, loadCameraMode(id) as CameraMode);
-      await loading.stage(92, 'Подготовка первого кадра');
-      view.render(1, 0);
-      await view.prepareCar();
-      loading.finish();
-    } catch { loading.fail('Не удалось загрузить автомобиль. Попробуйте ещё раз.'); }
-  })();
-});
+    await waitForCar(id, (fraction, unpacking) => {
+      if (revision === carRevision) loading.set(15 + fraction * 70, unpacking ? 'Подготовка материалов' : 'Загрузка автомобиля');
+    });
+    if (revision !== carRevision) return;
+    const color = loadPaint(id);
+    if (session && state !== 'menu') await session.changeCar(id, color);
+    else sim.setPhysics(bodyPhysics(id), state !== 'menu');
+    if (revision !== carRevision) return;
+    car = id;
+    paint = color;
+    saveCar(id);
+    sound.setCar(id);
+    view.setPaint(paint);
+    view.setCar(id, loadCameraMode(id) as CameraMode);
+    showPaint();
+    showCar(id);
+    showPauseCar(id);
+    pendingShift = 0;
+    blinker = 0;
+    mouse.centre();
+    await loading.stage(92, 'Подготовка первого кадра');
+    view.render(1, 0);
+    await view.prepareCar();
+    if (revision === carRevision) loading.finish();
+  } catch (error) {
+    if (revision !== carRevision) return;
+    showCar(car);
+    showPauseCar(car);
+    console.warn('Car selection failed', error);
+    loading.fail('Не удалось сменить автомобиль. Проверьте подключение и попробуйте ещё раз.', () => {}, 'Вернуться');
+  } finally {
+    if (revision === carRevision) choosingCar = false;
+  }
+}
+
+/** A dropped garage ACK must not leave the old visual body on the server's new chassis. */
+async function syncAuthoritativeCar(): Promise<void> {
+  if (!session || choosingCar) return;
+  const owner = session;
+  const own = owner.core.players.find(player => player.id === owner.core.id);
+  if (!own || own.physics !== sim.player.physicsId || (own.car === car && own.color === paint)) return;
+  const revision = ++carRevision;
+  restoringCar = true;
+  const showLoading = !loading.active;
+  if (showLoading) loading.begin('car-sync', 'Восстанавливаем автомобиль');
+  try {
+    await waitForCar(own.car);
+    if (owner !== session || revision !== carRevision) return;
+    car = own.car;
+    paint = own.color;
+    saveCar(car);
+    sound.setCar(car);
+    view.setPaint(paint);
+    view.setCar(car, loadCameraMode(car) as CameraMode);
+    showPaint();
+    showCar(car);
+    showPauseCar(car);
+    await view.prepareCar();
+    if (showLoading && revision === carRevision && loading.context === 'car-sync') loading.finish();
+  } catch (error) {
+    if (owner !== session || revision !== carRevision) return;
+    console.warn('Authoritative car restoration failed', error);
+    if (showLoading || loading.context === 'online') loading.fail('Не удалось восстановить модель автомобиля.', () => { void syncAuthoritativeCar(); });
+  } finally {
+    if (revision === carRevision) restoringCar = false;
+  }
+}
 
 const paintInput = document.getElementById('paintInput') as HTMLInputElement;
 const swatches = document.getElementById('paintSwatches')!;
@@ -607,6 +691,9 @@ fitMenu();
 const keysBox = document.getElementById('keysBox') as HTMLDetailsElement;
 // Space / Enter after a click must start the run, not fold the list again.
 keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur());
+const pauseKeysBox = document.getElementById('pauseKeysBox')!;
+pauseKeysBox.appendChild(keysBox.querySelector('.keys')!.cloneNode(true));
+pauseKeysBox.addEventListener('toggle', () => pauseKeysBox.querySelector('summary')!.blur());
 
 // Sky: each button shows its gradient; a click repaints the scene behind the menu at once (the preview).
 {
@@ -643,25 +730,42 @@ keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur(
 const sensRow = document.getElementById('sensRow')!;
 const sensInput = document.getElementById('sensInput') as HTMLInputElement;
 const sensOut = document.getElementById('sensOut')!;
-const showSens = () => (sensOut.textContent = `${mouse.sens.toFixed(2)}×`);
-sensInput.value = String(mouse.sens);
+const pauseSensInput = document.getElementById('pauseSensInput') as HTMLInputElement;
+const pauseSensOut = document.getElementById('pauseSensOut')!;
+const pauseSensRow = pauseSensInput.closest('label')!;
+const showSens = () => {
+  sensOut.textContent = pauseSensOut.textContent = `${mouse.sens.toFixed(2)}×`;
+  sensInput.value = pauseSensInput.value = String(mouse.sens);
+};
 showSens();
 sensRow.hidden = mouse.mode !== 'mouse';
-sensInput.addEventListener('input', () => {
-  mouse.sens = Number(sensInput.value);
-  saveMouseSens(mouse.sens);
-  showSens();
-});
-for (const type of ['keydown', 'keyup'] as const) sensRow.addEventListener(type, (e) => e.stopPropagation());
-choice('steerSeg', 'steerDesc', [
+pauseSensRow.hidden = mouse.mode !== 'mouse';
+for (const slider of [sensInput, pauseSensInput]) {
+  slider.addEventListener('input', () => {
+    mouse.sens = Number(slider.value);
+    saveMouseSens(mouse.sens);
+    showSens();
+  });
+  for (const type of ['keydown', 'keyup'] as const) slider.addEventListener(type, e => {
+    if (e.code === 'Escape' || e.code === 'KeyP') slider.blur();
+    else e.stopPropagation();
+  });
+}
+const steeringChoices = [
   { id: 1, name: 'Клавиатура', desc: 'A / D (или геймпад); ЛКМ с движением мыши — осмотреться' },
   { id: 2, name: 'Мышь', desc: 'Как в Assetto Corsa: мышь влево-вправо — руль, ЛКМ — газ, ПКМ — тормоз, СКМ — обзор. Клик по игре захватывает мышь, Esc отпускает' },
-] as const, mouse.mode === 'mouse' ? 2 : 1, (id) => {
+] as const;
+function chooseSteering(id: 1 | 2): void {
   const mode = id === 2 ? 'mouse' : 'keys';
   mouse.setMode(mode);
   saveSteerMode(mode);
   sensRow.hidden = mode !== 'mouse';
-});
+  pauseSensRow.hidden = mode !== 'mouse';
+  showSteering(id);
+  showPauseSteering(id);
+}
+const showSteering = choice('steerSeg', 'steerDesc', steeringChoices, mouse.mode === 'mouse' ? 2 : 1, chooseSteering);
+const showPauseSteering = choice('pauseSteerSeg', 'pauseSteerDesc', steeringChoices, mouse.mode === 'mouse' ? 2 : 1, chooseSteering);
 choice('trafficSeg', 'trafficDesc', TRAFFIC_PRESETS, sim.director.preset, (id) => {
   saveTraffic(id);
   sim.director.preset = id;
@@ -671,12 +775,37 @@ document.getElementById('testBtn')!.addEventListener('click', () => {
   location.search = '?test';
 });
 document.getElementById('menuBtn')!.addEventListener('click', () => {
-  if (ONLINE) {
-    session?.leave();
-    location.href = modeNavigation(new URL(location.href), 'online').href;
-    return;
-  }
-  location.href = modeNavigation(new URL(location.href), 'solo').href;
+  // Keep the WebGL context, decoded models, audio and shaders resident on a normal exit.
+  session?.leave();
+  session = null;
+  metrics.net = null;
+  onlineHud?.reset();
+  sim.remotes.length = 0;
+  sim.spawn.owners.length = 0;
+  sim.spawn.mine = -1;
+  sim.visual.ds = sim.visual.dd = sim.visual.dpsi = 0;
+  chat.reset();
+  touch.releaseAll();
+  input.releaseAll();
+  if (mouse.locked) document.exitPointerLock();
+  state = 'menu';
+  onlineMenu = false;
+  pendingShift = 0;
+  blinker = 0;
+  acc = 0;
+  sound.setPaused(false);
+  sim.score.resetRun();
+  if (TEST) loadShowcase(showcase);
+  sim.score.grace = Infinity;
+  pauseEl.classList.add('hidden');
+  startEl.classList.remove('hidden');
+  document.body.classList.remove('paused');
+  document.body.classList.add('menu');
+  menuMessage('');
+  fitMenu();
+  syncTouch();
+  void leaders?.refresh();
+  if (ONLINE) void probeServer();
 });
 document.getElementById('resumeBtn')!.addEventListener('click', () => {
   setPaused(false);
@@ -769,7 +898,7 @@ function watchCorrections(now: number): void {
 }
 
 /** Online menu card open: no pedals, no steering (the car rolls on). */
-const NEUTRAL: DriveInput = { steer: 0, throttle: 0, brake: 0 };
+const NEUTRAL: DriveInput = { steer: 0, throttle: 0, brake: 0, analog: false, direct: false, keyboardSteer: false, clutch: false, boost: false, handbrake: false, horn: false };
 
 /** Menu background: keep the lane, cruise at ~105 km/h, follow the car ahead. */
 const auto: DriveInput = { steer: 0, throttle: 0, brake: 0 };
@@ -809,7 +938,7 @@ view.renderer.setAnimationLoop((now: number) => {
     // runs in real time, so a slow frame is caught up further than offline (up to 0.25 s).
     acc += Math.min(frameMs / 1000, 0.25);
     while (acc >= STEP && n < 30) {
-      session.step(withControls(onlineMenu ? NEUTRAL : input.drive));
+      session.step(withControls(onlineMenu || chat.active || loading.active ? NEUTRAL : input.drive));
       acc -= STEP;
       n++;
     }
@@ -821,7 +950,7 @@ view.renderer.setAnimationLoop((now: number) => {
   } else if (state !== 'pause') {
     acc += dt;
     while (acc >= STEP && n < 12) {
-      sim.step(STEP, state === 'play' ? withControls(input.drive) : autopilot());
+      sim.step(STEP, state === 'play' ? withControls(chat.active || loading.active ? NEUTRAL : input.drive) : autopilot());
       acc -= STEP;
       n++;
     }
@@ -831,7 +960,7 @@ view.renderer.setAnimationLoop((now: number) => {
   metrics.gpuBegin();
   // Paused: effects (sparks, camera shake, blinkers) freeze along with the sim.
   view.render(state === 'pause' ? 1 : acc / STEP, state === 'pause' ? 0 : dt);
-  if (session?.core.ready && loading.active && loading.context === 'online') {
+  if (session?.core.ready && !restoringCar && loading.active && loading.context === 'online') {
     loading.context = 'ready';
     loading.finish();
   }
@@ -839,11 +968,11 @@ view.renderer.setAnimationLoop((now: number) => {
   const t2 = performance.now();
   hud.update(dt);
   if (touchLayout.matches) touch.update(document.getElementById('kmh')!.textContent!, document.getElementById('gear')!.textContent!);
-  hud.setPhysicalInstruments(car===1&&view.cameraMode==='cockpit');
+  hud.setPhysicalInstruments((car===1||car===4)&&view.cameraMode==='cockpit');
   updateBlinker();
   updateMouseHud();
   // C held: rear view (while driving).
-  view.setLookBack(state === 'play' && input.isDown('KeyC'));
+   view.setLookBack(state === 'play' && !chat.active && input.isDown('KeyC'));
   if (onlineHud && session) onlineHud.update(view, session.core.stats, dt);
   sound.setCockpit(view.cameraMode === 'cockpit');
   sound.update(state === 'pause' ? 0 : dt);
@@ -866,15 +995,7 @@ try {
   showSelectedProgress = true;
   await loading.stage(45, 'Загрузка выбранного автомобиля');
   await selectedCarDownload;
-  if (ONLINE) {
-    await loading.stage(91, 'Подготовка машин других игроков');
-    // Parsing a 36 MB GLB after somebody joins stalls the main thread even with async HTTP.
-    for (const id of [1, 3]) {
-      try { await waitForCar(id as CarId); }
-      catch (error) { console.warn(`Optional online model preload failed (${id})`, error); }
-    }
-    await view.prepareOnlineCars();
-  }
+  // Nearby remote cars use their proxy until their detailed model is ready; never block boot on all bodies.
   await loading.stage(95, 'Подготовка первого кадра');
   view.render(1, 0);
   await view.prepareCar();

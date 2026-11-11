@@ -4,8 +4,8 @@ import { Emitter } from '../core/events';
 import type { Rng } from '../core/rng';
 import { Contacts, DRIVER_CRASH_SPEED, type Hit } from '../sim/contact';
 import type { SimEvents } from '../sim/events';
-import { carId, type CarId } from '../sim/cars';
-import { createCar, type PhysicsId } from '../sim/physics';
+import { CARS, carId, type CarId } from '../sim/cars';
+import { bodyPhysics, createCar, type PhysicsId } from '../sim/physics';
 import { Scoring } from '../sim/scoring';
 import { TrafficCar } from '../sim/traffic';
 import type { DriveInput, PlayerCar } from '../sim/vehicle';
@@ -28,6 +28,8 @@ import {
   newSnapshot,
   quantizeInput,
   readSnapshot,
+  cleanChat,
+  type ChatMessage,
   type ClientMsg,
   type InputQ,
   type PlayerInfo,
@@ -45,6 +47,16 @@ const SNAP_S = 6;
 const SNAP_D = 2.5;
 /** Visual correction offsets decay at this rate, 1/s. */
 const SMOOTH_RATE = 9;
+export const GARAGE_TIMEOUT_MS = 10_000;
+
+interface PendingGarage {
+  request: number;
+  physics: PhysicsId;
+  epoch: number | null;
+  timer: ReturnType<typeof setTimeout>;
+  resolve(): void;
+  reject(error: Error): void;
+}
 
 /** Server state of one traffic car plus its prediction at the client's current step. */
 interface NetCar {
@@ -112,6 +124,8 @@ export interface ClientHooks {
   onTeleport?(): void;
   onPlayers?(list: PlayerInfo[]): void;
   onFeed?(text: string): void;
+  /** Plain text with the sender's authoritative server identity. */
+  onChat?(message: ChatMessage): void;
   /** A message from the server's admin (shown big). */
   onAnnounce?(text: string): void;
   onWelcome?(msg: Extract<ServerMsg, { t: 'welcome' }>): void;
@@ -174,6 +188,8 @@ export class ClientCore {
   private replaying = false;
   private pingT = 0;
   private welcomed = false;
+  private garageRequest = 0;
+  private pendingGarage: PendingGarage | null = null;
 
   constructor(
     readonly sim: Sim,
@@ -194,16 +210,57 @@ export class ClientCore {
     sim.traffic.activeCount = 0;
   }
 
-  hello(name: string, physics: PhysicsId, car: CarId, token?: string, color?: number): void {
+  hello(name: string, physics: PhysicsId, car: CarId, token?: string, color?: number, resume = false): void {
     // Inputs made while offline never reach the server: the next ones follow `seq`.
     this.sentSeq = this.seq;
     this.welcomed = false;
     this.ready = false;
-    this.send({ t: 'hello', v: PROTOCOL_VERSION, map: this.sim.map.id, rules: rulesHash(this.sim.map.id), name, physics, car, seq: this.seq, token, color });
+    this.send({ t: 'hello', v: PROTOCOL_VERSION, map: this.sim.map.id, rules: rulesHash(this.sim.map.id), name, physics, car, seq: this.seq, token, color, resume });
   }
 
   requestRespawn(): void {
     this.send({ t: 'respawn' });
+  }
+
+  sendChat(text: string): boolean {
+    const clean = cleanChat(text);
+    if (!this.id || !clean) return false;
+    this.send({ t: 'chat', text: clean });
+    return true;
+  }
+
+  changeCar(car: CarId, color: number): Promise<void> {
+    if (!this.id) return Promise.reject(new Error('Нет подключения к серверу'));
+    if (this.pendingGarage) return Promise.reject(new Error('Смена машины уже выполняется'));
+    if (!CARS.some((c) => c.id === car) || !Number.isInteger(color) || color < 0 || color > 0xffffff) {
+      return Promise.reject(new Error('Некорректная машина или цвет'));
+    }
+    // Establish a sequence fence: every input produced for the old chassis precedes this request.
+    // Only the authoritative snapshot swaps physics; never predict a new chassis speculatively.
+    this.flush();
+    const request = this.garageRequest = this.garageRequest % 0xffffffff + 1;
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => this.rejectGarage('Сервер не подтвердил смену машины'), GARAGE_TIMEOUT_MS);
+      this.pendingGarage = { request, physics: bodyPhysics(car), epoch: null, timer, resolve, reject };
+      this.send({ t: 'garage', request, car, physics: bodyPhysics(car), color });
+    });
+  }
+
+  private rejectGarage(text: string): void {
+    const pending = this.pendingGarage;
+    if (!pending) return;
+    this.pendingGarage = null;
+    clearTimeout(pending.timer);
+    pending.reject(new Error(text));
+  }
+
+  private confirmGarage(sn: Snapshot): void {
+    const pending = this.pendingGarage;
+    if (!pending || pending.epoch === null || pending.physics !== sn.physics ||
+      ((sn.epoch - pending.epoch) & 0xffff) >= 0x8000) return;
+    this.pendingGarage = null;
+    clearTimeout(pending.timer);
+    pending.resolve();
   }
 
   private send(msg: ClientMsg): void {
@@ -228,6 +285,7 @@ export class ClientCore {
     }
     if (!this.welcomed || data.byteLength < 1) return;
     this.stats.bytesIn += data.byteLength;
+    if (data.byteLength === 0) return;
     const r = new Reader(data);
     if (r.u8() !== MSG_SNAPSHOT) return;
     if (!readSnapshot(r, this.snap)) return;
@@ -262,8 +320,16 @@ export class ClientCore {
         break;
       case 'reject':
         this.welcomed = this.ready = false;
+        this.rejectGarage(msg.text);
         this.hooks.onReject?.(msg.text);
         break;
+      case 'garage': {
+        const pending = this.pendingGarage;
+        if (!pending || pending.request !== msg.request) break;
+        if (msg.ok) pending.epoch = msg.epoch;
+        else this.rejectGarage(msg.text);
+        break;
+      }
       case 'players':
         this.players = msg.list;
         for (const nd of this.drivers.values()) {
@@ -278,6 +344,9 @@ export class ClientCore {
         break;
       case 'feed':
         this.hooks.onFeed?.(msg.text);
+        break;
+      case 'chat':
+        this.hooks.onChat?.({ id: msg.id, name: msg.name, text: msg.text });
         break;
       case 'announce':
         this.hooks.onAnnounce?.(msg.text);
@@ -318,12 +387,15 @@ export class ClientCore {
   private forget(): void {
     this.ready = false;
     this.epoch = -1;
+    // hello already advertised seq to the new slot: keep that sequence baseline across identities.
     this.sentSeq = this.ack = this.seq;
     for (const nc of this.cars.values()) this.releaseView(nc);
     this.cars.clear();
     this.preds.length = 0;
     for (const nd of this.drivers.values()) this.dropRemote(nd);
     this.drivers.clear();
+    this.hitShown.clear();
+    this.sim.visual.ds = this.sim.visual.dd = this.sim.visual.dpsi = 0;
   }
 
   private onSnapshot(sn: Snapshot): void {
@@ -388,6 +460,7 @@ export class ClientCore {
       car.prevD = car.d;
       car.prevPsi = car.psi;
       this.hooks.onTeleport?.();
+      this.confirmGarage(sn);
       return;
     }
     const es = oldS - car.s;
@@ -405,6 +478,7 @@ export class ClientCore {
       vis.dd += ed;
       vis.dpsi += oldPsi - car.psi;
     }
+    this.confirmGarage(sn);
   }
 
   /** Multiple of the ring length that brings s nearest to ref. */
@@ -617,6 +691,8 @@ export class ClientCore {
     if (r.car.physicsId !== info.physics) {
       r.car = createCar(info.physics);
       nd.pred = createCar(info.physics);
+      nd.fresh = true;
+      nd.es = nd.ed = 0;
     }
   }
 
@@ -787,8 +863,22 @@ export class ClientCore {
 
   /** The connection dropped: inputs made while offline will never reach the server. */
   disconnected(): void {
+    this.rejectGarage('Связь с сервером потеряна');
     this.sentSeq = this.seq;
     this.welcomed = this.ready = false;
+  }
+
+  /** Release only this core's views before a new session takes ownership of the same Sim. */
+  dispose(): void {
+    this.rejectGarage('Вы вышли из сетевой сессии');
+    this.forget();
+    this.id = 0;
+    this.token = '';
+    this.rules = null;
+    this.players = [];
+    this.seq = this.sentSeq = this.ack = 0;
+    this.ghost = false;
+    this.stats.horizon = this.stats.queue = 0;
   }
 
   /** Remote drivers' info for the HUD (name tags). */
