@@ -34,7 +34,7 @@ function freeze<T>(value: T): T {
 const spawn = { s: SPAWN_S, d: SPAWN_D, gap: SPAWN_GAP, places: SPAWN_PLACES, protectionLength: 30, protectionBehind: 12, protectionInset: 1.6 };
 const MAPS: Readonly<Record<MapId, MapDefinition>> = freeze({
   highway: { id: 'highway', name: 'Highway', revision: 1, theme: 'highway', script: ringScript(), spawn, defaultSky: 'night' },
-  miami: { id: 'miami', name: 'Miami', revision: 1, theme: 'miami', script: miamiScript(), spawn: { ...spawn, s: 300 }, defaultSky: 'miami-night' },
+  miami: { id: 'miami', name: 'Miami', revision: 2, theme: 'miami', script: miamiScript(), spawn: { ...spawn, s: 300 }, defaultSky: 'miami-night' },
 });
 
 /** Pure registry access. Never silently route an unknown map to highway. */

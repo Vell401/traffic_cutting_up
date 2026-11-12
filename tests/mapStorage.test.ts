@@ -86,7 +86,7 @@ describe('separate map HTTP/storage instances', () => {
       if (i.map === 'miami') expect((await i.post('/api/runs', body)).status).toBe(400);
       expect((await i.post('/api/runs', { ...body, map: i.map, score: i.map === 'miami' ? 15000 : 9000 })).status).toBe(200);
       const identity = await (await fetch(`${i.base}/api/map`)).json();
-      expect(identity).toMatchObject({ map: i.map, mapRevision: 1, soloPolicy: 'selected-instance' });
+      expect(identity).toMatchObject({ map: i.map, mapRevision: i.map === 'miami' ? 2 : 1, soloPolicy: 'selected-instance' });
       const boardResponse = await fetch(`${i.base}/api/leaderboard?mode=solo`);
       expect(boardResponse.headers.get('x-map-id')).toBe(i.map);
       const board = await boardResponse.json() as { entries: { score: number }[] };
@@ -94,7 +94,7 @@ describe('separate map HTTP/storage instances', () => {
       expect(i.store.setting('profile')).toEqual({ map: i.map });
       const login = await (await i.post('/api/admin/login', { password: 'test-password' })).json() as { token: string };
       const admin = await (await fetch(`${i.base}/api/admin/state`, { headers: { authorization: `Bearer ${login.token}` } })).json();
-      expect(admin).toMatchObject({ map: i.map, mapRevision: 1, server: { map: i.map, protocol: 13 }, radio: { playlists: [{ name: i.map }] } });
+      expect(admin).toMatchObject({ map: i.map, mapRevision: i.map === 'miami' ? 2 : 1, server: { map: i.map, protocol: 13 }, radio: { playlists: [{ name: i.map }] } });
     }
   });
 });
