@@ -4,6 +4,8 @@ type Preparation = {
   current?: () => boolean;
   /** Apply a material variant only during synchronous renderer work, never across an await. */
   variant?: () => () => void;
+  /** Warm the current scene lighting as-is instead of revealing/isolating the selected subtree. */
+  preserveVisibility?: boolean;
 };
 
 const queues = new WeakMap<THREE.WebGLRenderer, Promise<void>>();
@@ -56,9 +58,11 @@ function offscreen<T>(renderer: THREE.WebGLRenderer, target: THREE.WebGLRenderTa
   }
 }
 
-function compile(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, root: THREE.Object3D, target: THREE.WebGLRenderTarget): Promise<unknown> {
+function compile(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, root: THREE.Object3D, target: THREE.WebGLRenderTarget, preserveVisibility = false): Promise<unknown> {
   // The model is already attached. Passing it AND targetScene would double-count its lights.
-  return offscreen(renderer, target, () => visibleTree(scene, camera, root, () => renderer.compileAsync(scene, camera)));
+  return offscreen(renderer, target, () => preserveVisibility
+    ? renderer.compileAsync(scene, camera)
+    : visibleTree(scene, camera, root, () => renderer.compileAsync(scene, camera)));
 }
 
 export function prepareObject(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, root: THREE.Object3D, options: Preparation = {}): Promise<void> {
@@ -66,9 +70,11 @@ export function prepareObject(renderer: THREE.WebGLRenderer, scene: THREE.Scene,
     if (options.current && !options.current()) return;
     const target = new THREE.WebGLRenderTarget(4, 4);
     try {
-      await variant(options, () => compile(renderer, scene, camera, root, target));
+      await variant(options, () => compile(renderer, scene, camera, root, target, options.preserveVisibility));
       if (options.current && !options.current()) return;
-      variant(options, () => offscreen(renderer, target, () => visibleTree(scene, camera, root, () => renderer.render(scene, camera))));
+      variant(options, () => offscreen(renderer, target, () => options.preserveVisibility
+        ? renderer.render(scene, camera)
+        : visibleTree(scene, camera, root, () => renderer.render(scene, camera))));
     } finally { target.dispose(); }
   });
 }

@@ -347,6 +347,16 @@ export class View {
           if (!current()) return;
         }
       }
+      // Bumper intentionally hides this entire root, including its headlights. Prepare the world
+      // shaders for that lighting configuration as well, without changing the camera/appearance.
+      await prepareObject(this.renderer, this.scene, this.camera, player.root, {
+        current, preserveVisibility: true,
+        variant: () => {
+          const visible = player.root.visible;
+          player.root.visible = false;
+          return () => { player.root.visible = visible; };
+        },
+      });
     })().then(() => {
       // A superseded menu choice was not actually compiled; it is still preparable later.
       if (current()) this.preparedCars.add(player);

@@ -146,14 +146,23 @@ describe('optional online car warmup failure', () => {
     const { view, selected, renderer } = await harness(1);
     selected.root.visible = false; selected.setCockpit(false);
     const ghostStates: boolean[] = [], cockpitStates: boolean[] = [], materialTypes: string[] = [];
+    let worldDraws = 0;
     const ghost = vi.spyOn(selected, 'setGhost'), cockpit = vi.spyOn(selected, 'setCockpit');
     renderer.render.mockImplementation(() => {
+      if (!selected.root.visible) {
+        worldDraws++;
+        const lit: THREE.Object3D[] = [];
+        view.scene.traverseVisible(o => { if ((o as THREE.SpotLight).isSpotLight) lit.push(o); });
+        expect(lit).toHaveLength(0);
+        return;
+      }
       expect(selected.body.children.length).toBeGreaterThan(0); expect(selected.root.visible).toBe(true);
       ghostStates.push(ghost.mock.lastCall![0]); cockpitStates.push(cockpit.mock.lastCall![0]);
       materialTypes.push(((selected.body.getObjectByName('warm-cabin') as THREE.Mesh).material as THREE.Material).type);
       selected.root.traverse(o => { expect(o.visible).toBe(true); expect(o.frustumCulled).toBe(false); });
     });
     await (view as unknown as View).prepareCar();
+    expect(worldDraws).toBe(1); expect(renderer.render).toHaveBeenCalledTimes(5);
     expect(ghostStates).toEqual([false, true, false, true]); expect(cockpitStates).toEqual([false, false, true, true]);
     expect(materialTypes).toEqual(['MeshStandardMaterial', 'MeshStandardMaterial', 'MeshLambertMaterial', 'MeshLambertMaterial']);
     expect(selected.root.visible).toBe(false); expect(ghost).toHaveBeenLastCalledWith(false); expect(cockpit).toHaveBeenLastCalledWith(false);

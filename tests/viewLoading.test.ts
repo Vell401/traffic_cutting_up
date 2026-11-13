@@ -39,6 +39,34 @@ function harness() {
 }
 
 describe('view car residency and preparation', () => {
+  it.each(['none', 'compile', 'draw'])('warms world materials without own headlights before readiness, restoring visibility (failure=%s)', async failure => {
+    const { view, current, scene, renderer } = harness();
+    current.root.add(new THREE.SpotLight(), new THREE.SpotLight());
+    const world = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial()); scene.add(world, new THREE.HemisphereLight());
+    const compiled = new Set<number>(), drawn = new Set<number>();
+    const lights = () => { let count = 0; scene.traverseVisible(o => { if ((o as THREE.SpotLight).isSpotLight) count++; }); return count; };
+    let fail = failure;
+    renderer.compileAsync.mockImplementation(async () => {
+      if (lights() === 0 && fail === 'compile') throw new Error('bumper world compile');
+      compiled.add(lights());
+    });
+    renderer.render.mockImplementation(() => {
+      const count = lights(); expect(compiled.has(count)).toBe(true);
+      if (count === 0 && fail === 'draw') throw new Error('bumper world draw');
+      drawn.add(count);
+    });
+    if (failure !== 'none') {
+      await expect(view.prepareCar()).rejects.toThrow(`bumper world ${failure}`);
+      expect(current.root.visible).toBe(true); expect(lights()).toBe(2);
+      fail = 'none';
+      await view.prepareCar();
+    } else await view.prepareCar();
+    expect(compiled).toEqual(new Set([2, 0])); expect(drawn).toEqual(new Set([2, 0]));
+    expect(current.root.visible).toBe(true); expect(world.visible).toBe(true); expect(lights()).toBe(2);
+    const calls = renderer.compileAsync.mock.calls.length; await view.prepareCar();
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(calls);
+  });
+
   it('reuses a bounded car instance and its materials instead of disposing/rebuilding after every menu choice', () => {
     const { view, current, playerViews, scene } = harness();
     const dispose = vi.spyOn(current, 'dispose');
@@ -73,12 +101,12 @@ describe('view car residency and preparation', () => {
     const task = view.prepareCar(); expect(view.prepareCar()).toBe(task);
     await Promise.resolve(); expect(renderer.compileAsync).not.toHaveBeenCalled();
     attach(); await task;
-    expect(renderer.render).toHaveBeenCalledTimes(2); // Opaque and spawn-ghost first use.
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(2);
+    expect(renderer.render).toHaveBeenCalledTimes(3); // Opaque, spawn-ghost, bumper world lighting.
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(3);
     view.setCar(1); await view.prepareCar();
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(6); // Both Porsche sets, opaque and ghost.
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(8); // Porsche sets + both cars' bumper world lighting.
     view.setCar(3); await view.prepareCar();
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(6);
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(8);
   });
 
   it('does not compile a superseded pending selection and allows preparing it on return', async () => {
@@ -88,7 +116,7 @@ describe('view car residency and preparation', () => {
     const task = view.prepareCar(); view.setCar(2); attach(); await task;
     expect(renderer.compileAsync).not.toHaveBeenCalled();
     view.setCar(3); await view.prepareCar();
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(2);
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(3);
   });
 
   it.each(['compile', 'draw'])('retries a failed %s, restores cockpit/ghost/bumper state, and does not rebuild an attached instance', async failure => {
@@ -101,7 +129,7 @@ describe('view car residency and preparation', () => {
     expect(player.root.visible).toBe(false);
     expect(player.setCockpit).toHaveBeenLastCalledWith(false); expect(player.setGhost).toHaveBeenLastCalledWith(false);
     await view.prepareCar(); expect(playerViews.get(1)!.view).toBe(player);
-    expect(renderer.render).toHaveBeenCalledTimes(failure === 'draw' ? 5 : 4);
+    expect(renderer.render).toHaveBeenCalledTimes(failure === 'draw' ? 6 : 5);
   });
 
   it('evicts immutable rejected attachment readiness so same-identity selection reconstructs it', async () => {
@@ -119,8 +147,8 @@ describe('view car residency and preparation', () => {
     view.setCar(2); view.setCar(3);
     const retry = view.prepareCar(); expect(retry).not.toBe(old);
     finish(); await Promise.all([old, retry]);
-    expect(renderer.render).toHaveBeenCalledTimes(2); // Superseded compile never draws.
-    await view.prepareCar(); expect(renderer.render).toHaveBeenCalledTimes(2);
+    expect(renderer.render).toHaveBeenCalledTimes(3); // Superseded compile never draws.
+    await view.prepareCar(); expect(renderer.render).toHaveBeenCalledTimes(3);
   });
 
   it('does not overwrite in-flight variant programs with a live frame before compileAsync settles', async () => {

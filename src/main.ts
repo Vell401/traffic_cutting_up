@@ -597,6 +597,9 @@ async function chooseCar(id: CarId): Promise<void> {
     await loading.stage(92, 'Подготовка первого кадра');
     await view.prepareCar();
     if (revision !== carRevision) return;
+    // The first live draw is part of candidate readiness too. A solo failure must not end the old
+    // run or save an identity whose visual we then restore; accepted online physics stays installed.
+    view.render(1, 0);
     if (!authoritative) sim.setPhysics(bodyPhysics(id), state !== 'menu');
     car = id;
     paint = color;
@@ -609,7 +612,6 @@ async function chooseCar(id: CarId): Promise<void> {
     pendingShift = 0;
     blinker = 0;
     mouse.centre();
-    view.render(1, 0);
     if (revision === carRevision) loading.finish();
   } catch (error) {
     if (revision !== carRevision) return;
