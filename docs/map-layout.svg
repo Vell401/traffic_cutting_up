@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1400" viewBox="0 0 1900 1400">
+<defs>
+ <pattern id="water" width="44" height="29" patternUnits="userSpaceOnUse"><path d="M0 18Q11 12 22 18T44 18" fill="none" stroke="#265a70" stroke-width="1" /></pattern>
+ <pattern id="blocks" width="72" height="57" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)"><rect x="7" y="7" width="45" height="28" rx="2" fill="#2c4149" /><path d="M0 47H72M61 0V57" stroke="#38505a" stroke-width="2" /></pattern>
+ <pattern id="smallblocks" width="49" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(12)"><rect x="5" y="5" width="28" height="23" fill="#293e47" /></pattern>
+ <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5 0 10Z" fill="#e8edf0" /></marker>
+ <style>text{font-family:DejaVu Sans,sans-serif;fill:#e5edf3}.small{font-size:15px}.tiny{font-size:13px}.label{font-size:19px;font-weight:bold}.muted{fill:#95aab7}.halo{paint-order:stroke;stroke:#13232c;stroke-width:6px;stroke-linejoin:round}.road{fill:none;stroke-linecap:round;stroke-linejoin:round}.district{font-size:23px;letter-spacing:3px;fill:#79939c}.node{fill:#13232c;stroke:#e8edf0;stroke-width:2}.feature{fill:#f7e5ad;stroke:#182b34;stroke-width:2}</style>
+</defs>
+<rect width="1900" height="1400" fill="#101e28" />
+<text x="42" y="51" font-size="32" font-weight="bold">ГОРОД И ЗАЛИВ · ВАРИАНТ 02</text>
+<text x="43" y="83" class="small muted">Асимметричная сеть · три въезда · предварительно 60–73 км · топологический эскиз, не масштабный чертёж</text>
+<rect x="25" y="106" width="1390" height="1225" rx="18" fill="#20343c" />
+
+<path d="M35 130H1100L1060 220Q971 188 917 242T769 228Q668 305 579 253T420 278Q339 229 283 333L128 377Z" fill="#2b4140" />
+<g fill="none" stroke="#40564d" stroke-width="2" opacity=".65"><path d="M68 199Q234 149 342 213T588 195T818 177T1040 163" /><path d="M54 244Q223 197 324 261T585 245T819 215T1067 199" /><path d="M57 287Q215 239 300 304" /></g>
+<path d="M331 370L526 325 693 385 736 542 653 718 418 715 319 573Z" fill="url(#blocks)" />
+<path d="M735 340L973 319 1120 443 1092 612 937 709 737 635 696 480Z" fill="url(#smallblocks)" />
+<path d="M28 898Q113 856 202 824Q243 777 330 789L412 833 508 821Q552 785 609 805L691 846 761 794 853 789 926 751 1021 770 1084 729 1133 753 1198 726 1270 750 1415 711V1064L1298 1020 1241 1039 1178 998 1100 1033 1037 986 952 1017 882 980 780 1013 706 969 611 1022 503 1000 427 1046 339 1011 249 1053 150 1018 25 1069Z" fill="#163d50" stroke="#42616a" stroke-width="3" />
+<path d="M28 898Q113 856 202 824Q243 777 330 789L412 833 508 821Q552 785 609 805L691 846 761 794 853 789 926 751 1021 770 1084 729 1133 753 1198 726 1270 750 1415 711V1064L1298 1020 1241 1039 1178 998 1100 1033 1037 986 952 1017 882 980 780 1013 706 969 611 1022 503 1000 427 1046 339 1011 249 1053 150 1018 25 1069Z" fill="url(#water)" />
+
+<g fill="#31454b" stroke="#53626a" stroke-width="2"><path d="M390 1060L430 1011 474 1029 449 1096Z" /><path d="M781 1043L800 984 837 992 833 1068Z" /><path d="M925 1083L956 1016 998 1004 973 1110Z" /></g>
+<g fill="#3a4c52"><rect x="481" y="1083" width="108" height="26" transform="rotate(9 481 1083)" /><rect x="658" y="1068" width="107" height="30" transform="rotate(-8 658 1068)" /><rect x="886" y="1127" width="128" height="30" transform="rotate(-15 886 1127)" /></g>
+<path d="M317 1181C483 1139 594 1211 768 1159S1012 1162 1167 1096" class="road" stroke="#536169" stroke-width="7" />
+<text x="362" y="192" class="district">СЕВЕРНЫЕ ХОЛМЫ</text>
+<text x="375" y="483" class="district halo">ДЕЛОВОЙ ЦЕНТР</text>
+<text x="865" y="413" class="district halo">ВОСТОЧНЫЕ</text><text x="917" y="446" class="district halo">КВАРТАЛЫ</text>
+<text x="611" y="929" font-size="39" fill="#79a9bc" letter-spacing="10">ЗАЛИВ</text>
+<text x="517" y="1219" class="district">ПОРТ / НАМЫВНЫЕ ТЕРРИТОРИИ</text>
+
+<path id="ringSurface" class="road" d="M193 758C161 704 177 655 146 596S114 493 158 439S261 396 269 344S316 264 392 277S488 318 548 281S625 205 704 221S770 231 790 210S889 187 929 229S949 307 1025 322S1158 332 1150 402S1264 461 1260 528S1211 578 1224 628S1237 671 1200 700C1167 730 1216 764 1254 794L1196 989C1181 1040 1114 1039 1083 1082S995 1151 927 1145S814 1118 754 1158S661 1182 602 1150S492 1118 433 1141S340 1139 312 1096S239 1061 226 1027" stroke="#0c1820" stroke-width="24" />
+<path class="road" d="M193 758C161 704 177 655 146 596S114 493 158 439S261 396 269 344S316 264 392 277S488 318 548 281S625 205 704 221S770 231 790 210S889 187 929 229S949 307 1025 322S1158 332 1150 402S1264 461 1260 528S1211 578 1224 628S1237 671 1200 700C1167 730 1216 764 1254 794L1196 989C1181 1040 1114 1039 1083 1082S995 1151 927 1145S814 1118 754 1158S661 1182 602 1150S492 1118 433 1141S340 1139 312 1096S239 1061 226 1027" stroke="#0c1820" stroke-width="24" style="stroke:#e8b661;stroke-width:16" />
+<path class="road" d="M193 758C161 704 177 655 146 596S114 493 158 439S261 396 269 344S316 264 392 277S488 318 548 281S625 205 704 221S770 231 790 210S889 187 929 229S949 307 1025 322S1158 332 1150 402S1264 461 1260 528S1211 578 1224 628S1237 671 1200 700C1167 730 1216 764 1254 794L1196 989C1181 1040 1114 1039 1083 1082S995 1151 927 1145S814 1118 754 1158S661 1182 602 1150S492 1118 433 1141S340 1139 312 1096S239 1061 226 1027" stroke="#0c1820" stroke-width="24" style="stroke:#293239;stroke-width:2" />
+<path id="underwater" class="road" d="M193 758C215 808 285 852 288 908S246 985 226 1027" stroke="#101e28" stroke-width="24" />
+<path class="road" d="M193 758C215 808 285 852 288 908S246 985 226 1027" stroke="#e8b661" stroke-width="16" stroke-dasharray="13 13" />
+<path class="road" d="M193 758C215 808 285 852 288 908S246 985 226 1027" stroke="#26343c" stroke-width="2" />
+<path d="M1254 794L1196 989" class="road" stroke="#f4dfb0" stroke-width="22" />
+<path d="M1254 794L1196 989" class="road" stroke="#e8b661" stroke-width="15" />
+<path d="M1254 794L1196 989" stroke="#27333a" stroke-width="2" />
+<g stroke="#f4dfb0" fill="none"><path d="M1216 853L1257 865M1188 943L1230 955" stroke-width="5" /><path d="M1216 853L1248 811M1257 865L1234 906M1188 943L1229 912M1230 955L1201 982" stroke-width="1.6" /></g>
+
+<path id="access" class="road" d="M193 758C246 745 240 694 287 670S379 657 397 613S407 565 440 540M790 210C765 268 799 294 756 329S659 350 675 394S710 430 690 460M1200 700C1149 684 1110 712 1072 679S1038 613 986 625S950 638 920 610" stroke="#101a22" stroke-width="20" />
+<path class="road" d="M193 758C246 745 240 694 287 670S379 657 397 613S407 565 440 540M790 210C765 268 799 294 756 329S659 350 675 394S710 430 690 460M1200 700C1149 684 1110 712 1072 679S1038 613 986 625S950 638 920 610" stroke="#aed089" stroke-width="12" />
+<path class="road" d="M193 758C246 745 240 694 287 670S379 657 397 613S407 565 440 540M790 210C765 268 799 294 756 329S659 350 675 394S710 430 690 460M1200 700C1149 684 1110 712 1072 679S1038 613 986 625S950 638 920 610" stroke="#31443e" stroke-width="1.5" />
+<path id="core" class="road" d="M440 540C400 527 357 542 341 503S349 438 396 429S474 420 484 378S536 337 581 359S618 435 659 443S684 447 690 460C711 493 678 533 700 580C670 600 632 585 604 614S582 678 538 686S449 671 436 701S369 724 347 686S362 622 393 597S447 584 440 540Z" stroke="#0c1820" stroke-width="22" />
+<path class="road" d="M440 540C400 527 357 542 341 503S349 438 396 429S474 420 484 378S536 337 581 359S618 435 659 443S684 447 690 460C711 493 678 533 700 580C670 600 632 585 604 614S582 678 538 686S449 671 436 701S369 724 347 686S362 622 393 597S447 584 440 540Z" stroke="#61ccdc" stroke-width="14" />
+<path class="road" d="M440 540C400 527 357 542 341 503S349 438 396 429S474 420 484 378S536 337 581 359S618 435 659 443S684 447 690 460C711 493 678 533 700 580C670 600 632 585 604 614S582 678 538 686S449 671 436 701S369 724 347 686S362 622 393 597S447 584 440 540Z" stroke="#293c43" stroke-width="2" />
+<path id="east" class="road" d="M700 580C721 545 753 558 773 525S778 466 818 462S848 491 889 472S930 493 969 489S1046 469 1071 509S1057 578 1011 572S940 573 920 610C896 650 934 674 905 705S853 706 824 730S775 764 741 737S720 687 684 681S646 653 665 624S680 603 700 580Z" stroke="#0c1820" stroke-width="22" />
+<path class="road" d="M700 580C721 545 753 558 773 525S778 466 818 462S848 491 889 472S930 493 969 489S1046 469 1071 509S1057 578 1011 572S940 573 920 610C896 650 934 674 905 705S853 706 824 730S775 764 741 737S720 687 684 681S646 653 665 624S680 603 700 580Z" stroke="#ac9ce9" stroke-width="14" />
+<path class="road" d="M700 580C721 545 753 558 773 525S778 466 818 462S848 491 889 472S930 493 969 489S1046 469 1071 509S1057 578 1011 572S940 573 920 610C896 650 934 674 905 705S853 706 824 730S775 764 741 737S720 687 684 681S646 653 665 624S680 603 700 580Z" stroke="#333c4c" stroke-width="2" />
+<path id="cityBypass" class="road" d="M538 686C586 737 615 767 675 754S737 699 770 693S839 667 824 730" stroke="#101a22" stroke-width="18" />
+<path class="road" d="M538 686C586 737 615 767 675 754S737 699 770 693S839 667 824 730" stroke="#7db8cb" stroke-width="10" />
+<path class="road" d="M538 686C586 737 615 767 675 754S737 699 770 693S839 667 824 730" stroke="#2a3e48" stroke-width="1.5" />
+<path d="M678 534C729 486 799 528 765 582S689 646 665 624M659 591C629 548 678 516 718 535S744 602 718 624M735 550C717 573 686 574 669 598" class="road" stroke="#0b1720" stroke-width="13" />
+<path d="M678 534C729 486 799 528 765 582S689 646 665 624M659 591C629 548 678 516 718 535S744 602 718 624M735 550C717 573 686 574 669 598" class="road" stroke="#dad8ec" stroke-width="6" />
+<path d="M687 565L711 593" stroke="#0b1720" stroke-width="23" /><path d="M687 565L711 593" stroke="#61ccdc" stroke-width="14" /><path d="M687 565L711 593" stroke="#293c43" stroke-width="2" />
+
+<path d="M756 329C801 352 800 390 759 401S724 437 690 460" class="road" stroke="#0c1820" stroke-width="13" />
+<path d="M756 329C801 352 800 390 759 401S724 437 690 460" class="road" stroke="#aed089" stroke-width="7" />
+
+<path d="M484 378C494 348 516 344 540 347M1011 572C976 567 953 574 936 589" class="road" stroke="#162630" stroke-width="17" />
+<path d="M484 378C494 348 516 344 540 347" class="road" stroke="#61ccdc" stroke-width="13" stroke-dasharray="7 8" />
+<path d="M1011 572C976 567 953 574 936 589" class="road" stroke="#ac9ce9" stroke-width="13" stroke-dasharray="7 8" />
+
+<g class="road" stroke="#95afba" stroke-width="5"><path d="M754 1158Q758 1105 803 1084" /><path d="M347 686Q303 698 293 733" /><path d="M1025 322Q1065 298 1062 266" /></g>
+<g fill="#245047" stroke="#91dfbd" stroke-width="2"><rect x="783" y="1055" width="82" height="36" rx="6" transform="rotate(-10 783 1055)" /><rect x="251" y="721" width="76" height="35" rx="6" transform="rotate(10 251 721)" /><rect x="1020" y="238" width="79" height="35" rx="6" transform="rotate(9 1020 238)" /></g>
+<g class="label halo"><text x="802" y="1073">P1</text><text x="270" y="749">P2</text><text x="1041" y="266">P3</text></g>
+<text x="769" y="1027" class="small halo">Портовая · вид на мост</text><text x="290" y="779" class="small halo">Городская</text><text x="1107" y="260" class="small halo">Зона отдыха</text>
+
+<g class="node"><circle cx="193" cy="758" r="17" /><circle cx="790" cy="210" r="17" /><circle cx="1200" cy="700" r="17" /><circle cx="440" cy="540" r="14" /><circle cx="690" cy="460" r="14" /><circle cx="920" cy="610" r="14" /><circle cx="538" cy="686" r="10" /><circle cx="824" cy="730" r="10" /></g>
+<g class="tiny" text-anchor="middle"><text x="193" y="763">J1</text><text x="790" y="215">J2</text><text x="1200" y="705">J3</text><text x="440" y="545">J4</text><text x="690" y="465">J5</text><text x="920" y="615">J6</text></g>
+<g class="label halo"><text x="151" y="711" fill="#aed089">S1 · ЗАПАДНЫЙ</text><text x="811" y="303" fill="#aed089">S2 · СЕВЕРНЫЙ</text><text x="1041" y="742" fill="#aed089">S3 · ПРИБРЕЖНЫЙ</text><text x="581" y="550">X1</text><text x="497" y="580" class="small">Центральная развязка</text><text x="323" y="402" fill="#61ccdc">C1</text><text x="1090" y="532" fill="#ac9ce9">C2</text><text x="636" y="807" fill="#7db8cb">C3 · нижний обход</text><text x="111" y="925">T1</text><text x="95" y="952" class="small">Подводный тоннель</text><text x="1257" y="885">B1</text><text x="1250" y="913" class="small">Мост</text><text x="401" y="332" class="small">T2 · под кварталом</text><text x="966" y="551" class="small">T3</text></g>
+
+<g class="feature"><circle cx="606" cy="399" r="13" /><circle cx="369" cy="615" r="13" /><circle cx="1067" cy="546" r="13" /><circle cx="782" cy="375" r="13" /><circle cx="478" cy="1125" r="13" /></g>
+<g font-size="12" font-weight="bold" text-anchor="middle" fill="#17242b"><text x="606" y="403" style="fill:#17242b">F1</text><text x="369" y="619" style="fill:#17242b">F2</text><text x="1067" y="550" style="fill:#17242b">F3</text><text x="782" y="379" style="fill:#17242b">F4</text><text x="478" y="1129" style="fill:#17242b">F5</text></g>
+<path d="M1357 204V149" stroke="#dde7ec" stroke-width="2" marker-end="url(#arrow)" /><text x="1349" y="138" class="label">С</text>
+<text x="66" y="1272" class="small muted">Два разделённых направления на каждом коридоре · левостороннее движение.</text>
+<text x="66" y="1300" class="tiny muted">География задаёт изгибы: холмы, кварталы, набережные, железная дорога и портовые территории.</text>
+
+<rect x="1435" y="106" width="440" height="1225" rx="18" fill="#192a35" />
+<text x="1460" y="146" font-size="23" font-weight="bold">НЕ КОЛЬЦА ПО ЛИНЕЙКЕ</text>
+<g class="small"><text x="1460" y="183">R0 огибает холмы и береговые выступы.</text><text x="1460" y="211">C1/C2 — вытянутые городские коридоры</text><text x="1460" y="239">с разными изгибами и общей развязкой.</text><text x="1460" y="267">C3 добавляет нижний путь между ними.</text></g>
+<path d="M1460 293H1847" stroke="#38505b" />
+<text x="1460" y="331" class="label">ТРИ ВХОДА В ГОРОД</text>
+<g class="small"><text x="1460" y="365" fill="#aed089">J1 → S1: запад / старые кварталы</text><text x="1460" y="395" fill="#aed089">J2 → S2: север / городская долина</text><text x="1460" y="425" fill="#aed089">J3 → S3: восток / набережная</text><text x="1460" y="459" class="muted">Разнесены примерно на трети кольца.</text><text x="1460" y="486" class="muted">Точный баланс расстояний — в прототипе.</text></g>
+<path d="M1460 513H1847" stroke="#38505b" />
+<text x="1460" y="551" class="label">ПРЕДВАРИТЕЛЬНЫЕ ДЛИНЫ</text>
+<g class="small"><text x="1460" y="585" fill="#e8b661">R0 · 33–39 км · предложение 3+3</text><text x="1460" y="616" fill="#61ccdc">C1 · 7–8,5 км · 2+2</text><text x="1460" y="647" fill="#ac9ce9">C2 · 8–9,5 км · 2+2</text><text x="1460" y="678" fill="#7db8cb">C3 · 2–3 км · 2+2</text><text x="1460" y="709" fill="#aed089">S1/S2/S3 · по 3,3–4,2 км · 2+2</text><text x="1460" y="747" font-weight="bold">Всего ≈ 60–73 км осей дорог.</text><text x="1460" y="775" class="muted">Примерно ×1,5 к варианту 01.</text><text x="1460" y="802" class="muted">Без удвоения за встречную сторону.</text></g>
+<path d="M1460 828H1847" stroke="#38505b" />
+<text x="1460" y="865" class="label">МЕСТА ДЛЯ ПРЕИМУЩЕСТВА</text>
+<g class="small"><text x="1460" y="899">F1 · дополнительная полоса</text><text x="1460" y="928">F2 · обочина и возврат до сужения</text><text x="1460" y="957">F3 · подъём за городской террасой</text><text x="1460" y="986">F4 · параллельный распределитель</text><text x="1460" y="1015">F5 · расширение у портовой дороги</text></g>
+<path d="M1460 1042H1847" stroke="#38505b" />
+<text x="1460" y="1078" class="label">КАК ЧИТАТЬ</text>
+<g class="small"><text x="1460" y="1112">Кружки J — реальные примыкания.</text><text x="1460" y="1141">X1 — развязка разных уровней:</text><text x="1460" y="1170">связи через светлые рампы.</text><text x="1460" y="1199">Пунктир — тоннель; P — парковка.</text></g>
+<text x="1460" y="1240" class="tiny muted">Рампы показаны концептуально, не по радиусам.</text><text x="1460" y="1265" class="tiny muted">Любое другое пересечение без узла —</text><text x="1460" y="1288" class="tiny muted">разные уровни, перехода между дорогами нет.</text>
+<text x="43" y="1370" class="small muted">Вариант 02 · на согласование · форма и протяжённость обновлены по обратной связи пользователя</text>
+</svg>

@@ -1,0 +1,8379 @@
+{
+  "id": "moscow-mkad-msd",
+  "status": "osm-route-candidate",
+  "source": {
+    "provider": "OpenStreetMap",
+    "license": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "url": "https://www.openstreetmap.org/copyright",
+    "endpoint": "https://overpass-api.de/api/interpreter",
+    "osmTimestamp": "2026-11-13T12:18:02Z",
+    "generatedAt": "2026-11-13T12:19:32.567037+00:00"
+  },
+  "coordinateOrder": "latitude,longitude",
+  "bounds": [
+    55.56,
+    37.59,
+    55.765,
+    37.86
+  ],
+  "waypoints": [
+    {
+      "requested": [
+        55.576894,
+        37.616692
+      ],
+      "snapped": [
+        55.5769236,
+        37.6164958
+      ],
+      "nodeId": 11191288649,
+      "errorMetres": 12.764487440714872
+    },
+    {
+      "requested": [
+        55.746178,
+        37.738748
+      ],
+      "snapped": [
+        55.7462699,
+        37.7388686
+      ],
+      "nodeId": 6878734450,
+      "errorMetres": 12.704211386813993
+    },
+    {
+      "requested": [
+        55.710893,
+        37.836291
+      ],
+      "snapped": [
+        55.7106054,
+        37.8366442
+      ],
+      "nodeId": 1422902163,
+      "errorMetres": 38.88774428120093
+    },
+    {
+      "requested": [
+        55.576888,
+        37.617271
+      ],
+      "snapped": [
+        55.5768263,
+        37.617405
+      ],
+      "nodeId": 11191288650,
+      "errorMetres": 10.86358725040898
+    }
+  ],
+  "lengthMetres": 59446.06427317157,
+  "legLengthsMetres": [
+    23181.616804292804,
+    9426.327362584714,
+    26779.95400197028,
+    58.16610432378751
+  ],
+  "sections": [
+    {
+      "wayId": 1207836341,
+      "leg": 0,
+      "tags": {
+        "highway": "primary_link",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5769236,
+          37.6164958
+        ],
+        [
+          55.5770115,
+          37.6161306
+        ],
+        [
+          55.5771486,
+          37.6157559
+        ],
+        [
+          55.5773083,
+          37.6154887
+        ],
+        [
+          55.5774993,
+          37.6152675
+        ],
+        [
+          55.5777337,
+          37.6150986
+        ],
+        [
+          55.5780132,
+          37.6149266
+        ],
+        [
+          55.5782841,
+          37.6148007
+        ],
+        [
+          55.5786018,
+          37.6147485
+        ],
+        [
+          55.5791108,
+          37.6147166
+        ]
+      ],
+      "length": 287.1401721471056
+    },
+    {
+      "wayId": 809185810,
+      "leg": 0,
+      "tags": {
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.5791108,
+          37.6147166
+        ],
+        [
+          55.5805886,
+          37.6150042
+        ],
+        [
+          55.582987,
+          37.6153207
+        ],
+        [
+          55.5846879,
+          37.6155192
+        ],
+        [
+          55.5852882,
+          37.6156425
+        ],
+        [
+          55.5857915,
+          37.6157981
+        ],
+        [
+          55.5864509,
+          37.6160663
+        ],
+        [
+          55.5884231,
+          37.6168925
+        ]
+      ],
+      "length": 1046.8958022493182
+    },
+    {
+      "wayId": 809185809,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.5884231,
+          37.6168925
+        ],
+        [
+          55.58976,
+          37.6174343
+        ]
+      ],
+      "length": 152.50559873526882
+    },
+    {
+      "wayId": 809185806,
+      "leg": 0,
+      "tags": {
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.58976,
+          37.6174343
+        ],
+        [
+          55.5905391,
+          37.6177669
+        ],
+        [
+          55.5911241,
+          37.6181263
+        ],
+        [
+          55.5916546,
+          37.6185286
+        ],
+        [
+          55.5922669,
+          37.6191187
+        ],
+        [
+          55.5928156,
+          37.6197946
+        ],
+        [
+          55.5933855,
+          37.6206154
+        ],
+        [
+          55.5942107,
+          37.6218214
+        ]
+      ],
+      "length": 574.7227676027759
+    },
+    {
+      "wayId": 1194199517,
+      "leg": 0,
+      "tags": {
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.5942107,
+          37.6218214
+        ],
+        [
+          55.5953042,
+          37.6233673
+        ],
+        [
+          55.5959058,
+          37.6244134
+        ]
+      ],
+      "length": 249.40330268339187
+    },
+    {
+      "wayId": 809185801,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.5959058,
+          37.6244134
+        ],
+        [
+          55.596165,
+          37.6247916
+        ],
+        [
+          55.5964045,
+          37.6251322
+        ],
+        [
+          55.596653,
+          37.6254273
+        ],
+        [
+          55.596944,
+          37.6257384
+        ],
+        [
+          55.5972016,
+          37.6259744
+        ],
+        [
+          55.5976941,
+          37.6263365
+        ],
+        [
+          55.5982867,
+          37.6267254
+        ],
+        [
+          55.5995385,
+          37.6274013
+        ],
+        [
+          55.599996,
+          37.6277554
+        ],
+        [
+          55.6004507,
+          37.6282114
+        ],
+        [
+          55.600787,
+          37.6286191
+        ],
+        [
+          55.601175,
+          37.6291689
+        ],
+        [
+          55.6016542,
+          37.6298626
+        ]
+      ],
+      "length": 733.0150119010816
+    },
+    {
+      "wayId": 1194199515,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6016542,
+          37.6298626
+        ],
+        [
+          55.6020039,
+          37.6303115
+        ]
+      ],
+      "length": 48.03370002045061
+    },
+    {
+      "wayId": 809185818,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6020039,
+          37.6303115
+        ],
+        [
+          55.6024099,
+          37.6307433
+        ],
+        [
+          55.6036343,
+          37.6319611
+        ],
+        [
+          55.6050889,
+          37.6334336
+        ],
+        [
+          55.6089266,
+          37.6372934
+        ],
+        [
+          55.6099749,
+          37.6383877
+        ],
+        [
+          55.6109172,
+          37.6395196
+        ]
+      ],
+      "length": 1147.8868033181675
+    },
+    {
+      "wayId": 809185798,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "-1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "tunnel": "yes"
+      },
+      "coordinates": [
+        [
+          55.6109172,
+          37.6395196
+        ],
+        [
+          55.6113013,
+          37.6399237
+        ]
+      ],
+      "length": 49.681388016146
+    },
+    {
+      "wayId": 942598242,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6113013,
+          37.6399237
+        ],
+        [
+          55.61206,
+          37.6407059
+        ]
+      ],
+      "length": 97.6239745277985
+    },
+    {
+      "wayId": 809185797,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.61206,
+          37.6407059
+        ],
+        [
+          55.6125018,
+          37.6411611
+        ],
+        [
+          55.6127879,
+          37.6413919
+        ],
+        [
+          55.6133057,
+          37.6417712
+        ],
+        [
+          55.6138953,
+          37.642096
+        ],
+        [
+          55.6143551,
+          37.6423127
+        ]
+      ],
+      "length": 275.6753411618186
+    },
+    {
+      "wayId": 942598243,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6143551,
+          37.6423127
+        ],
+        [
+          55.6148697,
+          37.6425134
+        ],
+        [
+          55.6153041,
+          37.6426226
+        ],
+        [
+          55.6156677,
+          37.642714
+        ],
+        [
+          55.6168041,
+          37.6429576
+        ],
+        [
+          55.6197053,
+          37.6436498
+        ]
+      ],
+      "length": 601.0146840055168
+    },
+    {
+      "wayId": 942598237,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6197053,
+          37.6436498
+        ],
+        [
+          55.6207922,
+          37.6438931
+        ]
+      ],
+      "length": 121.81959698146231
+    },
+    {
+      "wayId": 1194203196,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6207922,
+          37.6438931
+        ],
+        [
+          55.6228501,
+          37.6444279
+        ],
+        [
+          55.6249185,
+          37.6449291
+        ]
+      ],
+      "length": 463.41738149655555
+    },
+    {
+      "wayId": 877932064,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6249185,
+          37.6449291
+        ],
+        [
+          55.6307554,
+          37.6463357
+        ]
+      ],
+      "length": 655.0138341356574
+    },
+    {
+      "wayId": 1194203195,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00; Mo-Fr 11:00-16:00; Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6307554,
+          37.6463357
+        ],
+        [
+          55.6338246,
+          37.6470615
+        ]
+      ],
+      "length": 344.3073634387446
+    },
+    {
+      "wayId": 942598216,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6338246,
+          37.6470615
+        ],
+        [
+          55.6348151,
+          37.6474281
+        ],
+        [
+          55.6352175,
+          37.6475252
+        ],
+        [
+          55.6359513,
+          37.6476693
+        ]
+      ],
+      "length": 239.76943804028548
+    },
+    {
+      "wayId": 942598220,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6359513,
+          37.6476693
+        ],
+        [
+          55.6368724,
+          37.6478615
+        ],
+        [
+          55.6369748,
+          37.6478841
+        ],
+        [
+          55.6372244,
+          37.6480195
+        ],
+        [
+          55.6374267,
+          37.648173
+        ],
+        [
+          55.6376571,
+          37.6484493
+        ],
+        [
+          55.6378272,
+          37.6487256
+        ],
+        [
+          55.6380452,
+          37.6492595
+        ],
+        [
+          55.6381391,
+          37.6496551
+        ],
+        [
+          55.638187,
+          37.6500476
+        ],
+        [
+          55.63821,
+          37.6504558
+        ],
+        [
+          55.6382224,
+          37.6527324
+        ],
+        [
+          55.6382327,
+          37.6531774
+        ],
+        [
+          55.6382569,
+          37.6537406
+        ],
+        [
+          55.6383483,
+          37.6549996
+        ],
+        [
+          55.6383599,
+          37.6560013
+        ],
+        [
+          55.6383218,
+          37.6571234
+        ],
+        [
+          55.6382631,
+          37.6579057
+        ]
+      ],
+      "length": 812.8512654964114
+    },
+    {
+      "wayId": 1206424305,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6382631,
+          37.6579057
+        ],
+        [
+          55.6381706,
+          37.6590192
+        ],
+        [
+          55.6381156,
+          37.6600568
+        ]
+      ],
+      "length": 136.0433004310451
+    },
+    {
+      "wayId": 1558217329,
+      "leg": 0,
+      "tags": {
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Кантемировская улица",
+        "old_name": "проектируемый проезд № 5159",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "wikidata": "Q4212644",
+        "wikipedia": "ru:Кантемировская улица (Москва)"
+      },
+      "coordinates": [
+        [
+          55.6381156,
+          37.6600568
+        ],
+        [
+          55.6379306,
+          37.6617778
+        ]
+      ],
+      "length": 109.95254901904377
+    },
+    {
+      "wayId": 1047424197,
+      "leg": 0,
+      "tags": {
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Кантемировская улица",
+        "old_name": "проектируемый проезд № 5159",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "wikidata": "Q4212644",
+        "wikipedia": "ru:Кантемировская улица (Москва)"
+      },
+      "coordinates": [
+        [
+          55.6379306,
+          37.6617778
+        ],
+        [
+          55.637798,
+          37.6634145
+        ],
+        [
+          55.6377761,
+          37.6636843
+        ],
+        [
+          55.6373977,
+          37.6697494
+        ],
+        [
+          55.6370468,
+          37.6751786
+        ],
+        [
+          55.6368078,
+          37.6783457
+        ]
+      ],
+      "length": 1047.3702646516585
+    },
+    {
+      "wayId": 1213426882,
+      "leg": 0,
+      "tags": {
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Кантемировская улица",
+        "old_name": "проектируемый проезд № 5159",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "wikidata": "Q4212644",
+        "wikipedia": "ru:Кантемировская улица (Москва)"
+      },
+      "coordinates": [
+        [
+          55.6368078,
+          37.6783457
+        ],
+        [
+          55.6367619,
+          37.6790901
+        ],
+        [
+          55.6367284,
+          37.6796331
+        ],
+        [
+          55.6366515,
+          37.6807337
+        ]
+      ],
+      "length": 150.8855361438189
+    },
+    {
+      "wayId": 1206614047,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6366515,
+          37.6807337
+        ],
+        [
+          55.6366105,
+          37.6811865
+        ]
+      ],
+      "length": 28.782388132489547
+    },
+    {
+      "wayId": 1356413424,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6366105,
+          37.6811865
+        ],
+        [
+          55.6364808,
+          37.6822186
+        ],
+        [
+          55.6363818,
+          37.6829515
+        ]
+      ],
+      "length": 113.66178075401774
+    },
+    {
+      "wayId": 932926165,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "50",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6363818,
+          37.6829515
+        ],
+        [
+          55.6363094,
+          37.6834912
+        ],
+        [
+          55.6362375,
+          37.6841574
+        ],
+        [
+          55.6362354,
+          37.6841859
+        ],
+        [
+          55.6361993,
+          37.6846603
+        ]
+      ],
+      "length": 109.23571928752276
+    },
+    {
+      "wayId": 1213426881,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "5",
+        "lit": "yes",
+        "maxspeed": "50",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6361993,
+          37.6846603
+        ],
+        [
+          55.6362047,
+          37.6848068
+        ],
+        [
+          55.636224,
+          37.6849748
+        ]
+      ],
+      "length": 19.974900815428036
+    },
+    {
+      "wayId": 1213426880,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "5",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "50",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.636224,
+          37.6849748
+        ],
+        [
+          55.6362528,
+          37.6851352
+        ],
+        [
+          55.6362837,
+          37.6852755
+        ],
+        [
+          55.6363261,
+          37.6854242
+        ],
+        [
+          55.6363746,
+          37.6855668
+        ],
+        [
+          55.6364381,
+          37.6857093
+        ],
+        [
+          55.6365016,
+          37.685821
+        ],
+        [
+          55.636569,
+          37.6859225
+        ],
+        [
+          55.6366606,
+          37.6860333
+        ],
+        [
+          55.6367432,
+          37.6861191
+        ],
+        [
+          55.6368375,
+          37.6861944
+        ],
+        [
+          55.6369726,
+          37.6862787
+        ],
+        [
+          55.6371342,
+          37.6863415
+        ]
+      ],
+      "length": 140.9082675943513
+    },
+    {
+      "wayId": 1213426879,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "50",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6371342,
+          37.6863415
+        ],
+        [
+          55.6373016,
+          37.6863848
+        ],
+        [
+          55.6377496,
+          37.6864944
+        ]
+      ],
+      "length": 69.09945606185973
+    },
+    {
+      "wayId": 895642841,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "50",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6377496,
+          37.6864944
+        ],
+        [
+          55.6383502,
+          37.6866913
+        ],
+        [
+          55.6386516,
+          37.6868136
+        ],
+        [
+          55.6388922,
+          37.6869313
+        ]
+      ],
+      "length": 130.05393072988477
+    },
+    {
+      "wayId": 1356413426,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6388922,
+          37.6869313
+        ],
+        [
+          55.6390566,
+          37.6870233
+        ],
+        [
+          55.639225,
+          37.6871293
+        ],
+        [
+          55.6393952,
+          37.6872371
+        ],
+        [
+          55.6395759,
+          37.6873635
+        ],
+        [
+          55.6397445,
+          37.68749
+        ],
+        [
+          55.6399065,
+          37.6876211
+        ],
+        [
+          55.6400952,
+          37.6877885
+        ],
+        [
+          55.6402798,
+          37.6879582
+        ],
+        [
+          55.6404639,
+          37.6881355
+        ],
+        [
+          55.6406374,
+          37.6883128
+        ],
+        [
+          55.6411352,
+          37.6888271
+        ],
+        [
+          55.6418663,
+          37.6896092
+        ],
+        [
+          55.6430876,
+          37.6908658
+        ]
+      ],
+      "length": 529.1408764045913
+    },
+    {
+      "wayId": 1206419667,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6430876,
+          37.6908658
+        ],
+        [
+          55.6443607,
+          37.6923409
+        ]
+      ],
+      "length": 169.13948206350395
+    },
+    {
+      "wayId": 1212093249,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6443607,
+          37.6923409
+        ],
+        [
+          55.6453739,
+          37.6933999
+        ]
+      ],
+      "length": 130.8005206729982
+    },
+    {
+      "wayId": 932926183,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6453739,
+          37.6933999
+        ],
+        [
+          55.6460858,
+          37.6941725
+        ],
+        [
+          55.6465445,
+          37.6947516
+        ],
+        [
+          55.6470379,
+          37.6955026
+        ],
+        [
+          55.6473921,
+          37.6961061
+        ],
+        [
+          55.6477705,
+          37.6968679
+        ],
+        [
+          55.6482132,
+          37.6978463
+        ]
+      ],
+      "length": 424.77804901767126
+    },
+    {
+      "wayId": 932926181,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6482132,
+          37.6978463
+        ],
+        [
+          55.6485411,
+          37.6985072
+        ],
+        [
+          55.648913,
+          37.6991518
+        ],
+        [
+          55.6492816,
+          37.6996703
+        ],
+        [
+          55.6496561,
+          37.7001082
+        ],
+        [
+          55.6502428,
+          37.7007383
+        ]
+      ],
+      "length": 291.56028553222785
+    },
+    {
+      "wayId": 1150208504,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6502428,
+          37.7007383
+        ],
+        [
+          55.6506536,
+          37.7012721
+        ],
+        [
+          55.6521049,
+          37.7032739
+        ]
+      ],
+      "length": 261.1304055969774
+    },
+    {
+      "wayId": 1012524248,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "name:uk": "Південно-Східна хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "placement": "middle_of:2",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6521049,
+          37.7032739
+        ],
+        [
+          55.6524518,
+          37.7037524
+        ],
+        [
+          55.6527945,
+          37.7042252
+        ]
+      ],
+      "length": 97.16897213413795
+    },
+    {
+      "wayId": 1364432769,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "name:uk": "Південно-Східна хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "placement": "middle_of:2",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6527945,
+          37.7042252
+        ],
+        [
+          55.6533141,
+          37.7049419
+        ],
+        [
+          55.6540618,
+          37.7059733
+        ]
+      ],
+      "length": 178.5636663627564
+    },
+    {
+      "wayId": 1150208503,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6540618,
+          37.7059733
+        ],
+        [
+          55.6557914,
+          37.7083593
+        ],
+        [
+          55.6562932,
+          37.708882
+        ]
+      ],
+      "length": 308.42573077068084
+    },
+    {
+      "wayId": 1012524247,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6562932,
+          37.708882
+        ],
+        [
+          55.6573508,
+          37.7099835
+        ],
+        [
+          55.6580423,
+          37.710585
+        ],
+        [
+          55.6592764,
+          37.7115675
+        ],
+        [
+          55.6600147,
+          37.7122867
+        ]
+      ],
+      "length": 466.1513110202467
+    },
+    {
+      "wayId": 1183854595,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6600147,
+          37.7122867
+        ],
+        [
+          55.6603594,
+          37.7126849
+        ],
+        [
+          55.6609269,
+          37.7134944
+        ]
+      ],
+      "length": 126.74374066166509
+    },
+    {
+      "wayId": 928803526,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6609269,
+          37.7134944
+        ],
+        [
+          55.661143,
+          37.7138328
+        ],
+        [
+          55.6615002,
+          37.7144793
+        ],
+        [
+          55.6620539,
+          37.7156809
+        ],
+        [
+          55.6622228,
+          37.7160848
+        ],
+        [
+          55.6633172,
+          37.7185804
+        ],
+        [
+          55.6636395,
+          37.7191812
+        ],
+        [
+          55.6641281,
+          37.7198866
+        ],
+        [
+          55.6646274,
+          37.7204606
+        ],
+        [
+          55.6656901,
+          37.7215142
+        ],
+        [
+          55.6667211,
+          37.7224776
+        ],
+        [
+          55.6677755,
+          37.7234244
+        ],
+        [
+          55.668954,
+          37.7242673
+        ],
+        [
+          55.6715818,
+          37.7261517
+        ],
+        [
+          55.6732926,
+          37.7272637
+        ],
+        [
+          55.6783559,
+          37.7300568
+        ],
+        [
+          55.6798257,
+          37.7307411
+        ],
+        [
+          55.6812056,
+          37.7313794
+        ]
+      ],
+      "length": 2576.847180572034
+    },
+    {
+      "wayId": 928803524,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6812056,
+          37.7313794
+        ],
+        [
+          55.6824669,
+          37.7319704
+        ]
+      ],
+      "length": 145.0616016517629
+    },
+    {
+      "wayId": 782665406,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.6824669,
+          37.7319704
+        ],
+        [
+          55.6852513,
+          37.7332843
+        ],
+        [
+          55.6870174,
+          37.7340139
+        ],
+        [
+          55.6873258,
+          37.7340889
+        ],
+        [
+          55.687539,
+          37.7341104
+        ],
+        [
+          55.6877915,
+          37.7341157
+        ],
+        [
+          55.6880652,
+          37.7340755
+        ],
+        [
+          55.6883525,
+          37.7340138
+        ],
+        [
+          55.6891281,
+          37.733649
+        ],
+        [
+          55.6913656,
+          37.73234
+        ],
+        [
+          55.6923243,
+          37.7317952
+        ],
+        [
+          55.693068,
+          37.7313531
+        ],
+        [
+          55.693854,
+          37.7309454
+        ],
+        [
+          55.6943099,
+          37.7307525
+        ],
+        [
+          55.6943741,
+          37.7307254
+        ],
+        [
+          55.6951118,
+          37.7305591
+        ],
+        [
+          55.6973067,
+          37.7299905
+        ],
+        [
+          55.6986535,
+          37.7296847
+        ],
+        [
+          55.6993443,
+          37.7294326
+        ],
+        [
+          55.6998672,
+          37.7291483
+        ],
+        [
+          55.7001033,
+          37.7290106
+        ]
+      ],
+      "length": 2019.2181923761104
+    },
+    {
+      "wayId": 1183854592,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7001033,
+          37.7290106
+        ],
+        [
+          55.7006079,
+          37.7286843
+        ],
+        [
+          55.7012626,
+          37.7283745
+        ],
+        [
+          55.7024448,
+          37.7278086
+        ],
+        [
+          55.7029476,
+          37.7276006
+        ]
+      ],
+      "length": 328.62224204443146
+    },
+    {
+      "wayId": 1322940197,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7029476,
+          37.7276006
+        ],
+        [
+          55.7033481,
+          37.7275148
+        ],
+        [
+          55.7037561,
+          37.7274478
+        ],
+        [
+          55.7041687,
+          37.7274102
+        ],
+        [
+          55.7048367,
+          37.7274048
+        ],
+        [
+          55.7058161,
+          37.7273136
+        ],
+        [
+          55.7068422,
+          37.7271735
+        ],
+        [
+          55.7073092,
+          37.7271098
+        ]
+      ],
+      "length": 486.2068311089895
+    },
+    {
+      "wayId": 1322940196,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "turn:lanes": "through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7073092,
+          37.7271098
+        ],
+        [
+          55.7083954,
+          37.7269634
+        ]
+      ],
+      "length": 121.12783775012385
+    },
+    {
+      "wayId": 782665408,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7083954,
+          37.7269634
+        ],
+        [
+          55.7087025,
+          37.726922
+        ],
+        [
+          55.7102257,
+          37.7267879
+        ],
+        [
+          55.7111052,
+          37.7267047
+        ],
+        [
+          55.7113968,
+          37.7267101
+        ],
+        [
+          55.7117518,
+          37.7267611
+        ],
+        [
+          55.7120707,
+          37.7268362
+        ],
+        [
+          55.7125089,
+          37.7269998
+        ],
+        [
+          55.7134856,
+          37.7275176
+        ],
+        [
+          55.7138181,
+          37.7276901
+        ],
+        [
+          55.7139353,
+          37.7277509
+        ],
+        [
+          55.7148705,
+          37.7282229
+        ],
+        [
+          55.7153994,
+          37.7284589
+        ],
+        [
+          55.7158979,
+          37.7286199
+        ],
+        [
+          55.7161059,
+          37.7286675
+        ],
+        [
+          55.71646,
+          37.7287486
+        ],
+        [
+          55.716949,
+          37.7288196
+        ]
+      ],
+      "length": 967.4625280222405
+    },
+    {
+      "wayId": 1522325725,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.716949,
+          37.7288196
+        ],
+        [
+          55.7176563,
+          37.7289109
+        ],
+        [
+          55.718296,
+          37.7290159
+        ]
+      ],
+      "length": 150.29075251558
+    },
+    {
+      "wayId": 1522326047,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00; Mo-Fr 11:00-16:00; Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "turn:lanes": "through|through|through|right"
+      },
+      "coordinates": [
+        [
+          55.718296,
+          37.7290159
+        ],
+        [
+          55.7186784,
+          37.7291119
+        ]
+      ],
+      "length": 42.94400058274319
+    },
+    {
+      "wayId": 782665411,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00; Mo-Fr 11:00-16:00; Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7186784,
+          37.7291119
+        ],
+        [
+          55.7196659,
+          37.7292904
+        ],
+        [
+          55.7201055,
+          37.729328
+        ],
+        [
+          55.7205766,
+          37.7293491
+        ],
+        [
+          55.7210374,
+          37.7293625
+        ],
+        [
+          55.7213443,
+          37.7293467
+        ],
+        [
+          55.7216255,
+          37.7292989
+        ],
+        [
+          55.7218823,
+          37.7292345
+        ],
+        [
+          55.7221616,
+          37.7291429
+        ],
+        [
+          55.7223489,
+          37.7290544
+        ],
+        [
+          55.7224959,
+          37.7289712
+        ],
+        [
+          55.7226238,
+          37.7288988
+        ]
+      ],
+      "length": 442.5635059171492
+    },
+    {
+      "wayId": 1282364189,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lanes": "4",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "turn:lanes": "through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7226238,
+          37.7288988
+        ],
+        [
+          55.7230437,
+          37.7285495
+        ]
+      ],
+      "length": 51.56102713580054
+    },
+    {
+      "wayId": 1206704965,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7230437,
+          37.7285495
+        ],
+        [
+          55.7231554,
+          37.7284316
+        ],
+        [
+          55.7234064,
+          37.7281935
+        ],
+        [
+          55.725373,
+          37.7262783
+        ],
+        [
+          55.7264848,
+          37.7252805
+        ],
+        [
+          55.7266992,
+          37.7251142
+        ]
+      ],
+      "length": 460.03335263181646
+    },
+    {
+      "wayId": 1282364188,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7266992,
+          37.7251142
+        ],
+        [
+          55.7269016,
+          37.7249747
+        ],
+        [
+          55.7271645,
+          37.7248406
+        ],
+        [
+          55.7274212,
+          37.7247494
+        ],
+        [
+          55.7276871,
+          37.7246958
+        ],
+        [
+          55.727968,
+          37.7246851
+        ],
+        [
+          55.7282792,
+          37.7247173
+        ],
+        [
+          55.7285782,
+          37.7247436
+        ]
+      ],
+      "length": 212.61561627642843
+    },
+    {
+      "wayId": 1282364187,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "turn:lanes": "through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7285782,
+          37.7247436
+        ],
+        [
+          55.7292641,
+          37.7248039
+        ]
+      ],
+      "length": 76.36210587588027
+    },
+    {
+      "wayId": 734502678,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "3",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7292641,
+          37.7248039
+        ],
+        [
+          55.7308407,
+          37.7249426
+        ],
+        [
+          55.7310944,
+          37.7249801
+        ],
+        [
+          55.7312424,
+          37.7250177
+        ],
+        [
+          55.7315234,
+          37.7251357
+        ],
+        [
+          55.7318526,
+          37.7253127
+        ],
+        [
+          55.7321426,
+          37.7255058
+        ],
+        [
+          55.7324152,
+          37.7257499
+        ],
+        [
+          55.7328717,
+          37.7261866
+        ]
+      ],
+      "length": 416.85168002065194
+    },
+    {
+      "wayId": 1282364186,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "5",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7328717,
+          37.7261866
+        ],
+        [
+          55.7341451,
+          37.7273995
+        ],
+        [
+          55.7343562,
+          37.7275852
+        ],
+        [
+          55.7344622,
+          37.7276784
+        ],
+        [
+          55.7348458,
+          37.727952
+        ],
+        [
+          55.7353079,
+          37.7282256
+        ],
+        [
+          55.7357066,
+          37.728408
+        ],
+        [
+          55.7361838,
+          37.7285582
+        ],
+        [
+          55.7373118,
+          37.7288858
+        ]
+      ],
+      "length": 526.9107178045767
+    },
+    {
+      "wayId": 734502675,
+      "leg": 0,
+      "tags": {
+        "highway": "primary",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7373118,
+          37.7288858
+        ],
+        [
+          55.7384368,
+          37.7292126
+        ],
+        [
+          55.7385036,
+          37.7292334
+        ],
+        [
+          55.7388505,
+          37.7293414
+        ],
+        [
+          55.7391676,
+          37.7294648
+        ],
+        [
+          55.7395632,
+          37.7296579
+        ],
+        [
+          55.7399347,
+          37.7299046
+        ],
+        [
+          55.7403031,
+          37.7301997
+        ],
+        [
+          55.7410913,
+          37.730822
+        ],
+        [
+          55.7418191,
+          37.7313922
+        ],
+        [
+          55.7421663,
+          37.7316642
+        ],
+        [
+          55.7424955,
+          37.7319914
+        ],
+        [
+          55.7428065,
+          37.7323401
+        ],
+        [
+          55.7430511,
+          37.7326727
+        ]
+      ],
+      "length": 687.8560427699111
+    },
+    {
+      "wayId": 734502677,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "6",
+        "layer": "2",
+        "lit": "yes",
+        "maxspeed": "90",
+        "motorroad": "yes",
+        "name": "Юго-Восточная хорда",
+        "oneway": "yes",
+        "start_date": "2023-09-09",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7430511,
+          37.7326727
+        ],
+        [
+          55.743341,
+          37.733134
+        ],
+        [
+          55.7436248,
+          37.7336919
+        ],
+        [
+          55.7439479,
+          37.7344
+        ],
+        [
+          55.7443163,
+          37.7351993
+        ],
+        [
+          55.7446454,
+          37.7358967
+        ],
+        [
+          55.7450591,
+          37.7366102
+        ],
+        [
+          55.7454275,
+          37.7372217
+        ]
+      ],
+      "length": 389.1905651437313
+    },
+    {
+      "wayId": 1206659728,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "lanes": "1",
+        "layer": "2",
+        "lit": "yes",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7454275,
+          37.7372217
+        ],
+        [
+          55.74582,
+          37.7380907
+        ]
+      ],
+      "length": 69.73507067520308
+    },
+    {
+      "wayId": 734502676,
+      "leg": 0,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "layer": "1",
+        "lit": "yes",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.74582,
+          37.7380907
+        ],
+        [
+          55.7462699,
+          37.7388686
+        ]
+      ],
+      "length": 69.80739360110788
+    },
+    {
+      "wayId": 734502676,
+      "leg": 1,
+      "tags": {
+        "bridge": "yes",
+        "highway": "primary",
+        "layer": "1",
+        "lit": "yes",
+        "oneway": "yes",
+        "opening_date": "2023-09-09",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7462699,
+          37.7388686
+        ],
+        [
+          55.7466594,
+          37.7394694
+        ],
+        [
+          55.7478853,
+          37.7412558
+        ],
+        [
+          55.7479562,
+          37.7413952
+        ],
+        [
+          55.7480091,
+          37.7415696
+        ],
+        [
+          55.7480423,
+          37.7417573
+        ],
+        [
+          55.7480513,
+          37.7419397
+        ],
+        [
+          55.7480377,
+          37.7421355
+        ],
+        [
+          55.7477494,
+          37.7433613
+        ]
+      ],
+      "length": 377.07705744410856
+    },
+    {
+      "wayId": 462817539,
+      "leg": 1,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "2",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "60",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7477494,
+          37.7433613
+        ],
+        [
+          55.7474309,
+          37.7441069
+        ],
+        [
+          55.7471712,
+          37.744874
+        ]
+      ],
+      "length": 114.60599882936302
+    },
+    {
+      "wayId": 1365672937,
+      "leg": 1,
+      "tags": {
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7471712,
+          37.744874
+        ],
+        [
+          55.7469846,
+          37.7453363
+        ]
+      ],
+      "length": 35.604273860618896
+    },
+    {
+      "wayId": 462817538,
+      "leg": 1,
+      "tags": {
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "70",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7469846,
+          37.7453363
+        ],
+        [
+          55.746907,
+          37.7455285
+        ],
+        [
+          55.7465628,
+          37.7464512
+        ],
+        [
+          55.7462986,
+          37.7471995
+        ],
+        [
+          55.7460314,
+          37.7479049
+        ],
+        [
+          55.7456962,
+          37.7486426
+        ],
+        [
+          55.7454637,
+          37.7491039
+        ],
+        [
+          55.7451739,
+          37.7496323
+        ],
+        [
+          55.7450603,
+          37.7498355
+        ],
+        [
+          55.7447345,
+          37.7504182
+        ],
+        [
+          55.7440408,
+          37.7516532
+        ]
+      ],
+      "length": 515.3859809774029
+    },
+    {
+      "wayId": 1365672936,
+      "leg": 1,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "70",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7440408,
+          37.7516532
+        ],
+        [
+          55.7436987,
+          37.7522765
+        ]
+      ],
+      "length": 54.48889539666734
+    },
+    {
+      "wayId": 997353050,
+      "leg": 1,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7436987,
+          37.7522765
+        ],
+        [
+          55.7426397,
+          37.7541934
+        ],
+        [
+          55.7421678,
+          37.7550503
+        ],
+        [
+          55.7413872,
+          37.7565014
+        ],
+        [
+          55.7408555,
+          37.7574851
+        ]
+      ],
+      "length": 454.14784635507976
+    },
+    {
+      "wayId": 462817534,
+      "leg": 1,
+      "tags": {
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "4",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)",
+        "turn:lanes": "through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7408555,
+          37.7574851
+        ],
+        [
+          55.7402563,
+          37.7585935
+        ],
+        [
+          55.7400863,
+          37.7589085
+        ]
+      ],
+      "length": 123.50855537503264
+    },
+    {
+      "wayId": 462817537,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "primary",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "lanes": "3",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "90",
+        "maxspeed:designed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7400863,
+          37.7589085
+        ],
+        [
+          55.7392084,
+          37.7605355
+        ],
+        [
+          55.7384262,
+          37.7619839
+        ],
+        [
+          55.7376954,
+          37.7633504
+        ],
+        [
+          55.7371669,
+          37.7643281
+        ],
+        [
+          55.7368165,
+          37.7649692
+        ],
+        [
+          55.7363937,
+          37.7657121
+        ],
+        [
+          55.7355556,
+          37.7671096
+        ],
+        [
+          55.7349153,
+          37.7681905
+        ],
+        [
+          55.7343264,
+          37.7692232
+        ],
+        [
+          55.7338793,
+          37.77006
+        ],
+        [
+          55.7333327,
+          37.7711302
+        ],
+        [
+          55.7326455,
+          37.7725679
+        ],
+        [
+          55.7321562,
+          37.7735791
+        ]
+      ],
+      "length": 1273.9283019094194
+    },
+    {
+      "wayId": 462970801,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "highway": "primary",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "90",
+        "maxspeed:designed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "Северо-Восточная хорда",
+        "name:en": "Northeastern Chord",
+        "name:ru": "Северо-Восточная хорда",
+        "name:uk": "Північно-Східна хорда",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "short_name": "СВХ",
+        "sidewalk": "no",
+        "surface": "asphalt",
+        "toll": "yes",
+        "toll:conditional": "no @ (Mo-Fr 0:00-7:00;Mo-Fr 11:00-16:00;Mo-Fr 20:00-24:00; Sa-Su; PH)"
+      },
+      "coordinates": [
+        [
+          55.7321562,
+          37.7735791
+        ],
+        [
+          55.7316533,
+          37.7745608
+        ],
+        [
+          55.7311915,
+          37.775441
+        ],
+        [
+          55.7310946,
+          37.7756259
+        ],
+        [
+          55.7307275,
+          37.7763257
+        ],
+        [
+          55.7300795,
+          37.7775702
+        ],
+        [
+          55.7297171,
+          37.7782917
+        ],
+        [
+          55.7294059,
+          37.7790025
+        ],
+        [
+          55.7291205,
+          37.7797401
+        ],
+        [
+          55.7287821,
+          37.7807245
+        ],
+        [
+          55.7282701,
+          37.782256
+        ],
+        [
+          55.7277823,
+          37.7837017
+        ],
+        [
+          55.7272401,
+          37.7853451
+        ],
+        [
+          55.726015,
+          37.7890581
+        ],
+        [
+          55.72487,
+          37.7924591
+        ],
+        [
+          55.7239093,
+          37.7953613
+        ],
+        [
+          55.7234848,
+          37.7966273
+        ],
+        [
+          55.7231011,
+          37.7977136
+        ],
+        [
+          55.7226449,
+          37.798993
+        ],
+        [
+          55.7220497,
+          37.8007069
+        ],
+        [
+          55.7217884,
+          37.8014874
+        ],
+        [
+          55.7214092,
+          37.8027078
+        ],
+        [
+          55.7210859,
+          37.8037029
+        ],
+        [
+          55.7202777,
+          37.8061062
+        ],
+        [
+          55.7198018,
+          37.8075278
+        ],
+        [
+          55.7190616,
+          37.8097406
+        ],
+        [
+          55.7187624,
+          37.8106955
+        ],
+        [
+          55.7185041,
+          37.8115699
+        ],
+        [
+          55.718279,
+          37.8124121
+        ],
+        [
+          55.7180131,
+          37.8134421
+        ],
+        [
+          55.7178454,
+          37.814059
+        ],
+        [
+          55.7176278,
+          37.8148207
+        ],
+        [
+          55.7173831,
+          37.8156254
+        ],
+        [
+          55.7170552,
+          37.8166446
+        ],
+        [
+          55.7162847,
+          37.8189272
+        ],
+        [
+          55.7160082,
+          37.8197909
+        ],
+        [
+          55.7157257,
+          37.8206948
+        ],
+        [
+          55.7154552,
+          37.8215799
+        ],
+        [
+          55.7152256,
+          37.8223872
+        ],
+        [
+          55.7150805,
+          37.8229639
+        ],
+        [
+          55.7148796,
+          37.8239376
+        ],
+        [
+          55.7146326,
+          37.8251239
+        ],
+        [
+          55.7146227,
+          37.8251714
+        ],
+        [
+          55.7144973,
+          37.8257454
+        ],
+        [
+          55.7143734,
+          37.8262496
+        ],
+        [
+          55.7143479,
+          37.826349
+        ],
+        [
+          55.7140408,
+          37.8274122
+        ]
+      ],
+      "length": 3941.5933967926967
+    },
+    {
+      "wayId": 138471354,
+      "leg": 1,
+      "tags": {
+        "bicycle": "no",
+        "foot": "no",
+        "highway": "primary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "70",
+        "motorroad": "yes",
+        "name": "Косинское шоссе",
+        "name:uk": "Косинське шосе",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7140408,
+          37.8274122
+        ],
+        [
+          55.7132495,
+          37.8298338
+        ]
+      ],
+      "length": 175.3600828509336
+    },
+    {
+      "wayId": 818852253,
+      "leg": 1,
+      "tags": {
+        "bicycle": "no",
+        "destination": "МКАД;Большая Косинская улица;Каскадная улица",
+        "foot": "no",
+        "highway": "primary_link",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "surface": "asphalt",
+        "turn:lanes": "slight_left;slight_right|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7132495,
+          37.8298338
+        ],
+        [
+          55.7131457,
+          37.8301134
+        ],
+        [
+          55.7130411,
+          37.8303704
+        ],
+        [
+          55.7125761,
+          37.8313638
+        ]
+      ],
+      "length": 121.74163065896981
+    },
+    {
+      "wayId": 138471337,
+      "leg": 1,
+      "tags": {
+        "destination": "Волгоградский проспект;МКАД-Юг",
+        "foot": "no",
+        "highway": "primary_link",
+        "lanes": "2",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7125761,
+          37.8313638
+        ],
+        [
+          55.7124627,
+          37.8316232
+        ],
+        [
+          55.7123604,
+          37.8318657
+        ],
+        [
+          55.7122856,
+          37.8320507
+        ],
+        [
+          55.7122443,
+          37.8321644
+        ],
+        [
+          55.712206,
+          37.8322826
+        ],
+        [
+          55.7121626,
+          37.8324342
+        ],
+        [
+          55.7121248,
+          37.8325805
+        ],
+        [
+          55.7120938,
+          37.8327181
+        ],
+        [
+          55.7120646,
+          37.832865
+        ],
+        [
+          55.7120427,
+          37.8330031
+        ],
+        [
+          55.7120245,
+          37.8331407
+        ],
+        [
+          55.7120108,
+          37.8332848
+        ],
+        [
+          55.7119998,
+          37.833424
+        ],
+        [
+          55.7119932,
+          37.833554
+        ]
+      ],
+      "length": 154.57921247591696
+    },
+    {
+      "wayId": 78325842,
+      "leg": 1,
+      "tags": {
+        "bridge": "yes",
+        "destination": "Волгоградский проспект;МКАД-Юг",
+        "foot": "no",
+        "highway": "primary_link",
+        "lanes": "2",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "40",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7119932,
+          37.833554
+        ],
+        [
+          55.7119889,
+          37.8336976
+        ],
+        [
+          55.7119871,
+          37.8338223
+        ],
+        [
+          55.7119898,
+          37.8339502
+        ],
+        [
+          55.7119962,
+          37.8340784
+        ],
+        [
+          55.7120099,
+          37.8341995
+        ],
+        [
+          55.7120306,
+          37.8343239
+        ],
+        [
+          55.7120587,
+          37.8344359
+        ],
+        [
+          55.7120883,
+          37.8345229
+        ],
+        [
+          55.7121309,
+          37.8346277
+        ],
+        [
+          55.7121647,
+          37.8346969
+        ],
+        [
+          55.7122072,
+          37.8347703
+        ],
+        [
+          55.7122514,
+          37.8348285
+        ],
+        [
+          55.7123101,
+          37.8348915
+        ],
+        [
+          55.712865,
+          37.8353975
+        ],
+        [
+          55.7129264,
+          37.8354791
+        ]
+      ],
+      "length": 174.88069112122992
+    },
+    {
+      "wayId": 78325840,
+      "leg": 1,
+      "tags": {
+        "destination": "Волгоградский проспект;МКАД-Юг",
+        "foot": "no",
+        "highway": "primary_link",
+        "lanes": "1",
+        "lit": "yes",
+        "maxspeed": "40",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7129264,
+          37.8354791
+        ],
+        [
+          55.7130087,
+          37.8356334
+        ],
+        [
+          55.7130691,
+          37.8358312
+        ],
+        [
+          55.7131254,
+          37.8360906
+        ],
+        [
+          55.713148,
+          37.8363025
+        ],
+        [
+          55.7131494,
+          37.8365824
+        ]
+      ],
+      "length": 75.86003195676402
+    },
+    {
+      "wayId": 818852254,
+      "leg": 1,
+      "tags": {
+        "destination": "Волгоградский проспект;МКАД-Юг",
+        "foot": "no",
+        "highway": "trunk_link",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7131494,
+          37.8365824
+        ],
+        [
+          55.7131274,
+          37.8366891
+        ],
+        [
+          55.7130624,
+          37.8368472
+        ],
+        [
+          55.7129959,
+          37.8369631
+        ],
+        [
+          55.7129183,
+          37.8370501
+        ],
+        [
+          55.7128421,
+          37.8370911
+        ],
+        [
+          55.7127412,
+          37.8371202
+        ],
+        [
+          55.7125284,
+          37.8370937
+        ],
+        [
+          55.7119204,
+          37.8369054
+        ]
+      ],
+      "length": 152.51487445674294
+    },
+    {
+      "wayId": 1082254228,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7119204,
+          37.8369054
+        ],
+        [
+          55.7102352,
+          37.8360163
+        ]
+      ],
+      "length": 195.48806104258657
+    },
+    {
+      "wayId": 73627149,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7102352,
+          37.8360163
+        ],
+        [
+          55.7095294,
+          37.8356403
+        ]
+      ],
+      "length": 81.94002569160176
+    },
+    {
+      "wayId": 85732884,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7095294,
+          37.8356403
+        ],
+        [
+          55.7082947,
+          37.8349817
+        ]
+      ],
+      "length": 143.35822785236502
+    },
+    {
+      "wayId": 85732892,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "7",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7082947,
+          37.8349817
+        ],
+        [
+          55.7076895,
+          37.8346608
+        ]
+      ],
+      "length": 70.23403334421903
+    },
+    {
+      "wayId": 15033795,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7076895,
+          37.8346608
+        ],
+        [
+          55.7069192,
+          37.8342524
+        ]
+      ],
+      "length": 89.3934154326606
+    },
+    {
+      "wayId": 316035964,
+      "leg": 1,
+      "tags": {
+        "destination": "Лермонтовский проспект;Люберцы",
+        "foot": "no",
+        "highway": "primary_link",
+        "lanes": "1",
+        "lit": "yes",
+        "maxspeed": "30",
+        "oneway": "yes",
+        "ref": "9",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7069192,
+          37.8342524
+        ],
+        [
+          55.7067811,
+          37.8340208
+        ],
+        [
+          55.7067312,
+          37.8339293
+        ],
+        [
+          55.706691,
+          37.8338238
+        ],
+        [
+          55.7066618,
+          37.8337075
+        ],
+        [
+          55.7066443,
+          37.8335839
+        ],
+        [
+          55.7066393,
+          37.8334569
+        ],
+        [
+          55.7066467,
+          37.8333302
+        ],
+        [
+          55.7066664,
+          37.8332078
+        ],
+        [
+          55.7066978,
+          37.8330933
+        ],
+        [
+          55.7067399,
+          37.8329902
+        ],
+        [
+          55.7067915,
+          37.8329016
+        ],
+        [
+          55.706851,
+          37.8328303
+        ],
+        [
+          55.7069165,
+          37.8327784
+        ],
+        [
+          55.7070638,
+          37.8327002
+        ],
+        [
+          55.7072658,
+          37.8326582
+        ],
+        [
+          55.7074529,
+          37.8326658
+        ],
+        [
+          55.7076184,
+          37.8327231
+        ],
+        [
+          55.707699,
+          37.8327849
+        ],
+        [
+          55.7077697,
+          37.8328567
+        ],
+        [
+          55.7078218,
+          37.8329594
+        ],
+        [
+          55.7078735,
+          37.8330754
+        ],
+        [
+          55.7079099,
+          37.8332049
+        ],
+        [
+          55.7079373,
+          37.8333964
+        ],
+        [
+          55.7079441,
+          37.8335623
+        ],
+        [
+          55.7078976,
+          37.8339597
+        ]
+      ],
+      "length": 290.18307506309867
+    },
+    {
+      "wayId": 316035967,
+      "leg": 1,
+      "tags": {
+        "highway": "primary_link",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7078976,
+          37.8339597
+        ],
+        [
+          55.7075682,
+          37.8359008
+        ],
+        [
+          55.7074915,
+          37.8363471
+        ]
+      ],
+      "length": 156.23630509369173
+    },
+    {
+      "wayId": 367204807,
+      "leg": 1,
+      "tags": {
+        "destination": "Нижний Новгород;МКАД-Север",
+        "destination:lang:en": "Nizhny Novgorod",
+        "destination:ref": "М-7",
+        "foot": "no",
+        "highway": "primary_link",
+        "lanes": "1",
+        "lit": "yes",
+        "maxspeed": "30",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7074915,
+          37.8363471
+        ],
+        [
+          55.707364,
+          37.8366489
+        ],
+        [
+          55.7073243,
+          37.8367075
+        ],
+        [
+          55.7072808,
+          37.8367567
+        ],
+        [
+          55.7072366,
+          37.8367947
+        ],
+        [
+          55.7071896,
+          37.8368281
+        ],
+        [
+          55.7071399,
+          37.836851
+        ],
+        [
+          55.7070914,
+          37.8368698
+        ],
+        [
+          55.7070251,
+          37.8368752
+        ],
+        [
+          55.7069575,
+          37.8368692
+        ],
+        [
+          55.7068943,
+          37.8368457
+        ],
+        [
+          55.7068317,
+          37.8368085
+        ],
+        [
+          55.7067765,
+          37.8367572
+        ],
+        [
+          55.7067222,
+          37.8366938
+        ],
+        [
+          55.7066669,
+          37.8366056
+        ],
+        [
+          55.7066163,
+          37.8364997
+        ],
+        [
+          55.70658,
+          37.836383
+        ],
+        [
+          55.70655,
+          37.8362566
+        ],
+        [
+          55.7065339,
+          37.8361094
+        ],
+        [
+          55.7065317,
+          37.8359577
+        ],
+        [
+          55.7065347,
+          37.8358076
+        ],
+        [
+          55.7065545,
+          37.8356578
+        ],
+        [
+          55.7065928,
+          37.8355274
+        ],
+        [
+          55.706639,
+          37.8354078
+        ],
+        [
+          55.7066903,
+          37.8353128
+        ],
+        [
+          55.7067449,
+          37.8352347
+        ],
+        [
+          55.7068112,
+          37.8351599
+        ],
+        [
+          55.7068769,
+          37.8351072
+        ],
+        [
+          55.7070296,
+          37.8350262
+        ],
+        [
+          55.7071958,
+          37.8349994
+        ],
+        [
+          55.7074436,
+          37.8350048
+        ],
+        [
+          55.7076225,
+          37.8350586
+        ]
+      ],
+      "length": 307.9777545463735
+    },
+    {
+      "wayId": 85732887,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7076225,
+          37.8350586
+        ],
+        [
+          55.7082283,
+          37.8353762
+        ]
+      ],
+      "length": 70.2391265587395
+    },
+    {
+      "wayId": 85732890,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7082283,
+          37.8353762
+        ],
+        [
+          55.7094142,
+          37.8360121
+        ]
+      ],
+      "length": 137.75238869647478
+    },
+    {
+      "wayId": 73627151,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7094142,
+          37.8360121
+        ],
+        [
+          55.7101109,
+          37.8363837
+        ]
+      ],
+      "length": 80.89164860591816
+    },
+    {
+      "wayId": 1082254230,
+      "leg": 1,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "7",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through|through;slight_right|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7101109,
+          37.8363837
+        ],
+        [
+          55.7106054,
+          37.8366442
+        ]
+      ],
+      "length": 57.35647019603528
+    },
+    {
+      "wayId": 73627159,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through;slight_right|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7106054,
+          37.8366442
+        ],
+        [
+          55.7111006,
+          37.8369028
+        ],
+        [
+          55.7125143,
+          37.8376436
+        ]
+      ],
+      "length": 221.30036082035707
+    },
+    {
+      "wayId": 1082254231,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7125143,
+          37.8376436
+        ],
+        [
+          55.7132796,
+          37.8380282
+        ],
+        [
+          55.7140191,
+          37.8383206
+        ]
+      ],
+      "length": 172.6860148576541
+    },
+    {
+      "wayId": 30130878,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 7-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "111538",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7140191,
+          37.8383206
+        ],
+        [
+          55.7147311,
+          37.8385582
+        ],
+        [
+          55.7155128,
+          37.8387407
+        ],
+        [
+          55.7165561,
+          37.8389095
+        ]
+      ],
+      "length": 284.7178993639375
+    },
+    {
+      "wayId": 23346373,
+      "leg": 2,
+      "tags": {
+        "destination": "Косино;Вешняки;Метро \"Выхино\"",
+        "foot": "no",
+        "highway": "secondary_link",
+        "lanes": "1",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "ref": "6A;7A",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7165561,
+          37.8389095
+        ],
+        [
+          55.7169454,
+          37.8390202
+        ],
+        [
+          55.717198,
+          37.8391076
+        ],
+        [
+          55.7174558,
+          37.8392527
+        ],
+        [
+          55.7176891,
+          37.8394404
+        ],
+        [
+          55.7180671,
+          37.8398066
+        ],
+        [
+          55.7182106,
+          37.8399849
+        ],
+        [
+          55.718298,
+          37.840156
+        ],
+        [
+          55.7183643,
+          37.8403483
+        ],
+        [
+          55.7183962,
+          37.8405532
+        ],
+        [
+          55.7184087,
+          37.8407781
+        ],
+        [
+          55.7184043,
+          37.8410149
+        ],
+        [
+          55.7183775,
+          37.8412073
+        ],
+        [
+          55.7182375,
+          37.8417494
+        ]
+      ],
+      "length": 319.0295147749166
+    },
+    {
+      "wayId": 85740977,
+      "leg": 2,
+      "tags": {
+        "foot": "no",
+        "highway": "secondary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Новоухтомское шоссе",
+        "name:uk": "Новоухтомське шосе",
+        "oneway": "yes",
+        "source:maxspeed": "implicit",
+        "surface": "asphalt",
+        "turn:lanes": "left|through|through"
+      },
+      "coordinates": [
+        [
+          55.7182375,
+          37.8417494
+        ],
+        [
+          55.7178232,
+          37.8427253
+        ]
+      ],
+      "length": 76.53946495285639
+    },
+    {
+      "wayId": 23346544,
+      "leg": 2,
+      "tags": {
+        "foot": "no",
+        "highway": "secondary_link",
+        "lanes": "1",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "source:maxspeed": "implicit",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7178232,
+          37.8427253
+        ],
+        [
+          55.7177582,
+          37.8430035
+        ],
+        [
+          55.7177566,
+          37.8431939
+        ],
+        [
+          55.7177798,
+          37.8433165
+        ],
+        [
+          55.7178328,
+          37.8434172
+        ],
+        [
+          55.7179077,
+          37.8434532
+        ],
+        [
+          55.7180273,
+          37.8434469
+        ]
+      ],
+      "length": 69.45626898947032
+    },
+    {
+      "wayId": 356492358,
+      "leg": 2,
+      "tags": {
+        "foot": "no",
+        "highway": "secondary",
+        "lanes": "3",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Новоухтомское шоссе",
+        "name:uk": "Новоухтомське шосе",
+        "oneway": "yes",
+        "postal_code": "111621",
+        "source:maxspeed": "implicit",
+        "surface": "asphalt",
+        "turn:lanes": "reverse|through|through"
+      },
+      "coordinates": [
+        [
+          55.7180273,
+          37.8434469
+        ],
+        [
+          55.7181546,
+          37.8433363
+        ],
+        [
+          55.7182929,
+          37.8431639
+        ],
+        [
+          55.7183961,
+          37.8429738
+        ],
+        [
+          55.718446,
+          37.8428555
+        ],
+        [
+          55.7185491,
+          37.8424791
+        ],
+        [
+          55.7185746,
+          37.8423277
+        ],
+        [
+          55.7186048,
+          37.8421478
+        ]
+      ],
+      "length": 108.21126024094552
+    },
+    {
+      "wayId": 356492357,
+      "leg": 2,
+      "tags": {
+        "foot": "no",
+        "highway": "secondary",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "Новоухтомское шоссе",
+        "name:uk": "Новоухтомське шосе",
+        "oneway": "yes",
+        "postal_code": "111621",
+        "source:maxspeed": "implicit",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7186048,
+          37.8421478
+        ],
+        [
+          55.7186404,
+          37.841723
+        ],
+        [
+          55.7187262,
+          37.8395072
+        ]
+      ],
+      "length": 166.00485620983255
+    },
+    {
+      "wayId": 31227118,
+      "leg": 2,
+      "tags": {
+        "bridge": "yes",
+        "foot": "no",
+        "highway": "secondary",
+        "lanes": "2",
+        "layer": "1",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "улица Молдагуловой",
+        "name:uk": "вулиця Молдагулової",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7187262,
+          37.8395072
+        ],
+        [
+          55.7187697,
+          37.8383607
+        ]
+      ],
+      "length": 71.96947192493076
+    },
+    {
+      "wayId": 31227117,
+      "leg": 2,
+      "tags": {
+        "foot": "no",
+        "highway": "secondary",
+        "lanes": "2",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "name": "улица Молдагуловой",
+        "name:uk": "вулиця Молдагулової",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7187697,
+          37.8383607
+        ],
+        [
+          55.7187859,
+          37.8378452
+        ]
+      ],
+      "length": 32.33660450873811
+    },
+    {
+      "wayId": 23346345,
+      "leg": 2,
+      "tags": {
+        "destination": "Волгоградский проспект;МКАД-Юг",
+        "foot": "no",
+        "highway": "secondary_link",
+        "lanes": "1",
+        "lit": "yes",
+        "maxspeed": "RU:urban",
+        "oneway": "yes",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7187859,
+          37.8378452
+        ],
+        [
+          55.7188367,
+          37.8375492
+        ],
+        [
+          55.7188885,
+          37.837412
+        ],
+        [
+          55.7189603,
+          37.8372694
+        ],
+        [
+          55.719063,
+          37.8371679
+        ],
+        [
+          55.7191868,
+          37.8370986
+        ],
+        [
+          55.7193253,
+          37.8370822
+        ],
+        [
+          55.719459,
+          37.8371233
+        ],
+        [
+          55.7195613,
+          37.8372174
+        ],
+        [
+          55.7196489,
+          37.8373639
+        ],
+        [
+          55.719722,
+          37.8375444
+        ],
+        [
+          55.7197618,
+          37.8377381
+        ],
+        [
+          55.7197628,
+          37.8378584
+        ],
+        [
+          55.7197636,
+          37.8379609
+        ],
+        [
+          55.7197398,
+          37.8381839
+        ],
+        [
+          55.7196799,
+          37.8383873
+        ],
+        [
+          55.7195852,
+          37.838561
+        ],
+        [
+          55.7194957,
+          37.8386662
+        ],
+        [
+          55.7193505,
+          37.8387467
+        ],
+        [
+          55.7191085,
+          37.8388046
+        ]
+      ],
+      "length": 266.4489833162171
+    },
+    {
+      "wayId": 1151039777,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 7-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "111538",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7191085,
+          37.8388046
+        ],
+        [
+          55.7183959,
+          37.8387176
+        ],
+        [
+          55.7165747,
+          37.8384955
+        ]
+      ],
+      "length": 282.4104504752645
+    },
+    {
+      "wayId": 30130877,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 7-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "111538",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7165747,
+          37.8384955
+        ],
+        [
+          55.715825,
+          37.8383899
+        ],
+        [
+          55.7155386,
+          37.8383279
+        ],
+        [
+          55.7148704,
+          37.8381719
+        ],
+        [
+          55.7147679,
+          37.838148
+        ],
+        [
+          55.7141769,
+          37.8379508
+        ],
+        [
+          55.7140661,
+          37.8379138
+        ]
+      ],
+      "length": 281.54643635931234
+    },
+    {
+      "wayId": 30130879,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7140661,
+          37.8379138
+        ],
+        [
+          55.7133366,
+          37.8376252
+        ],
+        [
+          55.7124543,
+          37.8371871
+        ],
+        [
+          55.7119204,
+          37.8369054
+        ]
+      ],
+      "length": 246.9142597127743
+    },
+    {
+      "wayId": 1082254228,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7119204,
+          37.8369054
+        ],
+        [
+          55.7102352,
+          37.8360163
+        ]
+      ],
+      "length": 195.48806104258657
+    },
+    {
+      "wayId": 73627149,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7102352,
+          37.8360163
+        ],
+        [
+          55.7095294,
+          37.8356403
+        ]
+      ],
+      "length": 81.94002569160176
+    },
+    {
+      "wayId": 85732884,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.7095294,
+          37.8356403
+        ],
+        [
+          55.7082947,
+          37.8349817
+        ]
+      ],
+      "length": 143.35822785236502
+    },
+    {
+      "wayId": 85732892,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "7",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7082947,
+          37.8349817
+        ],
+        [
+          55.7076895,
+          37.8346608
+        ]
+      ],
+      "length": 70.23403334421903
+    },
+    {
+      "wayId": 15033795,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.7076895,
+          37.8346608
+        ],
+        [
+          55.7069192,
+          37.8342524
+        ]
+      ],
+      "length": 89.3934154326606
+    },
+    {
+      "wayId": 1082254227,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 8-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109145",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7069192,
+          37.8342524
+        ],
+        [
+          55.7054212,
+          37.8334582
+        ]
+      ],
+      "length": 173.8432540019523
+    },
+    {
+      "wayId": 419578607,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 9-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109507",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7054212,
+          37.8334582
+        ],
+        [
+          55.7047114,
+          37.8330814
+        ]
+      ],
+      "length": 82.38131168970168
+    },
+    {
+      "wayId": 30130880,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 9-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109507",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.7047114,
+          37.8330814
+        ],
+        [
+          55.7034089,
+          37.8323785
+        ],
+        [
+          55.7012118,
+          37.8311928
+        ],
+        [
+          55.7004499,
+          37.830815
+        ],
+        [
+          55.7002119,
+          37.830704
+        ],
+        [
+          55.6996556,
+          37.8304447
+        ],
+        [
+          55.6991095,
+          37.8302278
+        ],
+        [
+          55.6988797,
+          37.8301365
+        ],
+        [
+          55.698487,
+          37.8300013
+        ],
+        [
+          55.6980849,
+          37.8298628
+        ],
+        [
+          55.6974599,
+          37.8296842
+        ],
+        [
+          55.6966862,
+          37.8294652
+        ]
+      ],
+      "length": 921.9664630720004
+    },
+    {
+      "wayId": 30130883,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 10-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109542",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6966862,
+          37.8294652
+        ],
+        [
+          55.6957102,
+          37.8292924
+        ],
+        [
+          55.6947698,
+          37.8291754
+        ],
+        [
+          55.6937414,
+          37.8291123
+        ],
+        [
+          55.6928781,
+          37.8291018
+        ]
+      ],
+      "length": 424.3082753029323
+    },
+    {
+      "wayId": 1287010795,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "7",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 10-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109542",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through;slight_right|slight_right|slight_right"
+      },
+      "coordinates": [
+        [
+          55.6928781,
+          37.8291018
+        ],
+        [
+          55.6919843,
+          37.8291545
+        ],
+        [
+          55.691027,
+          37.8292807
+        ]
+      ],
+      "length": 206.18153739353244
+    },
+    {
+      "wayId": 42917726,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 10-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109542",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.691027,
+          37.8292807
+        ],
+        [
+          55.6900516,
+          37.8294411
+        ],
+        [
+          55.688949,
+          37.8297294
+        ],
+        [
+          55.6886788,
+          37.8298246
+        ]
+      ],
+      "length": 263.484523220988
+    },
+    {
+      "wayId": 151526284,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 10-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109542",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6886788,
+          37.8298246
+        ],
+        [
+          55.6877422,
+          37.8301242
+        ]
+      ],
+      "length": 105.82483971563866
+    },
+    {
+      "wayId": 30130885,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 11-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6877422,
+          37.8301242
+        ],
+        [
+          55.6870194,
+          37.8303782
+        ]
+      ],
+      "length": 81.93356315880312
+    },
+    {
+      "wayId": 85730475,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 11-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6870194,
+          37.8303782
+        ],
+        [
+          55.6850461,
+          37.8310676
+        ]
+      ],
+      "length": 223.6361973871605
+    },
+    {
+      "wayId": 296560221,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 11-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6850461,
+          37.8310676
+        ],
+        [
+          55.6847239,
+          37.8311894
+        ],
+        [
+          55.6835745,
+          37.8316238
+        ],
+        [
+          55.6826912,
+          37.8319668
+        ]
+      ],
+      "length": 267.8526854459226
+    },
+    {
+      "wayId": 135733480,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 11-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6826912,
+          37.8319668
+        ],
+        [
+          55.6789486,
+          37.8335156
+        ]
+      ],
+      "length": 427.33592182549154
+    },
+    {
+      "wayId": 30130889,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 12-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109380",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6789486,
+          37.8335156
+        ],
+        [
+          55.6701296,
+          37.8367265
+        ]
+      ],
+      "length": 1001.0833788198329
+    },
+    {
+      "wayId": 30130892,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 13-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109380",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6701296,
+          37.8367265
+        ],
+        [
+          55.6689022,
+          37.8371781
+        ],
+        [
+          55.6676542,
+          37.8376372
+        ],
+        [
+          55.6647517,
+          37.8387049
+        ],
+        [
+          55.6637043,
+          37.8390649
+        ],
+        [
+          55.6629442,
+          37.8392609
+        ],
+        [
+          55.6621835,
+          37.8393958
+        ],
+        [
+          55.6613062,
+          37.8394905
+        ]
+      ],
+      "length": 997.5149014360161
+    },
+    {
+      "wayId": 1307898446,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6613062,
+          37.8394905
+        ],
+        [
+          55.6605508,
+          37.839489
+        ],
+        [
+          55.659747,
+          37.8394496
+        ]
+      ],
+      "length": 173.4095827468919
+    },
+    {
+      "wayId": 30130895,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.659747,
+          37.8394496
+        ],
+        [
+          55.6596669,
+          37.8394441
+        ]
+      ],
+      "length": 8.913404880161858
+    },
+    {
+      "wayId": 1311059111,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6596669,
+          37.8394441
+        ],
+        [
+          55.6581858,
+          37.8392148
+        ],
+        [
+          55.6579734,
+          37.8391731
+        ],
+        [
+          55.6574594,
+          37.8390496
+        ]
+      ],
+      "length": 246.7570972821964
+    },
+    {
+      "wayId": 135723717,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6574594,
+          37.8390496
+        ],
+        [
+          55.6566105,
+          37.838786
+        ],
+        [
+          55.6560036,
+          37.8385331
+        ]
+      ],
+      "length": 165.15492993526368
+    },
+    {
+      "wayId": 135737169,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6560036,
+          37.8385331
+        ],
+        [
+          55.6549992,
+          37.8380319
+        ],
+        [
+          55.6543533,
+          37.8376622
+        ]
+      ],
+      "length": 191.49852556501435
+    },
+    {
+      "wayId": 135757288,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6543533,
+          37.8376622
+        ],
+        [
+          55.6536035,
+          37.8371635
+        ]
+      ],
+      "length": 89.05082133208447
+    },
+    {
+      "wayId": 419578606,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 14-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6536035,
+          37.8371635
+        ],
+        [
+          55.6530846,
+          37.8367731
+        ],
+        [
+          55.6526224,
+          37.8364253
+        ]
+      ],
+      "length": 118.51665552766161
+    },
+    {
+      "wayId": 1198550317,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 15-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6526224,
+          37.8364253
+        ],
+        [
+          55.6519164,
+          37.8358067
+        ],
+        [
+          55.6513477,
+          37.8352456
+        ],
+        [
+          55.6512593,
+          37.8351472
+        ],
+        [
+          55.6510444,
+          37.834908
+        ]
+      ],
+      "length": 199.77279594175607
+    },
+    {
+      "wayId": 156283233,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 15-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6510444,
+          37.834908
+        ],
+        [
+          55.6509412,
+          37.8347931
+        ],
+        [
+          55.6506082,
+          37.8344223
+        ],
+        [
+          55.6504985,
+          37.8343002
+        ],
+        [
+          55.6498001,
+          37.833394
+        ],
+        [
+          55.6490961,
+          37.8324585
+        ]
+      ],
+      "length": 265.77491593205303
+    },
+    {
+      "wayId": 48829503,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 15-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6490961,
+          37.8324585
+        ],
+        [
+          55.6486083,
+          37.8317254
+        ]
+      ],
+      "length": 71.11832555880613
+    },
+    {
+      "wayId": 48829391,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 15-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6486083,
+          37.8317254
+        ],
+        [
+          55.6475678,
+          37.83017
+        ],
+        [
+          55.6468809,
+          37.8291182
+        ]
+      ],
+      "length": 252.30460985754823
+    },
+    {
+      "wayId": 1153023849,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 15-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6468809,
+          37.8291182
+        ],
+        [
+          55.6455639,
+          37.8271015
+        ]
+      ],
+      "length": 193.54309717624787
+    },
+    {
+      "wayId": 30130899,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 16-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6455639,
+          37.8271015
+        ],
+        [
+          55.6453739,
+          37.8268096
+        ],
+        [
+          55.6446722,
+          37.8257316
+        ],
+        [
+          55.6441437,
+          37.8249309
+        ],
+        [
+          55.6430618,
+          37.8232725
+        ],
+        [
+          55.6421614,
+          37.8218925
+        ],
+        [
+          55.6418324,
+          37.8213882
+        ]
+      ],
+      "length": 548.3604685327974
+    },
+    {
+      "wayId": 135723721,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 16-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6418324,
+          37.8213882
+        ],
+        [
+          55.6409972,
+          37.8201094
+        ]
+      ],
+      "length": 122.74014750433062
+    },
+    {
+      "wayId": 328373799,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 16-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6409972,
+          37.8201094
+        ],
+        [
+          55.6407011,
+          37.8196581
+        ],
+        [
+          55.6372411,
+          37.8143851
+        ]
+      ],
+      "length": 550.9091001331567
+    },
+    {
+      "wayId": 1327451480,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 17-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6372411,
+          37.8143851
+        ],
+        [
+          55.6359302,
+          37.8123799
+        ]
+      ],
+      "length": 192.57833201452664
+    },
+    {
+      "wayId": 30130901,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 17-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6359302,
+          37.8123799
+        ],
+        [
+          55.632723,
+          37.8074745
+        ],
+        [
+          55.6324693,
+          37.8070865
+        ]
+      ],
+      "length": 508.41700160373296
+    },
+    {
+      "wayId": 180705708,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 17-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6324693,
+          37.8070865
+        ],
+        [
+          55.6322435,
+          37.8067411
+        ]
+      ],
+      "length": 33.17311092184064
+    },
+    {
+      "wayId": 180705709,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 17-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "109429",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6322435,
+          37.8067411
+        ],
+        [
+          55.6319487,
+          37.8062903
+        ]
+      ],
+      "length": 43.30423245629067
+    },
+    {
+      "wayId": 30130902,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 18-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115408",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6319487,
+          37.8062903
+        ],
+        [
+          55.6278385,
+          37.8000283
+        ],
+        [
+          55.62726,
+          37.7991915
+        ]
+      ],
+      "length": 685.8769554219904
+    },
+    {
+      "wayId": 24239569,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 18-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115408",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.62726,
+          37.7991915
+        ],
+        [
+          55.6268663,
+          37.7985585
+        ],
+        [
+          55.6266695,
+          37.7982364
+        ],
+        [
+          55.6259371,
+          37.7970381
+        ],
+        [
+          55.6254654,
+          37.7962417
+        ],
+        [
+          55.6246614,
+          37.7947422
+        ]
+      ],
+      "length": 402.07701248614904
+    },
+    {
+      "wayId": 30130905,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "bridge:name": "Бесединский мост",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 19-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115408",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75",
+        "wikidata": "Q4085566",
+        "wikipedia": "ru:Бесединские мосты"
+      },
+      "coordinates": [
+        [
+          55.6246614,
+          37.7947422
+        ],
+        [
+          55.6227157,
+          37.7912182
+        ]
+      ],
+      "length": 309.45051930344533
+    },
+    {
+      "wayId": 732560792,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 19-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115408",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6227157,
+          37.7912182
+        ],
+        [
+          55.6217591,
+          37.7895178
+        ]
+      ],
+      "length": 150.70622144569194
+    },
+    {
+      "wayId": 24239567,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 19-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115408",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6217591,
+          37.7895178
+        ],
+        [
+          55.6210975,
+          37.788193
+        ],
+        [
+          55.6208159,
+          37.787638
+        ],
+        [
+          55.6202971,
+          37.7865984
+        ],
+        [
+          55.6200676,
+          37.7861401
+        ],
+        [
+          55.6196069,
+          37.7853351
+        ],
+        [
+          55.6195988,
+          37.7853209
+        ]
+      ],
+      "length": 356.7028551167892
+    },
+    {
+      "wayId": 30130909,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 20-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6195988,
+          37.7853209
+        ],
+        [
+          55.6189879,
+          37.7842305
+        ],
+        [
+          55.6188706,
+          37.7840306
+        ],
+        [
+          55.6186457,
+          37.7836025
+        ]
+      ],
+      "length": 151.2639639874091
+    },
+    {
+      "wayId": 328336723,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 20-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6186457,
+          37.7836025
+        ],
+        [
+          55.6178232,
+          37.7820775
+        ]
+      ],
+      "length": 132.4168246397151
+    },
+    {
+      "wayId": 302716213,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 20-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "sidewalk": "right",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6178232,
+          37.7820775
+        ],
+        [
+          55.6174378,
+          37.7813841
+        ]
+      ],
+      "length": 61.09274978869683
+    },
+    {
+      "wayId": 435468443,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 20-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6174378,
+          37.7813841
+        ],
+        [
+          55.6165543,
+          37.7798268
+        ],
+        [
+          55.6154216,
+          37.7777219
+        ],
+        [
+          55.6147682,
+          37.7765076
+        ]
+      ],
+      "length": 426.519179295244
+    },
+    {
+      "wayId": 726091573,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 20-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6147682,
+          37.7765076
+        ],
+        [
+          55.6127471,
+          37.7728486
+        ]
+      ],
+      "length": 321.4138585763294
+    },
+    {
+      "wayId": 30130911,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;E 115;AH6",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 21-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115446",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6127471,
+          37.7728486
+        ],
+        [
+          55.6115472,
+          37.7706783
+        ],
+        [
+          55.6084244,
+          37.7650304
+        ],
+        [
+          55.6064624,
+          37.7614821
+        ]
+      ],
+      "length": 998.9964349407467
+    },
+    {
+      "wayId": 30130912,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;E 115;AH6",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 22-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6064624,
+          37.7614821
+        ],
+        [
+          55.6043661,
+          37.75767
+        ],
+        [
+          55.6035739,
+          37.7562295
+        ],
+        [
+          55.6033402,
+          37.7558046
+        ],
+        [
+          55.6028399,
+          37.7548791
+        ],
+        [
+          55.6022643,
+          37.7537622
+        ],
+        [
+          55.6018283,
+          37.7528629
+        ],
+        [
+          55.6013377,
+          37.7517836
+        ],
+        [
+          55.6009448,
+          37.7508669
+        ],
+        [
+          55.6005051,
+          37.7498427
+        ]
+      ],
+      "length": 987.698187214803
+    },
+    {
+      "wayId": 30131161,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;E 115;AH6",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 23-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115446",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.6005051,
+          37.7498427
+        ],
+        [
+          55.5999969,
+          37.7486494
+        ],
+        [
+          55.5992188,
+          37.7467895
+        ],
+        [
+          55.598272,
+          37.7445264
+        ],
+        [
+          55.5979686,
+          37.7438012
+        ],
+        [
+          55.5974661,
+          37.7426397
+        ],
+        [
+          55.5968305,
+          37.7411707
+        ],
+        [
+          55.5965286,
+          37.7404729
+        ],
+        [
+          55.5951286,
+          37.7371008
+        ]
+      ],
+      "length": 999.145831394969
+    },
+    {
+      "wayId": 30131163,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;E 115;AH6",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 24-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115582",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5951286,
+          37.7371008
+        ],
+        [
+          55.5951121,
+          37.7370626
+        ]
+      ],
+      "length": 3.021023918792836
+    },
+    {
+      "wayId": 48414057,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 24-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115582",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5951121,
+          37.7370626
+        ],
+        [
+          55.5931285,
+          37.7323145
+        ],
+        [
+          55.5904501,
+          37.725937
+        ],
+        [
+          55.5886779,
+          37.7217054
+        ],
+        [
+          55.5880383,
+          37.7201605
+        ],
+        [
+          55.5874011,
+          37.7185171
+        ]
+      ],
+      "length": 1446.8470140422974
+    },
+    {
+      "wayId": 30131165,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 25-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115582",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5874011,
+          37.7185171
+        ],
+        [
+          55.586749,
+          37.7168063
+        ],
+        [
+          55.5861742,
+          37.7151934
+        ]
+      ],
+      "length": 249.5062884031884
+    },
+    {
+      "wayId": 32636099,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "bridge": "yes",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "6",
+        "layer": "1",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 25-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115582",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5861742,
+          37.7151934
+        ],
+        [
+          55.5859157,
+          37.7145045
+        ]
+      ],
+      "length": 51.96644205337869
+    },
+    {
+      "wayId": 32636101,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 25-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115582",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5859157,
+          37.7145045
+        ],
+        [
+          55.5853954,
+          37.713089
+        ],
+        [
+          55.5847063,
+          37.7112384
+        ]
+      ],
+      "length": 245.38983190491768
+    },
+    {
+      "wayId": 30131166,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 26-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115598",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5847063,
+          37.7112384
+        ],
+        [
+          55.5840577,
+          37.7094376
+        ],
+        [
+          55.5835416,
+          37.7081104
+        ],
+        [
+          55.5828171,
+          37.7061647
+        ],
+        [
+          55.581539,
+          37.702721
+        ]
+      ],
+      "length": 640.8086193633567
+    },
+    {
+      "wayId": 93477171,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 26-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115598",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.581539,
+          37.702721
+        ],
+        [
+          55.5799959,
+          37.6986519
+        ],
+        [
+          55.5797481,
+          37.6979986
+        ]
+      ],
+      "length": 357.4290200682637
+    },
+    {
+      "wayId": 1293365770,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 27-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5797481,
+          37.6979986
+        ],
+        [
+          55.5788825,
+          37.6956394
+        ]
+      ],
+      "length": 176.785485137264
+    },
+    {
+      "wayId": 1293365771,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH6;E 115",
+        "lanes": "7",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 27-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through|through|slight_right"
+      },
+      "coordinates": [
+        [
+          55.5788825,
+          37.6956394
+        ],
+        [
+          55.5785001,
+          37.6945971
+        ]
+      ],
+      "length": 78.10365085124413
+    },
+    {
+      "wayId": 30131168,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;E 115",
+        "lanes": "6",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 27-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "turn:lanes": "through|through|through|through|through;slight_right|slight_right",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5785001,
+          37.6945971
+        ],
+        [
+          55.5773658,
+          37.6915518
+        ]
+      ],
+      "length": 229.2363286089986
+    },
+    {
+      "wayId": 1190525451,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30",
+        "lanes": "4",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 27-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5773658,
+          37.6915518
+        ],
+        [
+          55.5762985,
+          37.6886974
+        ]
+      ],
+      "length": 215.12196224759197
+    },
+    {
+      "wayId": 148216234,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH8",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 27-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5762985,
+          37.6886974
+        ],
+        [
+          55.5748268,
+          37.6846725
+        ]
+      ],
+      "length": 301.3187111718302
+    },
+    {
+      "wayId": 1208990563,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH8",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 28-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115547",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5748268,
+          37.6846725
+        ],
+        [
+          55.5746587,
+          37.6841963
+        ]
+      ],
+      "length": 35.2914137076657
+    },
+    {
+      "wayId": 30131171,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30;AH8",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 28-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115547",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5746587,
+          37.6841963
+        ],
+        [
+          55.5744806,
+          37.6836659
+        ],
+        [
+          55.574305,
+          37.6831229
+        ],
+        [
+          55.574131,
+          37.6825664
+        ],
+        [
+          55.5739639,
+          37.681999
+        ],
+        [
+          55.5738665,
+          37.6816461
+        ],
+        [
+          55.5738209,
+          37.681481
+        ],
+        [
+          55.5736691,
+          37.6809087
+        ],
+        [
+          55.5735157,
+          37.6803208
+        ],
+        [
+          55.5733581,
+          37.6797137
+        ],
+        [
+          55.5732195,
+          37.6790914
+        ],
+        [
+          55.5730846,
+          37.678456
+        ],
+        [
+          55.5729686,
+          37.6778282
+        ],
+        [
+          55.5727493,
+          37.6765592
+        ],
+        [
+          55.5726492,
+          37.6759103
+        ],
+        [
+          55.5725786,
+          37.6754128
+        ],
+        [
+          55.5724762,
+          37.6746078
+        ],
+        [
+          55.572381,
+          37.6738653
+        ],
+        [
+          55.5723235,
+          37.6732806
+        ],
+        [
+          55.572258,
+          37.6726232
+        ],
+        [
+          55.5722044,
+          37.6719603
+        ],
+        [
+          55.5721548,
+          37.6712993
+        ],
+        [
+          55.5721162,
+          37.6706358
+        ],
+        [
+          55.5720894,
+          37.6699713
+        ]
+      ],
+      "length": 948.0012845386048
+    },
+    {
+      "wayId": 30131173,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 29-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "115547",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5720894,
+          37.6699713
+        ],
+        [
+          55.5720886,
+          37.669943
+        ],
+        [
+          55.5720693,
+          37.6692931
+        ],
+        [
+          55.5720546,
+          37.6686257
+        ],
+        [
+          55.5720519,
+          37.6679554
+        ],
+        [
+          55.5720613,
+          37.6672858
+        ],
+        [
+          55.572076,
+          37.6666249
+        ],
+        [
+          55.5721002,
+          37.6659605
+        ],
+        [
+          55.572124,
+          37.6653348
+        ],
+        [
+          55.5721603,
+          37.6646547
+        ],
+        [
+          55.5721918,
+          37.6639732
+        ],
+        [
+          55.5722281,
+          37.6633448
+        ],
+        [
+          55.572721,
+          37.6550931
+        ]
+      ],
+      "length": 939.0693243750352
+    },
+    {
+      "wayId": 30131174,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 30-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "117403",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.572721,
+          37.6550931
+        ],
+        [
+          55.5727765,
+          37.6541634
+        ],
+        [
+          55.5728396,
+          37.6531065
+        ],
+        [
+          55.5729913,
+          37.6505236
+        ]
+      ],
+      "length": 288.8298542382373
+    },
+    {
+      "wayId": 51392010,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 30-й километр",
+        "name:ru": "МКАД, 30-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "117403",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5729913,
+          37.6505236
+        ],
+        [
+          55.5731614,
+          37.647626
+        ],
+        [
+          55.5732694,
+          37.6457867
+        ],
+        [
+          55.5733106,
+          37.6452013
+        ],
+        [
+          55.5736871,
+          37.6386088
+        ],
+        [
+          55.5737061,
+          37.638351
+        ]
+      ],
+      "length": 769.3526967887169
+    },
+    {
+      "wayId": 30131177,
+      "leg": 2,
+      "tags": {
+        "agricultural": "no",
+        "bicycle": "no",
+        "foot": "no",
+        "hgv:conditional": "private @ (weight>12)",
+        "highway": "trunk",
+        "highway:category": "ru:IБ",
+        "horse": "no",
+        "int_ref": "E 30",
+        "lanes": "5",
+        "lit": "yes",
+        "loc_ref": "МКАД",
+        "maxspeed": "100",
+        "minspeed": "40",
+        "moped": "no",
+        "motorroad": "yes",
+        "name": "МКАД, 31-й километр",
+        "name:ru": "МКАД, 31-й километр",
+        "oneway": "yes",
+        "parking:both": "no",
+        "parking:both:restriction": "no_stopping",
+        "postal_code": "117403",
+        "surface": "asphalt",
+        "width:lanes": "3.5|3.5|3.75|3.75|3.75"
+      },
+      "coordinates": [
+        [
+          55.5737061,
+          37.638351
+        ],
+        [
+          55.5738158,
+          37.6364822
+        ],
+        [
+          55.5738923,
+          37.6351793
+        ],
+        [
+          55.5744652,
+          37.6253785
+        ]
+      ],
+      "length": 819.8475572483924
+    },
+    {
+      "wayId": 1368050864,
+      "leg": 2,
+      "tags": {
+        "highway": "primary_link",
+        "oneway": "yes"
+      },
+      "coordinates": [
+        [
+          55.5744652,
+          37.6253785
+        ],
+        [
+          55.5745107,
+          37.6250981
+        ],
+        [
+          55.5745667,
+          37.6247868
+        ],
+        [
+          55.5746116,
+          37.624551
+        ],
+        [
+          55.5746531,
+          37.6243059
+        ],
+        [
+          55.5746867,
+          37.6240721
+        ],
+        [
+          55.5747264,
+          37.6237613
+        ],
+        [
+          55.5747906,
+          37.6231415
+        ],
+        [
+          55.5748444,
+          37.6225658
+        ]
+      ],
+      "length": 182.08485600133838
+    },
+    {
+      "wayId": 35218642,
+      "leg": 2,
+      "tags": {
+        "highway": "primary_link",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5748444,
+          37.6225658
+        ],
+        [
+          55.5756225,
+          37.6227617
+        ],
+        [
+          55.5756864,
+          37.6227778
+        ],
+        [
+          55.57576,
+          37.6227857
+        ],
+        [
+          55.575798,
+          37.6227734
+        ],
+        [
+          55.5758853,
+          37.622745
+        ],
+        [
+          55.5759724,
+          37.6227037
+        ],
+        [
+          55.5760688,
+          37.6226243
+        ],
+        [
+          55.5761639,
+          37.6224862
+        ],
+        [
+          55.5762534,
+          37.6223151
+        ],
+        [
+          55.5765218,
+          37.6214372
+        ],
+        [
+          55.5765722,
+          37.6211613
+        ],
+        [
+          55.57667,
+          37.6200585
+        ]
+      ],
+      "length": 318.2527301511339
+    },
+    {
+      "wayId": 1207837158,
+      "leg": 2,
+      "tags": {
+        "highway": "primary_link",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.57667,
+          37.6200585
+        ],
+        [
+          55.5767879,
+          37.6180214
+        ]
+      ],
+      "length": 128.71903777846322
+    },
+    {
+      "wayId": 1207824618,
+      "leg": 2,
+      "tags": {
+        "highway": "primary_link",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5767879,
+          37.6180214
+        ],
+        [
+          55.5768263,
+          37.617405
+        ]
+      ],
+      "length": 38.980658516607654
+    },
+    {
+      "wayId": 1207824618,
+      "leg": 3,
+      "tags": {
+        "highway": "primary_link",
+        "surface": "asphalt"
+      },
+      "coordinates": [
+        [
+          55.5768263,
+          37.617405
+        ],
+        [
+          55.5769236,
+          37.6164958
+        ]
+      ],
+      "length": 58.16610432378751
+    }
+  ]
+}

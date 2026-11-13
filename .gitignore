@@ -4,7 +4,12 @@ dist/
 .DS_Store
 dist-server/
 sessions/
-data/
+data/*
+!data/moscow/
+__pycache__/
+*.pyc
+convert_tutorial.md
+mods_to_convert/
 
 # Local source mods and intermediate 3D conversion files, never game delivery assets.
 *.zip

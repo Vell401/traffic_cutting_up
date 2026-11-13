@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Road network · technical sandbox</title>
+  </head>
+  <body>
+    <canvas id="world" aria-label="Road network driving sandbox"></canvas>
+    <aside aria-label="Technical telemetry">
+      <strong>Stages 2 / 3 · road network</strong>
+      <nav><a id="bay" href="/network.html?layout=bay">Bay</a> / <a id="prototype" href="/network.html?layout=prototype">Prototype</a> / <a id="moscow" href="/network.html?layout=moscow">Москва · OSM</a></nav>
+      <p id="moscow-notice" hidden>Москва: дорожная сеть OSM со встречными направлениями и съездами. Высоты приближённые по уровням OSM; на границах есть тупики.<br>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors · ODbL</a></p>
+      <pre id="telemetry" aria-live="off">Starting…</pre>
+      <p>W / ↑ throttle · S / ↓ brake<br>A D / ← → steer · R reset to parking</p>
+      <p>1 / 2 / 3 select the upcoming junction arm, left to right.<br>Selection is held until that junction; backend latches in final 25 m.<br>No selection: steering chooses the exit. No mouse required.</p>
+      <p id="status" role="status">Local shared-session simulation</p>
+    </aside>
+    <script type="module" src="/src/network/main.ts"></script>
+  </body>
+</html>

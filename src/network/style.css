@@ -1,0 +1,10 @@
+:root { font-family: system-ui, sans-serif; color: #e6f3fa; background: #172a35; }
+body { margin: 0; overflow: hidden; }
+canvas { display: block; width: 100vw; height: 100vh; }
+aside { position: fixed; top: 12px; left: 12px; max-width: min(430px, calc(100vw - 48px)); padding: 14px; background: #10212de8; border: 1px solid #7893a5; border-radius: 4px; font-size: 13px; pointer-events: none; }
+nav { margin-top: 8px; pointer-events: auto; }
+a { color: #95e4ff; padding: 4px; }
+a[aria-current] { color: #fff; font-weight: bold; }
+pre { white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
+p { line-height: 1.5; margin-bottom: 0; }
+@media (max-height: 540px) { aside { font-size: 11px; } aside p { display: none; } }

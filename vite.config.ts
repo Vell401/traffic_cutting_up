@@ -42,8 +42,8 @@ export default defineConfig(({ isSsrBuild }): ViteUserConfig => ({
     // npm run build: the game and the admin page. npm run build:server: the game server, the smoke-test
     // client and the log reader, side by side in dist-server/.
     rollupOptions: isSsrBuild
-      ? { input: { main: 'server/main.ts', smoke: 'scripts/smoke.ts', logs: 'server/logs.ts' } }
-      : { input: { main: 'index.html', admin: 'admin.html' } },
+      ? { input: { main: 'server/main.ts', smoke: 'scripts/smoke.ts', logs: 'server/logs.ts', networkSandbox: 'server/networkSandbox.ts' } }
+      : { input: { main: 'index.html', admin: 'admin.html', network: 'network.html' } },
     ...(isSsrBuild ? { copyPublicDir: false } : {}),
   },
   test: {

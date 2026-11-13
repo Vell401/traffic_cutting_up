@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p server",
     "test": "vitest run",
     "server": "tsx watch server/main.ts",
+    "server:network": "tsx server/networkSandbox.ts",
     "build:server": "tsc --noEmit -p server && vite build --ssr --outDir dist-server --emptyOutDir",
     "smoke": "node dist-server/smoke.js",
     "start:server": "node dist-server/main.js",

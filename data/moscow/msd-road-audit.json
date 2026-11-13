@@ -1,0 +1,12 @@
+{
+  "scope": "Named MSD both directions, connected ramp chains and route Kantemirovskaya approach; MKAD excluded",
+  "selectedEdges": 951,
+  "directedKm": 108.88066508551286,
+  "equalWidthUnbranchedSeams": 725,
+  "maxLeftGap": 0,
+  "maxRightGap": 0,
+  "defectiveSeams": 0,
+  "validationErrors": [],
+  "defects": [],
+  "limits": "Cross-section endpoint equality only, not full junction union, all same-layer overlaps, clearance or driving acceptance."
+}
