@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MIAMI_WATER } from './miami/layout';
 import { CHUNK_LEN, GROUND_LEVEL, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
 import { MIAMI, type MapTheme } from './miami';
 
@@ -32,7 +33,7 @@ export class FarGround {
       level = Math.min(level, GROUND_LEVEL[c.kind]);
       if (c.kind === 'bridge') water = true;
     }
-    this.mesh.position.set(camera.x, this.theme === 'miami' ? MIAMI.waterLevel - 0.35 : level - 0.35, camera.z);
+    this.mesh.position.set(camera.x, this.theme === 'miami' ? (this.borrowed ? MIAMI_WATER : MIAMI.waterLevel) - 0.35 : level - 0.35, camera.z);
     if (this.borrowed) return;
     if (this.theme === 'miami') this.mat.color.setHex(MIAMI.water);
     else this.mat.color.copy(water ? WATER : GROUND);

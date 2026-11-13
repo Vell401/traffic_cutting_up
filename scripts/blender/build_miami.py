@@ -74,7 +74,15 @@ def material(name, color, roughness=.6, metalness=0, photo=None, normal_scale=.3
                 mat.node_tree.links.new(texture.outputs['Color'], normal.inputs['Color'])
                 mat.node_tree.links.new(normal.outputs['Normal'], shader.inputs['Normal'])
             else:
-                mat.node_tree.links.new(texture.outputs['Color'], shader.inputs['Roughness'])
+                # Match MeshStandardMaterial: roughnessFactor * roughnessMap.g.
+                # Explicit G avoids Blender's implicit RGB-to-luminance conversion.
+                green = mat.node_tree.nodes.new('ShaderNodeSeparateColor')
+                multiply = mat.node_tree.nodes.new('ShaderNodeMath')
+                multiply.operation = 'MULTIPLY'
+                multiply.inputs[1].default_value = roughness
+                mat.node_tree.links.new(texture.outputs['Color'], green.inputs['Color'])
+                mat.node_tree.links.new(green.outputs['Green'], multiply.inputs[0])
+                mat.node_tree.links.new(multiply.outputs[0], shader.inputs['Roughness'])
     MATS[name] = mat
     MATERIAL_SPEC.append(spec)
     return mat
@@ -85,7 +93,7 @@ def setup_materials():
     material('plaster_coral', 'e0a091', .76, photo='painted_plaster_wall', normal_scale=.22)
     material('plaster_mint', 'a6c6bd', .72, photo='painted_plaster_wall', normal_scale=.22)
     material('concrete_warm', 'd1c9b8', .86, photo='concrete_wall_007', normal_scale=.48)
-    material('asphalt_road', '9d9fa1', .9, photo='aerial_asphalt_01', normal_scale=.65)
+    material('asphalt_road', '858b8e', .98, photo='aerial_asphalt_01', normal_scale=.28)
     material('frame_ivory', 'e9e5dc', .38, .15)
     material('glazing_blue', '345d6c', .17, .38)
     material('metal_satin', 'a9b7b6', .29, .82)
@@ -712,7 +720,7 @@ def export_kit():
     bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE), compress=False)
     for root in PROTOTYPES.values():
         root.location = (0, 0, 0)
-    stats = dict(generator=dict(name='scripts/blender/build_miami.py', version='1.0.1',
+    stats = dict(generator=dict(name='scripts/blender/build_miami.py', version='1.0.2',
                                blender=bpy.app.version_string, seed=13062026),
                  materials=MATERIAL_SPEC, prototypes=FEATURES)
     (SOURCE.parent / 'authoring.json').write_text(json.dumps(stats, indent=2) + '\n')

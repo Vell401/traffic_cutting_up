@@ -2,7 +2,7 @@
   "schema": 1,
   "generator": {
     "name": "scripts/blender/build_miami.py",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "blender": "4.5.9 LTS",
     "seed": 13062026
   },
@@ -1930,12 +1930,12 @@
     {
       "name": "asphalt_road",
       "baseColor": [
-        0.33716362714767456,
-        0.34670406579971313,
-        0.35640013217926025,
+        0.2345505803823471,
+        0.2581828534603119,
+        0.27049779891967773,
         1
       ],
-      "roughness": 0.9,
+      "roughness": 0.98,
       "metalness": 0,
       "maps": {
         "map": "aerial_asphalt_01_diffuse",
@@ -1944,8 +1944,8 @@
       },
       "uvTileMeters": 2,
       "normalScale": [
-        0.65,
-        0.65
+        0.28,
+        0.28
       ]
     },
     {

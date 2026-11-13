@@ -7,6 +7,7 @@ import { CHUNK_LEN, GROUND_LEVEL, SAMPLE_DS, type LightKind, type Road, type Roa
 import { makeCityMaterial } from './city';
 import { makeMiamiMaterials } from './miami/materials';
 import type { MiamiAssets } from './miami/assets';
+import { MIAMI_SHORE, MIAMI_BOARDWALK, MIAMI_UPPER_PATH, MIAMI_WATER, MIAMI_QUAY } from './miami/layout';
 import { canonicalChunk, MIAMI, miamiChunkSeed, miamiDeco, miamiFacade, miamiLayout, miamiMarinaGround, miamiPalm, miamiQuay, type MapTheme } from './miami';
 import {
   ChunkFrames,
@@ -521,6 +522,7 @@ class ChunkView {
   /** Terrain beside the road plus the faces joining it to the deck: retaining walls up, deck slab down. */
   private buildSides(): void {
     const mb = this.struct;
+    const waterLevel = this.mode === 'assets' ? MIAMI_WATER : MIAMI.waterLevel;
     const gy = this.gy;
     const bridge = this.c.kind === 'bridge';
     const deck = bridge ? BRIDGE_DECK : DECK_DEPTH;
@@ -548,17 +550,24 @@ class ChunkView {
       // rather than a colour overlay on top of the old terrain. Elevated causeways are over bay.
       const causeway = bridge || this.c.kind === 'viaduct';
       const marina = this.coast!.district === 'marina';
-      const shore = causeway ? EDGE : marina ? MIAMI.marinaShore : 62;
-      const bank = marina ? miamiMarinaGround(-shore) : gy;
+      const shore = causeway ? EDGE : marina ? this.mode === 'assets' ? MIAMI_SHORE : MIAMI.marinaShore : 62;
+      const bank = marina ? this.mode === 'assets' ? MIAMI_QUAY : miamiMarinaGround(-shore) : gy;
       const landEdge = this.mode === 'assets' ? 15.5 : EDGE;
-      this.waterY.fill(MIAMI.waterLevel);
+      this.waterY.fill(waterLevel);
       mb.color(this.mode === 'assets' ? new THREE.Color(0xb3ada1) : MIAMI.ground);
       if (!causeway) {
         strip(mb, this.fr, landEdge, gy, GROUND_OUT, gy);
         if (marina && this.mode === 'assets') {
-          const terrace = this.waterY.slice(); terrace.fill(-7);
-          strip(mb, this.fr, -shore, terrace, -68, terrace);
-          strip(mb, this.fr, -68, terrace, -landEdge, gy);
+          const terrace = this.waterY.slice(); terrace.fill(MIAMI_QUAY);
+          strip(mb, this.fr, -shore, terrace, -MIAMI_BOARDWALK, terrace);
+          mb.rgb(.27, .31, .19);
+          strip(mb, this.fr, -MIAMI_BOARDWALK, terrace, -MIAMI_UPPER_PATH, gy);
+          mb.rgb(.61, .58, .51);
+          strip(mb, this.fr, -MIAMI_UPPER_PATH, gy, -landEdge, gy);
+        } else if (this.mode === 'assets') {
+          strip(mb, this.fr, -shore, gy, -34, gy);
+          mb.rgb(.31, .36, .23); strip(mb, this.fr, -34, gy, -24, gy);
+          mb.rgb(.61, .58, .51); strip(mb, this.fr, -24, gy, -landEdge, gy);
         } else strip(mb, this.fr, -shore, bank, -landEdge, marina ? 0 : gy);
         mb.color(MIAMI.cream, 0.6);
         strip(mb, this.fr, -shore, this.waterY, -shore, bank);
@@ -566,11 +575,40 @@ class ChunkView {
           // A narrow sloped gangway joins the authored pontoon's landward end to the boardwalk.
           // This is scaffolding, not a second procedural pier/boat layered over the authored kit.
           const f = this.at(50), rx = Math.cos(f.th), rz = Math.sin(f.th), fx = Math.sin(f.th), fz = -Math.cos(f.th);
-          const slope = 0.58 / 2.3, norm = Math.hypot(slope, 1);
+          const deckY = MIAMI_WATER + .42, slope = (MIAMI_QUAY - deckY) / 2.3, norm = Math.hypot(slope, 1);
           mb.rgb(0.55, 0.52, 0.45);
           const vertex = (d: number, along: number, y: number) => mb.v(f.x + rx * d + fx * along, y, f.z + rz * d + fz * along,
             -rx * slope / norm, 1 / norm, -rz * slope / norm);
-          mb.quad(vertex(-97.2, -0.8, -6.98), vertex(-97.2, 0.8, -6.98), vertex(-99.5, 0.8, -7.56), vertex(-99.5, -0.8, -7.56));
+          mb.quad(vertex(-MIAMI_SHORE + .8, -0.8, MIAMI_QUAY + .02), vertex(-MIAMI_SHORE + .8, 0.8, MIAMI_QUAY + .02),
+            vertex(-MIAMI_SHORE - 1.5, 0.8, deckY + .02), vertex(-MIAMI_SHORE - 1.5, -0.8, deckY + .02));
+        }
+        if (this.mode === 'assets') {
+          // Coastal foreground has a legible human-scale path, planted verge and coping.
+          // All stays in the existing structure batch, outside the protected road corridor.
+          for (const s of [8, 33, 58, 83]) {
+            const f = this.at(s), y = this.roadRef.groundY(this.c.s0 + s);
+            mb.rgb(.32, .31, .27); box(mb, f, -19.7, y + .012, 4, .012, .022);
+            // Raised planting islands and a crisp masonry edge give palms/furniture contact.
+            mb.rgb(.48, .47, .38); box(mb, f, -23.6, y + .06, .16, .06, 6);
+            mb.rgb(.19, .25, .13); box(mb, f, -22.2, y + .035, 1.15, .035, 5.8);
+          }
+          const coastRng = mulberry32(miamiChunkSeed(this.c.index, this.roadRef.ringLen) ^ 0x53484f52);
+          for (let s = 3; s < 100; s += 6) {
+            const f = this.at(s), y = marina ? MIAMI_QUAY : this.roadRef.groundY(this.c.s0 + s);
+            // Opening at the gangway; a continuous coping would block real access.
+            if (!marina || Math.abs(s - 50) > 4) {
+              mb.rgb(.64, .61, .53); box(mb, f, -shore + .25, y + .1, .38, .1, 2.98);
+            }
+            if (!marina) {
+              const points: [number, number][] = Array.from({ length: 6 }, (_, n) => {
+                const angle = n / 6 * Math.PI * 2, radius = 1.1 + coastRng() * .7;
+                return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+              });
+              mb.rgb(.29 + coastRng() * .08, .29 + coastRng() * .08, .25);
+              prism(mb, f.x - Math.cos(f.th) * (shore + .7), f.z - Math.sin(f.th) * (shore + .7), f.th,
+                points, y - 1.25, y - .28, new THREE.Color(mb.r, mb.g, mb.b), new THREE.Color(.43, .42, .35));
+            }
+          }
         }
       }
       this.water.color(COL.white);
@@ -590,7 +628,7 @@ class ChunkView {
       // Distant towers stand on a shoreline, not directly in the bay. Elevated sections see it
       // on both banks; the promenade already supplies the near land in the coastal district.
       const elevated = bridge || this.c.kind === 'viaduct';
-      this.waterY.fill(MIAMI.waterLevel + 0.6);
+      this.waterY.fill(waterLevel + 0.6);
       mb.color(this.mode === 'assets' ? new THREE.Color(0xa39d90) : MIAMI.ground);
       strip(mb, this.fr, -GROUND_OUT, this.waterY, -250, this.waterY);
       if (elevated) strip(mb, this.fr, 250, this.waterY, GROUND_OUT, this.waterY);

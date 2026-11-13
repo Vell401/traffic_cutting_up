@@ -7,8 +7,13 @@ import { WALL_D } from '../src/config';
 import { getMap } from '../src/sim/maps';
 import { Road } from '../src/sim/road';
 import { extractMiamiAssets, type MiamiAssets, type MiamiManifest } from '../src/render/miami/assets';
-import { miamiPlacements, miamiGround } from '../src/render/miami/layout';
+import { miamiPlacements, miamiGround, MIAMI_WATER, MIAMI_QUAY } from '../src/render/miami/layout';
 import { MiamiWorld, MIAMI_WINDOW, MIAMI_CAPACITIES } from '../src/render/miami/world';
+import { RoadView } from '../src/render/roadView';
+import { ChaseCamera } from '../src/render/camera';
+import { CAMERA_RIGS } from '../src/render/car';
+import { QUALITY } from '../src/settings';
+import { renderDocument } from './renderCanvas';
 
 const manifest = JSON.parse(readFileSync('public/models/miami/manifest.json', 'utf8')) as MiamiManifest;
 let a: MiamiAssets;
@@ -25,6 +30,16 @@ const batches = (w: MiamiWorld) => w.group.children as THREE.InstancedMesh[];
 const output = (w: MiamiWorld) => batches(w).map(m => ({ name: m.name, count: m.count, matrices: [...m.instanceMatrix.array.slice(0, m.count * 16)] }));
 
 describe('actual authored Miami world', () => {
+  it('allocates every prototype tint attribute before loader warm-up, including models absent at spawn', () => {
+    const w = new MiamiWorld(a);
+    for (const m of batches(w)) {
+      expect(m.instanceColor, m.name).not.toBeNull();
+      expect(m.instanceColor!.count).toBe(m.instanceMatrix.count);
+      expect(Array.from(m.instanceColor!.array.slice(0, 3))).toEqual([1, 1, 1]);
+      expect(m.instanceColor!.usage).toBe(THREE.DynamicDrawUsage);
+    }
+    w.dispose();
+  });
   it('composes four canonical districts and keeps actual transformed model bounds clear of the protected road on every lap', () => {
     const r = road(); r.ensure(-12000, 24000);
     for (let index = 0; index < 120; index++) {
@@ -100,10 +115,80 @@ describe('actual authored Miami world', () => {
     for (const m of batches(w)) {
       if (!m.count) continue;
       const matrix = new THREE.Matrix4(); m.getMatrixAt(0, matrix);
-      if (m.userData.prototype === 'yacht') expect(matrix.elements[13]).toBeCloseTo(-8.9);
-      if (m.userData.prototype === 'marina_pontoon') expect(matrix.elements[13]).toBeCloseTo(-8.3);
+      if (m.userData.prototype === 'yacht') expect(matrix.elements[13] + .9 * new THREE.Vector3().setFromMatrixScale(matrix).x).toBeCloseTo(MIAMI_WATER);
+      if (m.userData.prototype === 'marina_pontoon') expect(matrix.elements[13]).toBeCloseTo(MIAMI_WATER - .3);
     }
-    expect(miamiGround(r, 6150, -80)).toBe(-7); w.dispose();
+    expect(miamiGround(r, 6150, -80)).toBe(MIAMI_QUAY); w.dispose();
+  });
+  it('brings the marina basin to the road without burying its upper promenade or losing physical yacht draft', () => {
+    const r = road(); r.ensure(5800, 6400);
+    // Furniture must stand on the upper path, not the old long slope down to -98m.
+    expect(miamiGround(r, 6150, -22)).toBe(r.groundY(6150));
+    const boats = miamiPlacements(61).filter(p => p.prototype === 'yacht');
+    expect(boats.every(p => Math.abs(p.d) < 75)).toBe(true);
+    const w = new MiamiWorld(a); w.update(r, 6100, 0, 0, 0);
+    const hull = batches(w).find(m => m.name === 'yacht__hull_pearl')!;
+    for (let i = 0; i < hull.count; i++) {
+      const matrix = new THREE.Matrix4(); hull.getMatrixAt(i, matrix);
+      const scale = new THREE.Vector3().setFromMatrixScale(matrix).x;
+      expect(matrix.elements[13] + .9 * scale).toBeCloseTo(MIAMI_WATER);
+    }
+    w.dispose();
+  });
+  it('separates full building footprints on curves, neighbouring chunks and the lap seam', () => {
+    const r = road(); r.ensure(-200, 12300);
+    const buildings: { index: number; points: THREE.Vector2[] }[] = [];
+    for (let index = -1; index <= 120; index++) for (const p of miamiPlacements(index)) {
+      if (!/^(hotel|condo|tower)/.test(p.prototype) || Math.abs(p.d) > 200) continue;
+      const b = a.prototypes.get(p.prototype)!.bounds, along = index * 100 + p.s;
+      const at = r.toWorld(along, p.d, { x: 0, z: 0, th: 0, k: 0 }), angle = -at.th + p.heading;
+      const points = [[b.min[0], b.min[2]], [b.max[0], b.min[2]], [b.max[0], b.max[2]], [b.min[0], b.max[2]]]
+        .map(([x, z]) => new THREE.Vector2(at.x + p.scale * (x * Math.cos(angle) + z * Math.sin(angle)),
+          at.z + p.scale * (-x * Math.sin(angle) + z * Math.cos(angle))));
+      for (const other of buildings.filter(o => Math.abs(o.index - index) <= 1)) {
+        const separated = [...points, ...other.points].some((point, n) => {
+          const polygon = n < 4 ? points : other.points, j = n % 4;
+          const edge = polygon[(j + 1) % 4].clone().sub(point), axis = new THREE.Vector2(-edge.y, edge.x).normalize();
+          const a = points.map(v => v.dot(axis)), b = other.points.map(v => v.dot(axis));
+          return Math.max(...a) + .25 < Math.min(...b) || Math.max(...b) + .25 < Math.min(...a);
+        });
+        expect(separated, `building overlap ${other.index}/${index}`).toBe(true);
+      }
+      buildings.push({ index, points });
+    }
+  });
+  it('exposes real pontoon deck vertices past the real barrier/quay to the canonical on-road R34 chase camera', () => {
+    vi.stubGlobal('document', renderDocument);
+    const r = road(); r.ensure(5900, 6900);
+    const w = new MiamiWorld(a), v = new RoadView({ ...QUALITY.medium, roadTex: 64 }, 4, 'miami', 'assets');
+    try {
+      w.update(r, 6100, 0, 0, 0); v.update(r, 6000, 6799, 0, 0);
+      w.group.updateMatrixWorld(true); v.group.updateMatrixWorld(true);
+      const camera = new THREE.PerspectiveCamera(62.17771448963918, 1280 / 800, .5, 3000);
+      const chase = new ChaseCamera(); chase.setRig(CAMERA_RIGS[2]);
+      const eye = r.toWorld(6100, 0, { x: 0, z: 0, th: 0, k: 0 });
+      chase.update(0, camera, new THREE.Vector3(eye.x, 0, eye.z), eye.th, 0, null); camera.updateMatrixWorld(true);
+      expect(camera.position.y).toBe(2.05);
+      const deck = batches(w).find(m => m.name === 'marina_pontoon__teak_deck')!;
+      const at = r.toWorld(6250, -53.5, { x: 0, z: 0, th: 0, k: 0 });
+      const matrices = Array.from({ length: deck.count }, (_, i) => { const matrix = new THREE.Matrix4(); deck.getMatrixAt(i, matrix); return matrix; });
+      const matrix = matrices.find(m => Math.hypot(m.elements[12] - at.x, m.elements[14] - at.z) < .001)!;
+      expect(matrix).toBeDefined();
+      const pos = deck.geometry.getAttribute('position'), normals = deck.geometry.getAttribute('normal');
+      const occluders = v.group.children.flatMap(c => c.children as THREE.Mesh[]).filter(m => m.visible);
+      let visible = 0;
+      for (let i = 0; i < pos.count; i++) {
+        if (normals.getY(i) < .99) continue;
+        const target = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(matrix);
+        const projected = target.clone().project(camera);
+        if (Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1 || projected.z > 1) continue;
+        const direction = target.clone().sub(camera.position), distance = direction.length();
+        const ray = new THREE.Raycaster(camera.position, direction.normalize(), .5, distance - .02);
+        const hits = ray.intersectObjects(occluders, false);
+        if (!hits.length) visible++;
+      }
+      expect(visible, 'actual deck must not be entirely hidden below the barrier/quay').toBeGreaterThan(10);
+    } finally { w.dispose(); v.dispose(); vi.unstubAllGlobals(); }
   });
   it('uses the lowest terrain under full building bounds on portal/viaduct approaches, not only the centre', () => {
     const r = road(); r.ensure(9000, 12000); const w = new MiamiWorld(a); w.update(r, 10600, 0, 0, 0);

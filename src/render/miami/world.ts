@@ -9,7 +9,7 @@ export const MIAMI_WINDOW = { behind: 100, ahead: 600 } as const;
 export const MIAMI_CAPACITIES = {
   hotel_deco: 24, hotel_colonnade: 24, condo_terrace: 8, tower_glass: 8, tower_setback: 8,
   garage_canopy: 8, palm_coconut: 48, palm_royal: 24, yacht: 24, streetlight: 32,
-  bench: 48, bollard: 32, planter: 48, hedge: 16, marina_pontoon: 8,
+  bench: 48, bollard: 32, planter: 48, hedge: 32, marina_pontoon: 8,
 } as const;
 
 /** Batches borrow immutable extracted geometry/material/maps. Only instance buffers belong here. */
@@ -24,6 +24,7 @@ export class MiamiWorld {
   private disposed = false;
   private readonly point: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly transform = new THREE.Object3D();
+  private readonly tint = new THREE.Color();
 
   constructor(readonly assets: MiamiAssets) {
     this.group.name = 'miami/authored-world'; this.release = assets.retain();
@@ -34,6 +35,9 @@ export class MiamiWorld {
         const mesh = new THREE.InstancedMesh(part.geometry, part.material, capacity);
         mesh.name = part.name; mesh.count = 0; mesh.visible = false;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        // Warm exactly the eventual shader/buffer variant even for prototypes absent at spawn.
+        mesh.setColorAt(0, this.tint.setRGB(1, 1, 1));
+        mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
         // All authored detail stays visible at full resolution. Tiny metal/frame trim is not an
         // extra shadow caster: the physical walls/hulls/foliage still cast the local contact shadows.
         mesh.castShadow = !['frame_ivory', 'metal_satin', 'bronze_dark', 'light_warm'].includes(part.material.name);
@@ -69,11 +73,23 @@ export class MiamiWorld {
         this.transform.position.set(this.point.x, y + p.y, this.point.z);
         // Road th grows clockwise; Three's positive Y rotation sends front -Z toward -X.
         this.transform.rotation.set(0, -this.point.th + p.heading, 0); this.transform.scale.setScalar(p.scale); this.transform.updateMatrix();
-        for (const m of meshes) m.setMatrixAt(m.count++, this.transform.matrix);
+        for (const m of meshes) {
+          m.setMatrixAt(m.count, this.transform.matrix);
+          // Shared PBR remains shared; parcel-scale paint/glazing variation costs no new draws.
+          const material = (m.material as THREE.Material).name;
+          const parcel = ((chunk.index % 120 + 120) % 120 * 7 + Math.floor(p.s)) % 5;
+          this.tint.setRGB(1, 1, 1);
+          if (/^(hotel|condo|tower)/.test(p.prototype)) {
+            if (material.startsWith('plaster_')) this.tint.setRGB(1 - parcel * .025, .92 + parcel * .018, .87 + parcel * .025);
+            if (material === 'glazing_blue') this.tint.setRGB(.68 + parcel * .07, .78 + parcel * .045, .83 + parcel * .035);
+          }
+          m.setColorAt(m.count++, this.tint);
+        }
       }
     }
     for (const meshes of this.batches.values()) for (const m of meshes) {
       m.visible = m.count > 0; m.instanceMatrix.needsUpdate = true; m.computeBoundingBox(); m.computeBoundingSphere();
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
     this.road = road; this.version = road.version; this.min = min; this.max = max;
   }

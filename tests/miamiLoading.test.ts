@@ -11,6 +11,7 @@ import { rendererHarness } from './rendererHarness';
 import { renderDocument } from './renderCanvas';
 import { makeSky } from '../src/render/sky';
 import { extractMiamiAssets, loadMiamiAssets, type MiamiManifest } from '../src/render/miami/assets';
+import { miamiGround, MIAMI_SHORE, MIAMI_WATER, MIAMI_QUAY } from '../src/render/miami/layout';
 
 vi.mock('../src/render/miami/assets', async original => ({ ...await original<object>(), loadMiamiAssets: vi.fn() }));
 beforeEach(() => vi.stubGlobal('document', renderDocument));
@@ -39,6 +40,19 @@ function harness(theme: 'miami' | 'highway') {
   return { view, renderer };
 }
 describe('required environment readiness', () => {
+  it('builds the actual upper marina path and near lower quay at the same heights used by prop feet', () => {
+    const r = new Road(mulberry32(7), getMap('miami').script); r.ensure(6000, 6300);
+    const v = new RoadView({ ...QUALITY.medium, roadTex: 64 }, 4, 'miami', 'assets'); v.update(r, 6100, 6199, 0, 0);
+    v.group.updateMatrixWorld(true);
+    for (const d of [-22, -39, -(MIAMI_SHORE - 1)]) {
+      const p = r.toWorld(6151.137, d, { x: 0, z: 0, th: 0, k: 0 });
+      const ray = new THREE.Raycaster(new THREE.Vector3(p.x, 20, p.z), new THREE.Vector3(0, -1, 0));
+      const hit = ray.intersectObject(v.group, true).find(h => h.face && h.face.normal.y > .99);
+      expect(hit, `missing walkable surface at d=${d}`).toBeDefined();
+      expect(hit!.point.y).toBeCloseTo(miamiGround(r, 6151.137, d), 3);
+    }
+    v.dispose();
+  });
   it('is a true no-op on Highway and preserves the default RoadView output/material path', async () => {
     const { view, renderer } = harness('highway'); await view.prepareEnvironment();
     expect(loadMiamiAssets).not.toHaveBeenCalled(); expect(renderer.compileAsync).not.toHaveBeenCalled();
@@ -116,10 +130,31 @@ describe('required environment readiness', () => {
   it('connects the flat marina boardwalk to the authored lower floating pontoon with an upward-facing gangway', () => {
     const r = new Road(mulberry32(7), getMap('miami').script); r.ensure(6000, 6300);
     const v = new RoadView({ ...QUALITY.medium, roadTex: 64 }, 4, 'miami', 'assets'); v.update(r, 6100, 6199, 0, 0); v.group.updateMatrixWorld(true);
-    const p = r.toWorld(6150, -98.5, { x: 0, z: 0, th: 0, k: 0 });
-    const ray = new THREE.Raycaster(new THREE.Vector3(p.x, -6, p.z), new THREE.Vector3(0, -1, 0), 0, 2);
+    const p = r.toWorld(6150, -MIAMI_SHORE - .5, { x: 0, z: 0, th: 0, k: 0 });
+    const ray = new THREE.Raycaster(new THREE.Vector3(p.x, MIAMI_QUAY + 1, p.z), new THREE.Vector3(0, -1, 0), 0, 2);
     const hit = ray.intersectObject(v.group.children[0].children[1], false)[0];
-    expect(hit).toBeDefined(); expect(hit.point.y).toBeGreaterThan(-7.58); expect(hit.point.y).toBeLessThan(-7); expect(hit.face!.normal.y).toBeGreaterThan(0.9); v.dispose();
+    expect(hit).toBeDefined(); expect(hit.point.y).toBeGreaterThan(MIAMI_WATER + .42); expect(hit.point.y).toBeLessThan(MIAMI_QUAY); expect(hit.face!.normal.y).toBeGreaterThan(0.9); v.dispose();
+  });
+  it('leaves a real gap in the quay coping at the gangway instead of blocking the access with a masonry cap', () => {
+    const r = new Road(mulberry32(7), getMap('miami').script); r.ensure(6000, 6300);
+    const v = new RoadView({ ...QUALITY.medium, roadTex: 64 }, 4, 'miami', 'assets'); v.update(r, 6100, 6199, 0, 0); v.group.updateMatrixWorld(true);
+    const p = r.toWorld(6150, -MIAMI_SHORE - .1, { x: 0, z: 0, th: 0, k: 0 });
+    const ray = new THREE.Raycaster(new THREE.Vector3(p.x, 5, p.z), new THREE.Vector3(0, -1, 0));
+    const hit = ray.intersectObject(v.group.children[0].children[1], false)[0];
+    expect(hit.point.y).toBeLessThan(miamiGround(r, 6150, -MIAMI_SHORE));
+    expect(hit.face!.normal.y).toBeGreaterThan(.9); v.dispose();
+  });
+  it('closes the actual marina seawall up to the same lower-quay elevation, without a floating surface edge', () => {
+    const r = new Road(mulberry32(7), getMap('miami').script); r.ensure(6000, 6300);
+    const v = new RoadView({ ...QUALITY.medium, roadTex: 64 }, 4, 'miami', 'assets'); v.update(r, 6100, 6199, 0, 0); v.group.updateMatrixWorld(true);
+    const from = r.toWorld(6151, -MIAMI_SHORE - 1, { x: 0, z: 0, th: 0, k: 0 });
+    const to = r.toWorld(6151, -MIAMI_SHORE + 1, { x: 0, z: 0, th: 0, k: 0 });
+    const origin = new THREE.Vector3(from.x, MIAMI_QUAY - .1, from.z);
+    const direction = new THREE.Vector3(to.x - from.x, 0, to.z - from.z).normalize();
+    const ray = new THREE.Raycaster(origin, direction, .01, 1.5);
+    const hit = ray.intersectObject(v.group.children[0].children[1], false)[0];
+    expect(hit, 'quay edge must have a real vertical closure above the water').toBeDefined();
+    expect(hit!.distance).toBeCloseTo(1, 3); v.dispose();
   });
   it('production scaffolding has no legacy city/trees/boats/lamps but keeps identical road positions, barrier prefix and anchors', () => {
     const r = new Road(mulberry32(7), getMap('miami').script); r.ensure(0, 1000);
