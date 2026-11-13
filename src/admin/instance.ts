@@ -15,8 +15,8 @@ export function adminInstance(params: URLSearchParams): AdminInstance {
   return {
     map, name,
     // Deliberately same-origin catalogue endpoints, not arbitrary game ?server= URLs.
-    api: map === 'miami' ? '/miami/api/admin' : '/api/admin',
-    tokenKey: `tcu.admin.${map}`,
+    api: map === 'miami' ? '/api/admin/maps/miami' : '/api/admin',
+    tokenKey: 'tcu.admin',
     tabKey: `tcu.admin.tab.${map}`,
   };
 }

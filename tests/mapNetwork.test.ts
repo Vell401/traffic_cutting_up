@@ -24,12 +24,32 @@ function connect(game: GameServer, over: Record<string, unknown> = {}) {
 describe('per-map handshake fencing', () => {
   it('uses distinct immutable shipped hashes even after all runtime tuning changes', () => {
     const before = [rulesHash(), rulesHash('miami')];
+    expect(before[0]).toBe('766e63c6');
     expect(before[0]).not.toBe(before[1]);
     const tuning = defaultTuning();
     for (const car of Object.values(tuning.cars)) if (car.powerKW !== undefined) car.powerKW *= 1.1;
     applyTuning(tuning);
     expect([rulesHash(), rulesHash('miami')]).toEqual(before);
     expect(PROTOCOL_VERSION).toBe(13);
+  });
+
+  it('advertises Miami revision 2 while keeping Highway at revision 1', () => {
+    const miami = new GameServer({ seed: 3, map: 'miami' });
+    const highway = new GameServer({ seed: 3, map: 'highway' });
+    expect(connect(miami).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'miami', mapRevision: 2 });
+    expect(miami.health(false)).toMatchObject({ map: 'miami', mapRevision: 2, protocol: 13, ringLen: 12000 });
+    expect(connect(highway).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'highway', mapRevision: 1, rulesHash: '766e63c6' });
+  });
+
+  it('rejects the original Miami revision 1 rules before admitting a driver', () => {
+    const game = new GameServer({ seed: 3, map: 'miami' });
+    const old = connect(game, { rules: '6f41be61' });
+    expect(old.messages[0]).toMatchObject({ t: 'reject', reason: 'rules' });
+    expect(old.messages.some(m => m.t === 'welcome')).toBe(false);
+    expect(old.close).toHaveBeenCalledOnce();
+    expect(game.playerCount).toBe(0);
+    expect(game.world.drivers).toHaveLength(0);
+    expect(connect(game).messages.some(m => m.t === 'welcome')).toBe(true);
   });
 
   it.each(['highway', 'miami'] as const)('%s validates map and rules before token reconnect/join', map => {
@@ -48,13 +68,14 @@ describe('per-map handshake fencing', () => {
     if (map === 'miami') expect(connect(game, { map: undefined }).messages[0]).toMatchObject({ t: 'reject', reason: 'map' });
   });
 
-  it.each(['map', 'mapRevision', 'ringLen', 'rulesHash', 'v', 'missing'] as const)('wrong welcome %s cannot apply tuning, accept snapshots or activate', field => {
+  it.each(['map', 'mapRevision', 'oldMiamiRevision', 'ringLen', 'rulesHash', 'v', 'missing'] as const)('wrong welcome %s cannot apply tuning, accept snapshots or activate', field => {
     const game = new GameServer({ seed: 7, map: 'miami' });
     const { messages } = connect(game);
     const welcome = messages.find(m => m.t === 'welcome')! as Extract<ServerMsg, { t: 'welcome' }>;
     const wrong: Record<string, unknown> = { ...welcome, tuning: defaultTuning() };
     (wrong.tuning as ReturnType<typeof defaultTuning>).cars['2'].powerKW = 999;
     if (field === 'missing') delete wrong.map;
+    else if (field === 'oldMiamiRevision') wrong.mapRevision = 1;
     else wrong[field] = field === 'map' ? 'highway' : field === 'rulesHash' ? 'bad' : -1;
     const sim = new Sim(Math.random, { online: true, map: 'miami', physics: 2 });
     const power = sim.player.tune.powerKW, onWelcome = vi.fn(), onReject = vi.fn();

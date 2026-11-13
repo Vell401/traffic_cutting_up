@@ -280,6 +280,24 @@
   color: rgba(232, 222, 255, 0.55);
 }
 
+/* Native picker keeps the same dark/violet palette, including its platform option popup. */
+#start #serverChoice {
+  max-width: 100%;
+  padding: 7px 12px;
+  font: inherit;
+  color: var(--nr-lilac);
+  background: var(--nr-deep);
+  border: 1px solid var(--nr-edge);
+}
+#start #serverChoice option {
+  color: #f3ecff;
+  background: var(--nr-deep);
+}
+:is(#start, #pause) :is(.seg button, #serverChoice):focus-visible {
+  outline: 2px solid var(--nr-lilac);
+  outline-offset: 3px;
+}
+
 /* Chips: slanted plates; the chosen one charged violet → magenta. */
 #start .seg,
 .leaders .seg {
@@ -300,7 +318,7 @@
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.04em;
-  color: rgba(232, 222, 255, 0.72);
+  color: rgba(232, 222, 255, 0.86);
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid var(--nr-edge);
   transform: skewX(-12deg);

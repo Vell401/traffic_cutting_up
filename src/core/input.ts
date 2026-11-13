@@ -1,5 +1,6 @@
 import type { DriveInput } from '../sim/vehicle';
 import type { MouseControl } from './mouse';
+import { isMenuControl } from '../ui/menuInput';
 
 /** Keys whose browser default (scrolling, F1 help) must not fire. */
 const BLOCK = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F1']);
@@ -35,7 +36,8 @@ export class Input {
     const signal = this.listeners.signal;
     window.addEventListener('keydown', (e) => {
       if (!this.enabled) return;
-      if (BLOCK.has(e.code)) e.preventDefault();
+      // Space must still activate a focused native button/summary instead of becoming a handbrake shortcut.
+      if (BLOCK.has(e.code) && !(e.code === 'Space' && isMenuControl(e.target))) e.preventDefault();
       if (DRIVING_KEYS.has(e.code)) this.steeringDevice = 'keyboard';
       if (!e.repeat) this.onPress?.(e.code, e);
       if (this.enabled) this.keys.add(e.code);

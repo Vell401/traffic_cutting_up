@@ -116,11 +116,13 @@ describe('HTTP and WebSocket identity contract', () => {
     } finally { ws.terminate(); }
   });
 
-  it('wires one configured resolver into production API/WS and pins Compose trust to Caddy', () => {
+  it('wires one configured resolver into production API/admin/WS and pins Compose trust to Caddy', () => {
     const main = readFileSync(new URL('../server/main.ts', import.meta.url), 'utf8');
     expect(main).toContain("createClientAddressResolver(env.TRUSTED_PROXIES ?? '')");
     expect(main).toContain('clientAddress: clientIp');
     expect(main).toContain('const addr = clientIp(req)');
+    const adminOptions = main.slice(main.indexOf('const admin = new Admin('), main.indexOf('if (admin.enabled'));
+    expect(adminOptions).toContain('clientAddress: clientIp');
     const compose = readFileSync(new URL('../compose.yaml', import.meta.url), 'utf8');
     expect(compose).toContain('TRUSTED_PROXIES: ${PROXY_IP:-172.30.114.2}');
     expect(compose).toContain('ipv4_address: ${PROXY_IP:-172.30.114.2}');

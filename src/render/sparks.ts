@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { additiveFog } from './additiveFog';
 import { makeRadialTexture } from './textures';
 
 const MAX = 480;
@@ -30,7 +31,7 @@ export class Sparks {
     g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
     this.points = new THREE.Points(
       g,
-      new THREE.PointsMaterial({
+      additiveFog(new THREE.PointsMaterial({
         size: 0.26,
         sizeAttenuation: true,
         map: makeRadialTexture(32, 1.2),
@@ -38,7 +39,7 @@ export class Sparks {
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-      }),
+      })),
     );
     this.points.frustumCulled = false;
     this.points.renderOrder = 2;

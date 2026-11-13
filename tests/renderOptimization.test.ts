@@ -28,8 +28,19 @@ function equalState(actual: TyreEffects, reference: TyreEffects): void {
     [actual.skids.geometry.getAttribute('markAlpha'), reference.skids.geometry.getAttribute('markAlpha')],
     [actual.smoke.geometry.getAttribute('centre'), reference.smoke.geometry.getAttribute('centre')],
     [actual.smoke.geometry.getAttribute('puff'), reference.smoke.geometry.getAttribute('puff')]]) {
-    expect((a as THREE.BufferAttribute).version).toBe((b as THREE.BufferAttribute).version);
+    // Dirty/version increments are work requests, not visual state; unchanged data can skip them.
+    expect((a as THREE.BufferAttribute).version).toBeLessThanOrEqual((b as THREE.BufferAttribute).version);
   }
+}
+
+function gpuState(e: TyreEffects) {
+  return [e.skids.instanceMatrix, e.skids.geometry.getAttribute('markAlpha'),
+    e.smoke.geometry.getAttribute('centre'), e.smoke.geometry.getAttribute('puff')].map(a => ({
+      attribute: a as THREE.BufferAttribute, version: (a as THREE.BufferAttribute).version, bytes: Buffer.from(bytes(a.array)),
+    }));
+}
+function uploadedChanges(before: ReturnType<typeof gpuState>) {
+  for (const s of before) if (!s.bytes.equals(bytes(s.attribute.array))) expect(s.attribute.version).toBeGreaterThan(s.version);
 }
 
 describe('render optimization preserves exact pre-optimization output', () => {
@@ -58,12 +69,15 @@ describe('render optimization preserves exact pre-optimization output', () => {
           if (frame % 29 === 0) effects.emit(1 / fps, feedback, contact, .7, -.3, ox, oz);
         }
         const dt = frame % 97 === 0 ? NaN : frame % 89 === 0 ? -1 : frame % 13 === 0 ? 0 : 1 / fps;
+        const before = gpuState(actual);
         actual.update(dt, ox, oz); referenceUpdate(reference, dt, ox, oz);
+        uploadedChanges(before);
         equalState(actual, reference);
       }
       expect(actual.stats.marksEmitted).toBeGreaterThan(TYRE_EFFECT_BUDGET.skids * 2);
       for (const dt of [5, 1, 1, 18, 0]) {
-        actual.update(dt, -1e8, 1e8); referenceUpdate(reference, dt, -1e8, 1e8); equalState(actual, reference);
+        const before = gpuState(actual);
+        actual.update(dt, -1e8, 1e8); referenceUpdate(reference, dt, -1e8, 1e8); equalState(actual, reference); uploadedChanges(before);
       }
       expect(actual.stats.marksAlive).toBe(0);
       // Expired slots are safely overwritten, including a mark that expires before first update.

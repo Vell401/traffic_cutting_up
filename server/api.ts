@@ -12,7 +12,7 @@
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { cleanName } from '../src/online/world';
-import type { RunMode, Store } from './store';
+import type { LeaderEntry, RunMode, Store } from './store';
 import { DatabaseSync } from 'node:sqlite';
 import { resolveMap, type MapId } from '../src/sim/maps';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -137,7 +137,20 @@ export interface ApiOptions {
   version?: string;
 }
 
+interface LeaderboardCache<T> {
+  at: number;
+  revision: number;
+  value: T;
+}
+
 export class Api {
+  /** Six expensive SELECTs per rolling second, shared across all public names/modes/addresses.
+   * A cold board costs two (top/count), a cold name one. Reserve the entire request before SQL.
+   * Two 100-row boards and at most 32 named results (including misses), with a 2 s TTL.
+   */
+  private readonly leaderboardTimes: number[] = [];
+  private readonly leaderboardBoards: Partial<Record<RunMode, LeaderboardCache<{ entries: LeaderEntry[]; total: number }>>> = {};
+  private readonly leaderboardNames = new Map<string, LeaderboardCache<LeaderEntry | null>>();
   private readonly runLimit = new Limiter(20);
   /** Solo SQLite admissions: 120 per rolling minute, independent of address and map peers.
    * Fixed-capacity ring: constant-time admission and no address-dependent aggregate memory.
@@ -204,7 +217,33 @@ export class Api {
       const mode: RunMode = url.searchParams.get('mode') === 'online' ? 'online' : 'solo';
       const limit = queryLimit(url.searchParams.get('limit'), 10, 100);
       const name = (url.searchParams.get('name') ?? '').slice(0, 32);
-      send(res, 200, { map: map.id, mapRevision: map.revision, soloPolicy: 'selected-instance', mode, entries: this.store.leaderboard(mode, limit), total: this.store.playerCount(mode), me: name ? this.store.placeOn(mode, name) : null });
+      const now = Date.now();
+      const revision = this.store.runRevision(mode);
+      let board = this.leaderboardBoards[mode];
+      const key = `${mode}:${name}`;
+      let own = this.leaderboardNames.get(key);
+      const boardMiss = !board || board.revision !== revision || now - board.at >= 2000;
+      const nameMiss = !!name && (!own || own.revision !== revision || now - own.at >= 2000);
+      const work = (boardMiss ? 2 : 0) + (nameMiss ? 1 : 0);
+      while (this.leaderboardTimes.length && now - this.leaderboardTimes[0] >= 1000) this.leaderboardTimes.shift();
+      if (this.leaderboardTimes.length + work > 6) {
+        res.setHeader('retry-after', '1');
+        send(res, 429, { ok: false, error: 'slow down' });
+        return true;
+      }
+      for (let i = 0; i < work; i++) this.leaderboardTimes.push(now);
+      if (boardMiss) {
+        board = { at: now, revision, value: { entries: this.store.leaderboard(mode, 100), total: this.store.playerCount(mode) } };
+        this.leaderboardBoards[mode] = board;
+      }
+      if (nameMiss) {
+        own = { at: now, revision, value: this.store.placeOn(mode, name) };
+        // FIFO retention, not address/name-dependent unbounded state. A denied miss inserts nothing.
+        this.leaderboardNames.delete(key);
+        if (this.leaderboardNames.size >= 32) this.leaderboardNames.delete(this.leaderboardNames.keys().next().value!);
+        this.leaderboardNames.set(key, own);
+      }
+      send(res, 200, { map: map.id, mapRevision: map.revision, soloPolicy: 'selected-instance', mode, entries: board!.value.entries.slice(0, limit), total: board!.value.total, me: name ? own!.value : null });
       return true;
     }
     if (req.method === 'POST' && (url.pathname === '/api/runs' || url.pathname === '/api/log')) {

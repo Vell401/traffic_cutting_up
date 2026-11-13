@@ -68,6 +68,43 @@ describe('Scoring', () => {
     expect(events.filter((e) => e === 'nearMiss').length).toBe(2);
   });
 
+  it('does not award the same alongside pair another split after traffic reserve', () => {
+    const { sim, events } = setup(220);
+    const p = sim.player;
+    const off = p.halfExtentD() + sedan.wid / 2 + 0.5;
+    sim.traffic.spawnAt(sedan, p.s, 0, 100 / 3.6, p.d - off);
+    sim.traffic.spawnAt(sedan, p.s, 2, 100 / 3.6, p.d + off);
+    sim.score.step(DT, p, sim.traffic);
+    expect(events.filter(e => e === 'laneSplit')).toHaveLength(1);
+    for (let i = 0; i < 3; i++) {
+      sim.traffic.reserve(sim.traffic.cars.length + 1);
+      sim.score.step(DT, p, sim.traffic);
+    }
+    expect(events.filter(e => e === 'laneSplit')).toHaveLength(1);
+    expect(sim.score.combo).toBe(1);
+  });
+
+  it.each([1, -1])('retains an in-progress near miss, its minimum gap and crossing sign %s across reserve', sign => {
+    const { sim, events } = setup(220);
+    const p = sim.player;
+    const off = p.halfExtentD() + sedan.wid / 2;
+    const c = sim.traffic.spawnAt(sedan, p.s + sign, 2, 100 / 3.6, p.d + off + 0.4)!;
+    const gaps: number[] = [];
+    sim.events.on('nearMiss', event => gaps.push(event.gap));
+    sim.score.step(DT, p, sim.traffic);
+    sim.traffic.reserve(sim.traffic.cars.length + 3);
+    // Widen while still alongside: the original closest gap must survive growth.
+    c.d = p.d + off + 3;
+    sim.score.step(DT, p, sim.traffic);
+    c.s = p.s - sign * 10;
+    sim.score.step(DT, p, sim.traffic);
+    expect(events.filter(e => e === 'nearMiss')).toHaveLength(1);
+    expect(gaps[0]).toBeCloseTo(0.4, 10);
+    expect(sim.score.near).toBe(1);
+    sim.score.step(DT, p, sim.traffic);
+    expect(sim.score.near).toBe(1);
+  });
+
   it('ends the run when the player hits a car', () => {
     const { sim, events } = setup(220);
     const p = sim.player;

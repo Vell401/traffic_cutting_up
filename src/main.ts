@@ -14,7 +14,7 @@ import { SKY_PRESETS, skyPreset, skySwatch } from './render/sky';
 import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
-import { bodyPhysics, type PhysicsId } from './sim/physics';
+import { bodyPhysics, createCar, type PhysicsId } from './sim/physics';
 import { getMap, mapSpawnS } from './sim/maps';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
@@ -56,6 +56,7 @@ import { TouchControls } from './ui/touchControls';
 import { Fullscreen } from './ui/fullscreen';
 import { loadMapSky, mapNavigation, modeNavigation, mountServerPicker, saveMapSky, saveSelectedMap, selectedMap } from './ui/serverPicker';
 import { Chat } from './ui/chat';
+import { isMenuControl } from './ui/menuInput';
 
 const params = new URLSearchParams(location.search);
 /** Test showcases retain their original road/theme; regular play keeps the selected instance. */
@@ -156,12 +157,12 @@ let touchSnapshot = '';
 function syncTouch(): void {
   const paused = state === 'pause' || onlineMenu;
   const driving = touchLayout.matches && state === 'play' && !onlineMenu && !chat.active && !loading.active;
-  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}/${chat.active}`;
+  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}/${chat.active}/${loading.active}`;
   if (snapshot === touchSnapshot) return;
   touchSnapshot = snapshot;
-  mixer.setVisible(state === 'menu' || paused);
-  startEl.inert = state !== 'menu';
-  pauseEl.inert = !paused;
+  mixer.setVisible(!loading.active && (state === 'menu' || paused));
+  startEl.inert = loading.active || state !== 'menu';
+  pauseEl.inert = loading.active || !paused;
   document.body.classList.toggle('touch-ui', touchLayout.matches);
   document.body.classList.toggle('driving-touch', driving);
   touch.setActive(driving);
@@ -178,7 +179,10 @@ function syncTouch(): void {
     }
     mobileAudio.remove();
   }
+  loading.refreshLocks(); // Audio moved out of an inert menu must stay locked until loading ends.
 }
+// Unlock synchronously: a loader must never clear the hidden overlays' lifecycle-owned inertness.
+loading.onLockChange = () => { touchSnapshot = ''; syncTouch(); };
 touchLayout.addEventListener('change', () => { touch.releaseAll(); syncTouch(); });
 
 sim.events.on('runEnd', (e) => {
@@ -336,7 +340,7 @@ const defaultName = loadName();
 const playerName = (): string => nameInput.value.trim().slice(0, 16) || defaultName;
 nameInput.value = defaultName;
 nameInput.addEventListener('keydown', (e) => {
-  if (e.code === 'Enter') start();
+  if (e.code === 'Enter') { e.preventDefault(); nameInput.blur(); }
   e.stopPropagation(); // typing a name must not drive, pause or switch cameras
 });
 nameInput.addEventListener('keyup', (e) => e.stopPropagation());
@@ -510,7 +514,7 @@ input.onPress = (code, event) => {
     else hud.tag('ПЕРЕДАЧИ Z / X — В РУЧНОМ РЕЖИМЕ (G)', 2);
   } else if (code === 'KeyQ' && state === 'play') setBlinker(1);
   else if (code === 'KeyE' && state === 'play') setBlinker(2);
-  else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
+  else if (state === 'menu' && (code === 'Enter' || code === 'Space') && !isMenuControl(event?.target ?? null)) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(ONLINE ? !onlineMenu : state === 'play');
   else if (code === 'KeyR' && state === 'play') {
     mouse.centre();
@@ -557,7 +561,6 @@ function choice<T extends number>(
     b.addEventListener('click', () => {
       show(it.id);
       onPick(it.id);
-      b.blur(); // keep Space/Enter for starting the run
     });
     seg.appendChild(b);
   }
@@ -569,10 +572,13 @@ const showPauseCar = choice('pauseCarSeg', 'pauseCarDesc', CARS, car, id => void
 let carRevision = 0;
 let choosingCar = false;
 let restoringCar = false;
+let carReady = true;
 async function chooseCar(id: CarId): Promise<void> {
-  if (id === car) return;
+  if (id === car && carReady) return;
   choosingCar = true;
   const revision = ++carRevision;
+  const previousCar = car, previousPaint = paint;
+  const authoritative = !!session && state !== 'menu';
   loading.begin('car', 'Готовим твою машину');
   try {
     await loading.stage(10, 'Подготовка модели');
@@ -580,32 +586,43 @@ async function chooseCar(id: CarId): Promise<void> {
       if (revision === carRevision) loading.set(15 + fraction * 70, unpacking ? 'Подготовка материалов' : 'Загрузка автомобиля');
     });
     if (revision !== carRevision) return;
-    const color = loadPaint(id);
-    if (session && state !== 'menu') await session.changeCar(id, color);
-    else sim.setPhysics(bodyPhysics(id), state !== 'menu');
+    const color = authoritative && id === car ? paint : loadPaint(id);
+    if (authoritative && id !== car) await session!.changeCar(id, color);
     if (revision !== carRevision) return;
+    // Solo changes are candidates until GPU readiness. Online changes may already be accepted:
+    // retain server physics/identity and retry only the visual preparation after a late failure.
+    if (authoritative) { car = id; paint = color; carReady = false; }
+    view.setPaint(color);
+    view.setCar(id, loadCameraMode(id) as CameraMode, authoritative ? sim.player.tune : createCar(bodyPhysics(id)).tune);
+    await loading.stage(92, 'Подготовка первого кадра');
+    await view.prepareCar();
+    if (revision !== carRevision) return;
+    // The first live draw is part of candidate readiness too. A solo failure must not end the old
+    // run or save an identity whose visual we then restore; accepted online physics stays installed.
+    view.render(1, 0);
+    if (!authoritative) sim.setPhysics(bodyPhysics(id), state !== 'menu');
     car = id;
     paint = color;
+    carReady = true;
     saveCar(id);
     sound.setCar(id);
-    view.setPaint(paint);
-    view.setCar(id, loadCameraMode(id) as CameraMode);
     showPaint();
     showCar(id);
     showPauseCar(id);
     pendingShift = 0;
     blinker = 0;
     mouse.centre();
-    await loading.stage(92, 'Подготовка первого кадра');
-    view.render(1, 0);
-    await view.prepareCar();
     if (revision === carRevision) loading.finish();
   } catch (error) {
     if (revision !== carRevision) return;
+    if (!authoritative) {
+      view.setPaint(previousPaint);
+      view.setCar(previousCar, loadCameraMode(previousCar) as CameraMode);
+    }
     showCar(car);
     showPauseCar(car);
     console.warn('Car selection failed', error);
-    loading.fail('Не удалось сменить автомобиль. Проверьте подключение и попробуйте ещё раз.', () => {}, 'Вернуться');
+    loading.fail('Не удалось подготовить автомобиль. Проверьте подключение и попробуйте ещё раз.', () => { void chooseCar(id); });
   } finally {
     if (revision === carRevision) choosingCar = false;
   }
@@ -613,10 +630,10 @@ async function chooseCar(id: CarId): Promise<void> {
 
 /** A dropped garage ACK must not leave the old visual body on the server's new chassis. */
 async function syncAuthoritativeCar(): Promise<void> {
-  if (!session || choosingCar) return;
+  if (!session || choosingCar || restoringCar) return;
   const owner = session;
   const own = owner.core.players.find(player => player.id === owner.core.id);
-  if (!own || own.physics !== sim.player.physicsId || (own.car === car && own.color === paint)) return;
+  if (!own || own.physics !== sim.player.physicsId || (own.car === car && own.color === paint && carReady)) return;
   const revision = ++carRevision;
   restoringCar = true;
   const showLoading = !loading.active;
@@ -626,6 +643,7 @@ async function syncAuthoritativeCar(): Promise<void> {
     if (owner !== session || revision !== carRevision) return;
     car = own.car;
     paint = own.color;
+    carReady = false;
     saveCar(car);
     sound.setCar(car);
     view.setPaint(paint);
@@ -634,6 +652,8 @@ async function syncAuthoritativeCar(): Promise<void> {
     showCar(car);
     showPauseCar(car);
     await view.prepareCar();
+    if (owner !== session || revision !== carRevision) return;
+    carReady = true;
     if (showLoading && revision === carRevision && loading.context === 'car-sync') loading.finish();
   } catch (error) {
     if (owner !== session || revision !== carRevision) return;
@@ -656,7 +676,7 @@ for (const [name, color] of paints) {
   const button = document.createElement('button');
   button.dataset.color = String(color); button.setAttribute('aria-label', name); button.title = name;
   button.style.setProperty('--paint', `#${color.toString(16).padStart(6, '0')}`);
-  button.onclick = () => { choosePaint(color); button.blur(); };
+  button.onclick = () => choosePaint(color);
   swatches.appendChild(button);
 }
 paintInput.addEventListener('input', () => choosePaint(parseInt(paintInput.value.slice(1),16)));
@@ -689,11 +709,8 @@ fitMenu();
 
 // The key list starts folded (unfolded, the card scales down to keep fitting).
 const keysBox = document.getElementById('keysBox') as HTMLDetailsElement;
-// Space / Enter after a click must start the run, not fold the list again.
-keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur());
 const pauseKeysBox = document.getElementById('pauseKeysBox')!;
 pauseKeysBox.appendChild(keysBox.querySelector('.keys')!.cloneNode(true));
-pauseKeysBox.addEventListener('toggle', () => pauseKeysBox.querySelector('summary')!.blur());
 
 // Sky: each button shows its gradient; a click repaints the scene behind the menu at once (the preview).
 {
@@ -716,7 +733,6 @@ pauseKeysBox.addEventListener('toggle', () => pauseKeysBox.querySelector('summar
       view.setSky(p.id);
       saveMapSky(MAP_ID, p.id);
       show();
-      b.blur();
     });
     // Hovering previews it too; leaving puts the chosen one back.
     b.addEventListener('pointerenter', () => view.setSky(p.id));

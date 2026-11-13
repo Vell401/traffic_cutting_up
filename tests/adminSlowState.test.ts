@@ -98,7 +98,7 @@ async function fixture(options: { map?: unknown; status?: number; latency?: numb
     querySelectorAll: (selector: string) => body.querySelectorAll(selector),
     createElement: (tag: string) => new Element(tag),
   };
-  const data = new Map([['tcu.admin.highway', 'old-token']]);
+  const data = new Map([['tcu.admin', 'old-token']]);
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } };
   vi.stubGlobal('document', document);
   vi.stubGlobal('window', globalThis);
@@ -186,12 +186,12 @@ describe('production admin slow state polling', () => {
     await vi.advanceTimersByTimeAsync(2000); // Queue a coalesced old-session poll.
     f.el('logout').click();
     expect(f.signals[0].aborted).toBe(true);
-    expect(f.storage.getItem('tcu.admin.highway')).toBeNull();
+    expect(f.storage.getItem('tcu.admin')).toBeNull();
     expect(f.fetch.mock.calls.find(([url]) => url.endsWith('/logout'))![1].signal!.aborted).toBe(false);
     await f.login();
     expect(f.stats().started).toBe(2);
     await vi.advanceTimersByTimeAsync(400); // Old response arrives; new response is not ready.
-    expect(f.storage.getItem('tcu.admin.highway')).toBe('new-token');
+    expect(f.storage.getItem('tcu.admin')).toBe('new-token');
     expect(f.app.querySelector('.login')).toBeNull();
     expect(f.document.querySelector('.wrap')!.inert).toBe(true);
     expect(f.el('meta').textContent).toBe('');

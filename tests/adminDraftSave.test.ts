@@ -13,9 +13,13 @@ class Node {
   textContent = '';
   tabIndex = 0;
   inert = false;
+  disabled = false;
+  files: File[] = [];
   private html = '';
   constructor(readonly tag = 'div') {}
   get id() { return this.attributes.id ?? ''; }
+  get options() { return this.children; }
+  get isConnected(): boolean { return this.tag === 'body' || !!this.parent?.isConnected; }
   get dataset() { return Object.fromEntries(Object.entries(this.attributes).filter(([k]) => k.startsWith('data-')).map(([k, v]) => [k.slice(5).replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()), v])); }
   get className() { return this.attributes.class ?? ''; }
   set className(value: string) { this.attributes.class = value; }
@@ -42,9 +46,14 @@ class Node {
       }
       const node = new Node(tag);
       for (const attr of attrs.matchAll(/([\w-]+)(?:="([^"]*)")?/g)) node.attributes[attr[1]] = attr[2] ?? '';
+      node.inert = 'inert' in node.attributes;
+      node.hidden = 'hidden' in node.attributes;
       node.value = node.attributes.value ?? '';
       stack.at(-1)!.appendChild(node);
       if (!['input', 'img', 'br', 'hr', 'meta', 'link'].includes(tag)) stack.push(node);
+    }
+    for (const select of this.querySelectorAll('select')) {
+      select.value = (select.children.find(option => 'selected' in option.attributes) ?? select.children[0])?.value ?? '';
     }
   }
   appendChild(node: Node) { node.parent = this; this.children.push(node); return node; }
@@ -81,7 +90,7 @@ class Node {
   get elements() { return { namedItem: (name: string) => this.querySelector(`[name=${name}]`) }; }
 }
 
-let dom: { body: Node; activeElement: Node | null; getElementById: (id: string) => Node | null; querySelector: (selector: string) => Node | null; createElement: (tag: string) => Node };
+let dom: { body: Node; activeElement: Node | null; getElementById: (id: string) => Node | null; querySelector: (selector: string) => Node | null; querySelectorAll: (selector: string) => Node[]; createElement: (tag: string) => Node };
 const settle = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -89,16 +98,32 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
-async function setup() {
+async function setup(options: { map?: string; loggedIn?: boolean; legacy?: boolean } = {}) {
   vi.resetModules();
   vi.useFakeTimers();
   const body = new Node('body'), app = new Node();
   app.attributes.id = 'app'; body.appendChild(app);
-  dom = { body, activeElement: null, getElementById: id => body.querySelector(`#${id}`), querySelector: selector => body.querySelector(selector), createElement: tag => new Node(tag) };
-  const storage = new Map([['tcu.admin.highway', 'test-session']]);
+  dom = { body, activeElement: null, getElementById: id => body.querySelector(`#${id}`), querySelector: selector => body.querySelector(selector), querySelectorAll: selector => body.querySelectorAll(selector), createElement: tag => new Node(tag) };
+  const storage = new Map(options.legacy ? [['tcu.admin.highway', 'legacy-highway'], ['tcu.admin.miami', 'legacy-miami']] : options.loggedIn === false ? [] : [['tcu.admin', 'test-session']]);
   vi.stubGlobal('document', dom);
   vi.stubGlobal('window', globalThis);
-  vi.stubGlobal('location', { search: '', href: 'http://localhost/admin.html' });
+  const location = new URL(`http://localhost/admin.html?map=${options.map ?? 'highway'}&server=https://untrusted.test&token=secret&password=secret`);
+  vi.stubGlobal('location', location);
+  // Browser history boundary only: the real entry point still owns every map transition.
+  const entries = [location.href]; let historyIndex = 0;
+  const history = {
+    get length() { return entries.length; },
+    pushState: vi.fn((_state: unknown, _unused: string, url: string | URL) => {
+      location.href = new URL(url, location.href).href;
+      entries.splice(++historyIndex, entries.length, location.href);
+    }),
+    replaceState: vi.fn((_state: unknown, _unused: string, url: string | URL) => {
+      location.href = new URL(url, location.href).href; entries[historyIndex] = location.href;
+    }),
+    back: () => { if (historyIndex > 0) location.href = entries[--historyIndex]; },
+    forward: () => { if (historyIndex + 1 < entries.length) location.href = entries[++historyIndex]; },
+  };
+  vi.stubGlobal('history', history);
   vi.stubGlobal('sessionStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) });
   vi.stubGlobal('confirm', () => true);
   vi.stubGlobal('FormData', class {
@@ -113,8 +138,9 @@ async function setup() {
     map: 'highway', tuning, defaults: defaultTuning(),
     server: { version: 'test', uptimeS: 1, rssMB: 1, connections: 0, stepAvgMs: 0, stepMaxMs: 0, tick: 1, seed: 1, rules: 'test' },
     rules: { maxPlayers: 8, tickHz: 60, ringKm: 10 }, drivers: [], bans: [], modes: [],
-    traffic: { on: false, cars: 0 }, radio: { playlists: [] },
+    traffic: { on: false, cars: 0, mode: 'normal', held: false, densities: [], maxPerKm: 80, lanes: 4, windowKm: 1, capacity: 100 }, radio: { playlists: [{ id: 'fixture', name: 'Fixture', tracks: [] }] },
   };
+  const miamiState = structuredClone(serverState); miamiState.map = 'miami'; miamiState.server.version = 'miami-test';
   type TuningBody = { car?: string; values?: CarTuning; traffic?: GlobalTuning['traffic']; resetCar?: string; resetTraffic?: boolean };
   const saves: { body: TuningBody; gate: ReturnType<typeof deferred<Response>> }[] = [];
   let nextStateGate: ReturnType<typeof deferred<void>> | null = null;
@@ -122,7 +148,9 @@ async function setup() {
     const gate = deferred<void>(); nextStateGate = gate;
     return async () => { gate.resolve(); await settle(); };
   };
-  const response = (data: unknown) => new Response(JSON.stringify(data), { status: 200 });
+  const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
+  const pendingStates: { url: string; signal: AbortSignal; gate: ReturnType<typeof deferred<Response>> }[] = [];
+  let holdStates = false, miamiStatus = 200;
   const fetch = vi.fn(async (url: string, options?: RequestInit) => {
     if (url.endsWith('/tuning')) {
       const gate = deferred<Response>();
@@ -131,19 +159,34 @@ async function setup() {
     }
     if (url.endsWith('/login')) return response({ token: 'new-session' });
     if (url.endsWith('/state')) {
+      if (holdStates) {
+        const gate = deferred<Response>(); pendingStates.push({ url, signal: options!.signal as AbortSignal, gate }); return gate.promise;
+      }
       const gate = nextStateGate; nextStateGate = null;
-      const snapshot = response(serverState);
+      const miami = url.includes('/miami/');
+      const snapshot = response(miami ? miamiState : serverState, miami ? miamiStatus : 200);
       if (gate) await gate.promise;
       return snapshot;
     }
     return response({});
   });
+  const uploads: FakeXHR[] = [];
+  class FakeXHR {
+    url = ''; status = 200; responseText = '{}'; timeout = 0; aborted = false;
+    headers: Record<string, string> = {}; upload: { onprogress?: (event: unknown) => void } = {};
+    onload?: () => void; onerror?: () => void; onabort?: () => void; ontimeout?: () => void;
+    open(_method: string, url: string) { this.url = url; }
+    setRequestHeader(key: string, value: string) { this.headers[key] = value; }
+    send(_file: File) { uploads.push(this); }
+    abort() { this.aborted = true; this.onabort?.(); }
+  }
+  vi.stubGlobal('XMLHttpRequest', FakeXHR);
   vi.stubGlobal('fetch', fetch);
   await import('../src/admin/main');
   await settle();
   const get = (id: string) => dom.getElementById(id)!;
   const panel = (id: string) => get(`admin-tab-${id}`).fire('click');
-  panel('tuning');
+  if (get('admin-tab-tuning')) panel('tuning');
   const release = async (index = saves.length - 1) => {
     const save = saves[index], b = save.body;
     if (b.values && b.car) Object.assign(tuning.cars[b.car], b.values);
@@ -154,7 +197,10 @@ async function setup() {
   };
   const edit = (input: Node, value: number) => { input.value = String(value); input.fire('input'); };
   const poll = async () => { await vi.advanceTimersByTimeAsync(2000); await settle(); };
-  return { get, panel, release, saves, serverState, edit, poll, fetch, holdNextState };
+  const switchMap = async (map: string) => { const picker = get('adminInstance'); picker.value = map; picker.fire('change'); await settle(); };
+  const login = async () => { const form = dom.querySelector('form')!; form.querySelector('[name=password]')!.value = 'synthetic'; form.fire('submit'); await settle(); };
+  return { get, panel, release, saves, serverState, miamiState, edit, poll, fetch, holdNextState, storage, history, location, switchMap, login, uploads, pendingStates, response,
+    holdStates: () => { holdStates = true; }, miamiStatus: (status: number) => { miamiStatus = status; } };
 }
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -260,5 +306,127 @@ describe('production admin saves preserve newer mounted drafts', () => {
     expect(power.value).toBe('497'); expect(speed.value).toBe('121');
     expect(get('carTuneFields').querySelector('[name=powerKW]')).toBe(power);
     expect(get('trafficSpeedForm').querySelector('[name=speed-0-0]')).toBe(speed);
+  });
+});
+
+describe('production admin shared session and world lifecycle', () => {
+  it('logs in centrally from a Miami deep link and switches both ways without navigation or another login', async () => {
+    const f = await setup({ map: 'miami', loggedIn: false });
+    await f.login();
+    expect(f.fetch.mock.calls.find(([url]) => url.endsWith('/login'))![0]).toBe('/api/admin/login');
+    expect(f.storage.get('tcu.admin')).toBe('new-session');
+    await f.switchMap('highway');
+    expect(f.get('meta').textContent).toContain('версия test');
+    await f.switchMap('miami');
+    expect(f.get('meta').textContent).toContain('miami-test');
+    expect(f.history.replaceState).toHaveBeenCalledTimes(2);
+    expect(f.history.pushState).not.toHaveBeenCalled();
+    expect(f.location.search).toBe('?map=miami');
+    expect(f.fetch.mock.calls.filter(([url]) => url.endsWith('/login'))).toHaveLength(1);
+    f.get('logout').fire('click'); await settle();
+    expect(f.fetch.mock.calls.find(([url]) => url.endsWith('/logout'))![0]).toBe('/api/admin/logout');
+    expect(f.storage.has('tcu.admin')).toBe(false);
+  });
+
+  it('does not import obsolete per-world bearers into the shared session', async () => {
+    const f = await setup({ legacy: true });
+    expect(dom.querySelector('.login')).not.toBeNull();
+    expect(f.fetch).not.toHaveBeenCalled();
+    expect(f.storage.has('tcu.admin')).toBe(false);
+  });
+
+  it.each(['draft', 'upload', 'both'])('refusing a switch with %s preserves the mounted form and any upload', async kind => {
+    const f = await setup();
+    const input = f.get('carTuneFields').querySelector('[name=powerKW]')!;
+    if (kind !== 'upload') f.edit(input, 497);
+    f.panel('radio');
+    const files = f.get('radioFiles');
+    if (kind !== 'draft') { files.files = [new File(['fixture'], 'fixture.wav')]; files.fire('change'); }
+    vi.stubGlobal('confirm', vi.fn(() => false));
+    await f.switchMap('miami');
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(f.get('adminInstance').value).toBe('highway');
+    expect(f.get('carTuneFields').querySelector('[name=powerKW]')).toBe(input);
+    expect(input.value).toBe(kind === 'upload' ? '495' : '497'); expect(f.get('radioFiles')).toBe(files);
+    expect(files.files).toHaveLength(kind === 'draft' ? 0 : 1);
+    if (kind !== 'draft') expect(f.uploads[0].aborted).toBe(false);
+    expect(f.history.pushState).not.toHaveBeenCalled();
+    expect(f.history.replaceState).not.toHaveBeenCalled();
+  });
+
+  it.each(['clean', 'draft', 'upload'])('Back/Forward cannot resurrect an old map in a %s dashboard', async kind => {
+    const f = await setup();
+    await f.switchMap('miami');
+    f.panel('tuning');
+    const input = f.get('carTuneFields').querySelector('[name=powerKW]')!;
+    if (kind === 'draft') f.edit(input, 497);
+    f.panel('radio');
+    const files = f.get('radioFiles');
+    if (kind === 'upload') { files.files = [new File(['fixture'], 'fixture.wav')]; files.fire('change'); }
+    const confirmSwitch = vi.fn(() => false); vi.stubGlobal('confirm', confirmSwitch);
+    const before = f.fetch.mock.calls.length;
+    // Map selection replaces the only entry. With no prior document, traversal is a no-op.
+    // Native traversal to/from a prior document is covered separately in Edge acceptance.
+    f.history.back(); await settle();
+    expect(f.location.search).toBe('?map=miami');
+    expect(f.get('adminInstance').value).toBe('miami');
+    expect(f.get('meta').textContent).toContain('miami-test');
+    f.history.forward(); await settle();
+    expect(f.location.search).toBe('?map=miami');
+    expect(f.history.length).toBe(1);
+    expect(f.storage.get('tcu.admin')).toBe('test-session');
+    expect(f.get('carTuneFields').querySelector('[name=powerKW]')).toBe(input);
+    expect(input.value).toBe(kind === 'draft' ? '497' : '495');
+    expect(f.get('radioFiles')).toBe(files);
+    if (kind === 'upload') { expect(files.files).toHaveLength(1); expect(f.uploads[0].aborted).toBe(false); }
+    expect(confirmSwitch).not.toHaveBeenCalled();
+    expect(f.fetch.mock.calls).toHaveLength(before);
+    f.get('saveMax').fire('click'); await settle();
+    expect(f.fetch.mock.calls.filter(([url]) => url.endsWith('/players')).map(([url]) => url)).toEqual(['/api/admin/maps/miami/players']);
+    expect(f.fetch.mock.calls.some(([url]) => url.endsWith('/login'))).toBe(false);
+  });
+
+  for (const status of [200, 401]) it(`accepting a switch aborts old requests and ignores their late ${status} and upload reply`, async () => {
+    const f = await setup(); f.panel('radio');
+    f.get('radioFiles').files = [new File(['fixture'], 'fixture.wav')]; f.get('radioFiles').fire('change');
+    f.holdStates(); await f.poll();
+    const old = f.pendingStates[0];
+    await f.switchMap('miami');
+    expect(old.signal.aborted).toBe(true); expect(f.uploads[0].aborted).toBe(true);
+    expect(f.storage.get('tcu.admin')).toBe('test-session');
+    expect(dom.querySelector('.wrap')!.inert).toBe(true);
+    const calls = f.fetch.mock.calls.length; f.get('saveMax').fire('click'); await settle();
+    expect(f.fetch.mock.calls).toHaveLength(calls);
+    old.gate.resolve(f.response(f.serverState, status)); f.uploads[0].status = 401; f.uploads[0].onload?.(); await settle();
+    expect(f.storage.get('tcu.admin')).toBe('test-session'); expect(dom.querySelector('.login')).toBeNull();
+    expect(f.get('meta').textContent).toBe(''); expect(dom.querySelector('.wrap')!.inert).toBe(true);
+    const next = f.pendingStates[1]; expect(next.url).toBe('/api/admin/maps/miami/state');
+    next.gate.resolve(f.response(f.miamiState)); await settle();
+    expect(dom.querySelector('.wrap')!.inert).toBe(false); expect(f.get('meta').textContent).toContain('miami-test');
+    f.get('saveMax').fire('click'); await settle();
+    expect(f.fetch.mock.calls.filter(([url]) => url.endsWith('/players')).map(([url]) => url)).toEqual(['/api/admin/maps/miami/players']);
+  });
+
+  it('offline Miami and wrong-map state block writes without losing the Highway session', async () => {
+    const f = await setup(); f.miamiStatus(503); await f.switchMap('miami');
+    expect(dom.querySelector('.wrap')!.inert).toBe(true); expect(f.get('live').textContent).toContain('503');
+    expect(f.storage.get('tcu.admin')).toBe('test-session');
+    f.get('saveMax').fire('click'); await settle();
+    expect(f.fetch.mock.calls.some(([url]) => url.endsWith('/players'))).toBe(false);
+    await f.switchMap('highway'); expect(dom.querySelector('.wrap')!.inert).toBe(false);
+    f.miamiStatus(200); f.miamiState.map = 'highway'; await f.switchMap('miami');
+    expect(f.get('live').textContent).toContain('другой карты'); expect(dom.querySelector('.wrap')!.inert).toBe(true);
+    await f.switchMap('highway'); expect(dom.querySelector('.wrap')!.inert).toBe(false);
+    expect(f.storage.get('tcu.admin')).toBe('test-session');
+    expect(f.fetch.mock.calls.filter(([url]) => url.endsWith('/login'))).toHaveLength(0);
+  });
+
+  it('a current central 401 on Miami clears the one shared session and returns to the common login', async () => {
+    const f = await setup({ map: 'miami' }); f.miamiStatus(401); await f.poll();
+    expect(dom.querySelector('.login')).not.toBeNull(); expect(f.storage.has('tcu.admin')).toBe(false);
+    f.miamiStatus(200);
+    await f.login();
+    expect(f.fetch.mock.calls.find(([url]) => url.endsWith('/login'))![0]).toBe('/api/admin/login');
+    expect(f.storage.get('tcu.admin')).toBe('new-session');
   });
 });

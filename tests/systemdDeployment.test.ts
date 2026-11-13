@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import type { IncomingMessage } from 'node:http';
+import { clientIp, createClientAddressResolver } from '../server/clientAddress';
 
 const unitPath = fileURLToPath(new URL('../deploy/traffic-server.service', import.meta.url));
 const unit = readFileSync(unitPath, 'utf8');
@@ -95,6 +97,25 @@ describe('systemd durable storage and sandbox configuration', () => {
     for (const path of ['/opt/traffic', '/opt/traffic/dist-server/main.js', '/etc', '/usr', '/']) {
       expect([...stateRoots, ...logRoots].some(root => contains(root, path)), path).toBe(false);
     }
+  });
+
+  it('pairs loopback-only proxy trust with nginx remote-address overwrite and safe direct defaults', () => {
+    const nginx = readFileSync(new URL('../deploy/nginx.conf', import.meta.url), 'utf8');
+    const caddy = readFileSync(new URL('../deploy/Caddyfile', import.meta.url), 'utf8');
+    const headers = new Map([...nginx.matchAll(/proxy_set_header\s+(\S+)\s+([^;]+);/g)].map(match => [match[1].toLowerCase(), match[2]]));
+    const resolve = createClientAddressResolver(environment.TRUSTED_PROXIES ?? '');
+    const request = (peer: string, forwarded: string) => ({ socket: { remoteAddress: peer }, headers: { 'x-forwarded-for': forwarded } }) as unknown as IncomingMessage;
+    for (const remote of ['198.51.100.1', '198.51.100.2']) {
+      const forwarded = headers.get('x-forwarded-for') === '$remote_addr' ? remote : '203.0.113.99';
+      expect(resolve(request('127.0.0.1', forwarded))).toBe(remote);
+      expect(resolve(request('127.0.0.2', remote))).toBe('127.0.0.2');
+      expect(clientIp(request('127.0.0.1', remote))).toBe('127.0.0.1');
+    }
+    expect(environment.HOST).toBe('127.0.0.1');
+    expect(environment.TRUSTED_PROXIES).toBe('127.0.0.1');
+    expect(headers.get('x-forwarded-for')).toBe('$remote_addr');
+    expect(nginx).toContain('proxy_pass http://127.0.0.1:8787;');
+    expect(caddy).toContain('reverse_proxy /ws 127.0.0.1:8787');
   });
 });
 

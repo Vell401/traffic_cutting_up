@@ -29,6 +29,8 @@ services:
       RADIO_DIR: /data/radio
       # Admin page (/admin.html): from the repository secret ADMIN_PASSWORD via the deploy workflow.
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_MIAMI_URL: http://game-miami:8787
+      ADMIN_MIAMI_PASSWORD: ${ADMIN_MIAMI_PASSWORD:-${ADMIN_PASSWORD:-}}
     expose:
       - "8787"
     networks: [client_proxy]
@@ -60,6 +62,10 @@ services:
     environment:
       <<: *game-environment
       MAP_ID: miami
+      ADMIN_PASSWORD: ${ADMIN_MIAMI_PASSWORD:-${ADMIN_PASSWORD:-}}
+      # The shared environment anchor includes Highway's destination. Never self-proxy Miami.
+      ADMIN_MIAMI_URL: ""
+      ADMIN_MIAMI_PASSWORD: ""
     volumes:
       - miami_data:/data
 

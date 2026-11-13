@@ -75,6 +75,12 @@ export class TyreEffects {
   private nextMark = 0;
   private smokeEmitted = 0;
   private marksEmitted = 0;
+  private smokeAlive = 0;
+  private marksAlive = 0;
+  private smokePending = false;
+  private marksPending = false;
+  private ox = NaN;
+  private oz = NaN;
   private disposed = false;
   private readonly contact = new THREE.Vector3();
   private readonly dummy = new THREE.Object3D();
@@ -90,6 +96,7 @@ export class TyreEffects {
     geometry.instanceCount = TYRE_EFFECT_BUDGET.smoke;
     this.smoke = new THREE.Mesh(geometry, new THREE.ShaderMaterial({ vertexShader: smokeVertex, fragmentShader: smokeFragment, transparent: true, depthWrite: false }));
     this.smoke.frustumCulled = false; this.smoke.renderOrder = 3;
+    this.smoke.visible = false;
     const skidGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     skidGeo.setAttribute('markAlpha', new THREE.InstancedBufferAttribute(this.markAlpha, 1).setUsage(THREE.DynamicDrawUsage));
     this.skids = new THREE.InstancedMesh(skidGeo, new THREE.ShaderMaterial({
@@ -106,6 +113,7 @@ export class TyreEffects {
     }), TYRE_EFFECT_BUDGET.skids);
     this.skids.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.skids.frustumCulled = false; this.skids.renderOrder = 1;
+    this.skids.visible = false;
     this.group.add(this.skids, this.smoke);
     this.group.name = 'TyreEffects/pooled';
   }
@@ -145,6 +153,7 @@ export class TyreEffects {
   private puff(x: number, y: number, z: number, vx: number, vz: number, intensity: number): void {
     const i = this.nextSmoke, o = i * 3;
     this.nextSmoke = (i + 1) % TYRE_EFFECT_BUDGET.smoke; this.smokeEmitted++;
+    this.smokePending = true;
     this.world[o] = x + (Math.random() - .5) * .13; this.world[o + 1] = y; this.world[o + 2] = z + (Math.random() - .5) * .13;
     this.velocity[o] = vx + (Math.random() - .5) * .5;
     this.velocity[o + 1] = .32 + Math.random() * .38;
@@ -156,6 +165,7 @@ export class TyreEffects {
   private mark(ax: number, az: number, bx: number, bz: number, intensity: number): void {
     const i = this.nextMark, o = i * 4;
     this.nextMark = (i + 1) % TYRE_EFFECT_BUDGET.skids; this.marksEmitted++;
+    this.marksPending = true;
     this.markWorld[o] = ax; this.markWorld[o + 1] = az; this.markWorld[o + 2] = bx; this.markWorld[o + 3] = bz;
     this.markLife[i] = TYRE_EFFECT_BUDGET.skidLife; this.markPower[i] = intensity;
     this.markDirty[i] = 1;
@@ -164,43 +174,66 @@ export class TyreEffects {
   update(dt: number, ox: number, oz: number): void {
     if (this.disposed) return;
     dt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
-    for (let i = 0; i < TYRE_EFFECT_BUDGET.smoke; i++) {
-      const o = i * 3;
-      this.life[i] = Math.max(0, this.life[i] - dt);
-      if (!this.life[i]) { this.puffs[o] = this.puffs[o + 1] = 0; continue; }
-      const drag = Math.exp(-dt * .65), travel = (1 - drag) / .65;
-      this.world[o] += this.velocity[o] * travel; this.world[o + 2] += this.velocity[o + 2] * travel;
-      this.velocity[o] *= drag; this.velocity[o + 2] *= drag;
-      this.world[o + 1] += this.velocity[o + 1] * dt;
-      const age = 1 - this.life[i] / this.duration[i];
-      this.centres[o] = this.world[o] - ox; this.centres[o + 1] = this.world[o + 1]; this.centres[o + 2] = this.world[o + 2] - oz;
-      this.puffs[o] = .28 + age * (1.45 + this.power[i] * .65);
-      this.puffs[o + 1] = (.13 + this.power[i] * .15) * Math.min(1, age * 12) * (1 - age) ** 1.6;
-      this.puffs[o + 2] = this.seed[i] + age * .045;
-    }
-    this.smoke.geometry.getAttribute('centre').needsUpdate = true;
-    this.smoke.geometry.getAttribute('puff').needsUpdate = true;
-    for (let i = 0; i < TYRE_EFFECT_BUDGET.skids; i++) {
-      this.markLife[i] = Math.max(0, this.markLife[i] - dt);
-      this.markAlpha[i] = this.markLife[i] ? .38 * this.markPower[i] * Math.min(1, this.markLife[i] / 6) : 0;
-      if (!this.markLife[i]) continue;
-      const o = i * 4, ax = this.markWorld[o], az = this.markWorld[o + 1], bx = this.markWorld[o + 2], bz = this.markWorld[o + 3];
-      if (this.markDirty[i]) {
-        // A mark's orientation/size never changes. Keep Three's exact composition for new/reused
-        // slots; thereafter only floating-origin translation changes (same Float32 rounding).
-        this.dummy.position.set((ax + bx) * .5 - ox, .018, (az + bz) * .5 - oz);
-        this.dummy.rotation.set(0, Math.atan2(bx - ax, bz - az), 0);
-        this.dummy.scale.set(.205, 1, Math.hypot(bx - ax, bz - az) + .035);
-        this.dummy.updateMatrix(); this.skids.setMatrixAt(i, this.dummy.matrix);
-        this.markDirty[i] = 0;
-      } else {
-        const matrix = this.skids.instanceMatrix.array, m = i * 16;
-        matrix[m + 12] = (ax + bx) * .5 - ox;
-        matrix[m + 14] = (az + bz) * .5 - oz;
+    const rebase = ox !== this.ox || oz !== this.oz;
+    let centresDirty = false, puffsDirty = false, matricesDirty = false, alphaDirty = false;
+    if ((this.smokeAlive || this.smokePending) && (dt > 0 || rebase || this.smokePending)) {
+      this.smokeAlive = 0;
+      for (let i = 0; i < TYRE_EFFECT_BUDGET.smoke; i++) {
+        const o = i * 3;
+        this.life[i] = Math.max(0, this.life[i] - dt);
+        if (!this.life[i]) {
+          if (this.puffs[o] || this.puffs[o + 1]) puffsDirty = true;
+          this.puffs[o] = this.puffs[o + 1] = 0; continue;
+        }
+        this.smokeAlive++;
+        const drag = Math.exp(-dt * .65), travel = (1 - drag) / .65;
+        this.world[o] += this.velocity[o] * travel; this.world[o + 2] += this.velocity[o + 2] * travel;
+        this.velocity[o] *= drag; this.velocity[o + 2] *= drag;
+        this.world[o + 1] += this.velocity[o + 1] * dt;
+        const age = 1 - this.life[i] / this.duration[i];
+        this.centres[o] = this.world[o] - ox; this.centres[o + 1] = this.world[o + 1]; this.centres[o + 2] = this.world[o + 2] - oz;
+        this.puffs[o] = .28 + age * (1.45 + this.power[i] * .65);
+        this.puffs[o + 1] = (.13 + this.power[i] * .15) * Math.min(1, age * 12) * (1 - age) ** 1.6;
+        this.puffs[o + 2] = this.seed[i] + age * .045;
+        centresDirty = true;
+        if (dt > 0 || this.smokePending) puffsDirty = true;
       }
     }
-    this.skids.instanceMatrix.needsUpdate = true;
-    this.skids.geometry.getAttribute('markAlpha').needsUpdate = true;
+    this.smoke.visible = this.smokeAlive > 0;
+    if (centresDirty) this.smoke.geometry.getAttribute('centre').needsUpdate = true;
+    if (puffsDirty) this.smoke.geometry.getAttribute('puff').needsUpdate = true;
+    if ((this.marksAlive || this.marksPending) && (dt > 0 || rebase || this.marksPending)) {
+      this.marksAlive = 0;
+      for (let i = 0; i < TYRE_EFFECT_BUDGET.skids; i++) {
+        this.markLife[i] = Math.max(0, this.markLife[i] - dt);
+        const alpha = this.markAlpha[i];
+        this.markAlpha[i] = this.markLife[i] ? .38 * this.markPower[i] * Math.min(1, this.markLife[i] / 6) : 0;
+        if (alpha !== this.markAlpha[i]) alphaDirty = true;
+        if (!this.markLife[i]) continue;
+        this.marksAlive++;
+        const o = i * 4, ax = this.markWorld[o], az = this.markWorld[o + 1], bx = this.markWorld[o + 2], bz = this.markWorld[o + 3];
+        if (this.markDirty[i]) {
+          // A mark's orientation/size never changes. Keep Three's exact composition for new/reused
+          // slots; thereafter only floating-origin translation changes (same Float32 rounding).
+          this.dummy.position.set((ax + bx) * .5 - ox, .018, (az + bz) * .5 - oz);
+          this.dummy.rotation.set(0, Math.atan2(bx - ax, bz - az), 0);
+          this.dummy.scale.set(.205, 1, Math.hypot(bx - ax, bz - az) + .035);
+          this.dummy.updateMatrix(); this.skids.setMatrixAt(i, this.dummy.matrix);
+          this.markDirty[i] = 0;
+          matricesDirty = true;
+        } else if (rebase) {
+          const matrix = this.skids.instanceMatrix.array, m = i * 16;
+          matrix[m + 12] = (ax + bx) * .5 - ox;
+          matrix[m + 14] = (az + bz) * .5 - oz;
+          matricesDirty = true;
+        }
+      }
+    }
+    this.skids.visible = this.marksAlive > 0;
+    if (matricesDirty) this.skids.instanceMatrix.needsUpdate = true;
+    if (alphaDirty) this.skids.geometry.getAttribute('markAlpha').needsUpdate = true;
+    this.smokePending = this.marksPending = false;
+    this.ox = ox; this.oz = oz;
   }
 
   resetTrails(): void { this.trail.fill(0); this.emission.reset(); }

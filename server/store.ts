@@ -54,6 +54,7 @@ export class Store {
   private readonly players;
   private readonly insertLog;
   private logs = 0;
+  private readonly runRevisions: Record<RunMode, number> = { solo: 0, online: 0 };
 
   constructor(path: string) {
     this.db = new DatabaseSync(path);
@@ -115,7 +116,13 @@ export class Store {
   addRun(r: RunRecord, at = Date.now()): boolean {
     if (r.score < MIN_SCORE) return false;
     this.insertRun.run(r.mode, r.name, Math.floor(r.score), r.car, r.physics, Math.floor(r.near), Math.round(r.topKmh), +r.seconds.toFixed(1), at);
+    this.runRevisions[r.mode]++;
     return true;
+  }
+
+  /** Process-local cache invalidation; all run mutations go through this Store instance. */
+  runRevision(mode: RunMode): number {
+    return this.runRevisions[mode];
   }
 
   leaderboard(mode: RunMode, limit = 10): LeaderEntry[] {
@@ -166,7 +173,9 @@ export class Store {
 
   /** Delete every run of one player (any letter case) in one mode (admin: a cheated or offensive entry). */
   removeRuns(mode: RunMode, name: string): number {
-    return Number(this.db.prepare('DELETE FROM runs WHERE mode = ? AND lower(name) = lower(?)').run(mode, name).changes);
+    const changes = Number(this.db.prepare('DELETE FROM runs WHERE mode = ? AND lower(name) = lower(?)').run(mode, name).changes);
+    if (changes) this.runRevisions[mode]++;
+    return changes;
   }
 
   close(): void {

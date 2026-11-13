@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Api, claimDatabaseMap } from '../server/api';
 import { Store, type RunRecord } from '../server/store';
@@ -72,7 +73,7 @@ function scored(driver: Driver) {
 }
 
 describe.each(['highway', 'miami'] as const)('%s permanent run persistence', map => {
-  it.each(['expiry', 'kick', 'ban', 'connected vehicle change', 'offline vehicle change'] as const)('stores the current run exactly once on %s', async reason => {
+  it.each(['expiry', 'kick', 'ban', 'leave', 'shutdown', 'offline shutdown', 'connected vehicle change', 'offline vehicle change'] as const)('stores the current run exactly once on %s', async reason => {
     const f = await fixture(map);
     const original = f.open();
     scored(original.driver);
@@ -87,6 +88,14 @@ describe.each(['highway', 'miami'] as const)('%s permanent run persistence', map
     } else if (reason === 'kick' || reason === 'ban') {
       expect(f.game.kickDriver(original.driver.id, reason === 'ban' ? 5 : 0)).toBe(original.driver.name);
       if (reason === 'ban') expect(f.game.bans.get('192.0.2.13')).toBeGreaterThan(Date.now());
+    } else if (reason === 'leave') {
+      original.conn.receive(JSON.stringify({ t: 'leave' }));
+    } else if (reason === 'shutdown' || reason === 'offline shutdown') {
+      if (reason === 'offline shutdown') original.conn.close();
+      f.game.closeAll('restart');
+      f.game.finalizeRuns();
+      expect(f.game.playerCount).toBe(0);
+      expect(f.game.connectionCount).toBe(0);
     } else {
       if (reason === 'offline vehicle change') original.conn.close();
       const replacement = f.open(original.token, 4, 4);
@@ -106,17 +115,19 @@ describe.each(['highway', 'miami'] as const)('%s permanent run persistence', map
     expect(at).toBeGreaterThanOrEqual(started);
     expect(at).toBeLessThanOrEqual(Date.now());
     expect(f.game.kickDriver(original.driver.id)).toBeNull();
+    if (reason.includes('shutdown')) f.game.finalizeRuns();
     original.conn.close();
     f.advance(480);
     expect(f.calls).toHaveLength(1);
     expect(f.rowCount()).toBe(1);
   });
 
-  it.each(['offline reconnect', 'live replacement', 'cosmetic body change'] as const)('keeps %s in the same unsubmitted run', async reason => {
+  it.each(['offline reconnect', 'transport closeAll', 'live replacement', 'cosmetic body change'] as const)('keeps %s in the same unsubmitted run', async reason => {
     const f = await fixture(map);
     const original = f.open();
     scored(original.driver);
-    if (reason !== 'live replacement') original.conn.close();
+    if (reason === 'transport closeAll') f.game.closeAll('temporary transport restart');
+    else if (reason !== 'live replacement') original.conn.close();
     f.advance(120);
     const replacement = f.open(original.token, 5, reason === 'cosmetic body change' ? 4 : 2);
     expect(replacement.driver).toBe(original.driver);
@@ -162,6 +173,61 @@ describe.each(['highway', 'miami'] as const)('%s permanent run persistence', map
     expect(f.rowCount()).toBe(0);
     expect(observer.messages.filter(message => message.t === 'feed' && message.text.includes('рекорд'))).toHaveLength(0);
     expect(original.messages.filter(message => message.t === 'ev' && message.name === 'runEnd')).toHaveLength(0);
+  });
+
+  it.each(['leave', 'shutdown'] as const)('does not resubmit empty or ended runs on repeated %s cleanup', async reason => {
+    const f = await fixture(map);
+    const empty = f.open();
+    const ended = f.open();
+    scored(ended.driver);
+    ended.driver.score.endRun();
+    expect(f.calls).toHaveLength(1);
+    const cleanup = () => {
+      if (reason === 'leave') {
+        empty.conn.receive(JSON.stringify({ t: 'leave' }));
+        ended.conn.receive(JSON.stringify({ t: 'leave' }));
+      } else {
+        ended.conn.close();
+        f.game.closeAll('restart');
+        f.game.finalizeRuns();
+      }
+    };
+    cleanup();
+    cleanup();
+    expect(f.game.playerCount).toBe(0);
+    expect(f.game.world.drivers).toHaveLength(0);
+    expect(f.calls).toHaveLength(1);
+    expect(f.rowCount()).toBe(1);
+  });
+
+  it('executes production shutdown finalization before storage closure and ignores repeated signals', async () => {
+    const f = await fixture(map);
+    const connected = f.open();
+    const offline = f.open();
+    scored(connected.driver);
+    scored(offline.driver);
+    offline.conn.close();
+    const phases: string[] = [];
+    const main = readFileSync(new URL('../server/main.ts', import.meta.url), 'utf8');
+    // Execute the checked-in shutdown body without importing main (which opens persistent storage).
+    const shutdown = main.slice(main.indexOf('function shutdown('), main.indexOf("process.on('SIGINT'")).replace('function shutdown(signal: string): void', 'function shutdown(signal)');
+    runInNewContext(`${shutdown}\nshutdown('SIGTERM'); shutdown('SIGINT');`, {
+      shuttingDown: false, game: f.game, heartbeat: 1, status: 2, log() {}, clearInterval() {},
+      journal: { end() { phases.push('journal'); } },
+      api: { close() { phases.push('api'); } },
+      store: { close() {
+        expect(f.calls).toHaveLength(2);
+        expect(f.rowCount()).toBe(2);
+        expect(f.game.playerCount).toBe(0);
+        expect(f.game.connectionCount).toBe(0);
+        phases.push('store');
+      } },
+      wss: { close() { phases.push('wss'); } },
+      http: { close(done: () => void) { phases.push('http'); done(); } },
+      process: { exit(code: number) { expect(code).toBe(0); phases.push('exit'); } },
+      setTimeout() { return { unref() {} }; },
+    });
+    expect(phases).toEqual(['journal', 'api', 'store', 'wss', 'http', 'exit']);
   });
 
   it('persists a genuinely new run after a crash without repeating the crashed run', async () => {

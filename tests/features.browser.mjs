@@ -1,8 +1,11 @@
 // Integrated feature acceptance against two isolated servers behind the Vite proxy.
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
+import { mkdirSync } from 'node:fs';
 const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_MODULE || 'C:/Users/sosi/AppData/Local/Temp/opencode/traffic-browser-check/node_modules/playwright/index.mjs').href);
 const base = process.env.FEATURE_BASE_URL || 'http://127.0.0.1:5186';
+const output = process.env.FEATURE_OUTPUT_DIR || 'C:/Users/sosi/AppData/Local/Temp/opencode';
+mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
   args: ['--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const errors = [];
@@ -33,7 +36,7 @@ try {
     await page.locator('#c').click({ force: true });
     await page.keyboard.press('KeyP');
     await page.waitForFunction(() => document.body.classList.contains('paused'));
-    if (process.env.FEATURE_SCREENSHOTS === '1') await page.screenshot({ path: `C:/Users/sosi/AppData/Local/Temp/opencode/integrated-${map}.png`, timeout: 120000 });
+    if (process.env.FEATURE_SCREENSHOTS === '1') await page.screenshot({ path: `${output}/integrated-${map}.png`, timeout: 120000 });
     await page.goto(`${base}/admin.html?map=${map}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.locator('input[name=password]').fill(process.env.FEATURE_ADMIN_PASSWORD || 'local-acceptance-only');
     await page.locator('button[type=submit]').click();
@@ -53,14 +56,14 @@ try {
     await page.locator('#playlistName').fill(playlistName);
     await page.locator('#createPlaylist').click();
     await page.waitForFunction(name => document.querySelector('#radioPlaylist option:checked')?.textContent.includes(name), playlistName);
-    const prefix = map === 'miami' ? '/miami' : '';
+    const prefix = map === 'miami' ? '/api/admin/maps/miami' : '/api/admin';
     let releaseUpload;
     const gate = new Promise(resolve => { releaseUpload = resolve; });
-    const uploadPattern = `**${prefix}/api/admin/radio/upload?*`;
+    const uploadPattern = `**${prefix}/radio/upload?*`;
     await page.route(uploadPattern, async route => {
       const response = await route.fetch();
       assert.equal(response.status(), 200);
-      assert.equal(new URL(route.request().url()).pathname, `${prefix}/api/admin/radio/upload`);
+      assert.equal(new URL(route.request().url()).pathname, `${prefix}/radio/upload`);
       await gate; await route.fulfill({ response });
     });
     await page.locator('#radioFiles').setInputFiles({ name: 'acceptance.wav', mimeType: 'audio/wav', buffer: wav() });
@@ -93,11 +96,11 @@ try {
   await mobile.waitForFunction(() => window.__game.input.drive.throttle === 0);
   await mobile.locator('#touchControls button').filter({ hasText: 'Пауза' }).click();
   await mobile.waitForFunction(() => document.body.classList.contains('paused'));
-  if (process.env.FEATURE_SCREENSHOTS === '1') await mobile.screenshot({ path: 'C:/Users/sosi/AppData/Local/Temp/opencode/integrated-miami-phone.png', timeout: 120000 });
+   if (process.env.FEATURE_SCREENSHOTS === '1') await mobile.screenshot({ path: `${output}/integrated-miami-phone.png`, timeout: 120000 });
   await phone.close();
   // A misrouted proxy must not enable mutations even with a valid stored login.
   const context = await browser.newContext(); const page = await context.newPage();
-  await page.route('**/miami/api/admin/state', route => route.fulfill({ json: { map: 'highway' } }));
+  await page.route('**/api/admin/maps/miami/state', route => route.fulfill({ json: { map: 'highway' } }));
   await page.goto(`${base}/admin.html?map=miami`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.locator('input[name=password]').fill(process.env.FEATURE_ADMIN_PASSWORD || 'local-acceptance-only');
   await page.locator('button[type=submit]').click();

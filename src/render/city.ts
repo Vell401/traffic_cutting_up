@@ -52,9 +52,11 @@ export function makeCityMaterial(theme: MapTheme = 'highway'): THREE.ShaderMater
         if (vWin.w >= 0.0) {
           float seed = floor(vWin.z + 0.5);
           vec2 g = vWin.xy / vec2(3.2, 3.5);
+          if (coastal > 0.5) g = vWin.xy / vec2(2.8, 3.5);
           vec2 cell = floor(g);
           vec2 f = fract(g);
           float win = step(0.16, f.x) * step(f.x, 0.84) * step(0.22, f.y) * step(f.y, 0.78);
+          if (coastal > 0.5) win = step(0.23, f.x) * step(f.x, 0.77) * step(0.27, f.y) * step(f.y, 0.75);
           float h = hash(cell + seed * 13.17);
           lit = win * step(h, vWin.w) * step(1.0, vWin.y);
           vec3 warm = vec3(1.0, 0.68, 0.38);
@@ -63,6 +65,12 @@ export function makeCityMaterial(theme: MapTheme = 'highway'): THREE.ShaderMater
           float bright = 0.5 + 1.1 * hash(cell * 1.7 + seed * 3.1);
           col = mix(col, vColor * 0.4 + vec3(0.015), win * (1.0 - lit));
           col += wc * bright * lit * 1.4;
+          if (coastal > 0.5) {
+            // Stable floor spandrels and mullions supply structure without textures or time noise.
+            float slab = step(0.92, f.y);
+            col = mix(col, vColor * shade * 1.2, slab);
+            col -= wc * bright * lit * 0.4;
+          }
         }
         float fogF = smoothstep(fogNear, fogFar, vFogDepth);
         col = mix(col, fogColor, fogF * (1.0 - 0.55 * lit));

@@ -12,8 +12,7 @@ import { SERVER_OPTIONS } from '../ui/serverPicker';
  * token kept for this tab only.
  */
 
-const INSTANCE = adminInstance(new URLSearchParams(location.search));
-const API = INSTANCE.api;
+let INSTANCE = adminInstance(new URLSearchParams(location.search));
 const TOKEN_KEY = INSTANCE.tokenKey;
 let instanceVerified = false;
 
@@ -25,13 +24,18 @@ function bindInstancePicker(): void {
   const picker = document.getElementById('adminInstance') as HTMLSelectElement;
   picker.addEventListener('change', () => {
     const map = picker.value;
-    if (map !== 'highway' && map !== 'miami') return;
+    if ((map !== 'highway' && map !== 'miami') || map === INSTANCE.map) return;
     if ((tuneDirty || speedDirty || uploading) && !confirm('Сменить сервер? Несохранённые настройки и текущая загрузка будут потеряны.')) {
       picker.value = INSTANCE.map;
       return;
     }
-    resetDashboard();
-    location.href = adminMapNavigation(new URL(location.href), map).href;
+    const next = adminMapNavigation(new URL(location.href), map);
+    INSTANCE = adminInstance(next.searchParams);
+    // Keep the deep link current without leaving obsolete same-document map entries.
+    // Back/Forward navigate documents, not unguarded target changes in this dashboard.
+    history.replaceState(null, '', next);
+    if (token) showDashboard();
+    else showLogin();
   });
 }
 const MODE_NAMES: Record<string, string> = {
@@ -135,7 +139,9 @@ async function call<T>(path: string, body?: object, signal = sessionRequests.sig
   if (body && path !== 'login' && path !== 'logout' && !instanceVerified) throw new Error('Карта сервера ещё не подтверждена');
   const epoch = dashboardEpoch;
   try {
-    const res = await fetch(`${API}/${path}`, {
+    // Authentication belongs to the central gateway, never to a selected world.
+    const api = path === 'login' || path === 'logout' ? '/api/admin' : INSTANCE.api;
+    const res = await fetch(`${api}/${path}`, {
       method: body ? 'POST' : 'GET',
       headers: { ...(body ? { 'content-type': 'application/json' } : {}), authorization: `Bearer ${token}` },
       body: body ? JSON.stringify(body) : undefined,
@@ -196,8 +202,8 @@ function showLogin(message = ''): void {
     <div class="login">
       <form>
         <img src="/favicon.svg" alt="" />
-        <h1>Админка сервера</h1>
-        <label>Сервер ${instancePicker()}</label>
+        <h1>Общий вход в админку</h1>
+        <label>Целевая карта ${instancePicker()}</label>
         <input type="password" name="password" placeholder="Пароль" autocomplete="current-password" autofocus />
         <button class="primary" type="submit">Войти</button>
         <div class="err">${esc(message)}</div>
@@ -286,7 +292,7 @@ function showDashboard(): void {
       <img src="/favicon.svg" alt="" />
       <div>
         <h1>Traffic Cutting Up · админка</h1>
-        <label>Сервер ${instancePicker()}</label>
+        <label>Целевая карта ${instancePicker()}</label>
         <div class="meta" id="meta"></div>
       </div>
       <div class="grow"></div>
@@ -447,7 +453,7 @@ function showDashboard(): void {
   let storage: Storage | undefined;
   try { storage = sessionStorage; } catch { /* optional preference */ }
   tabs = mountAdminTabs(app, {
-    server: new URL(API, location.href).href,
+    server: new URL(INSTANCE.api, location.href).href,
     login: token,
     storage,
     onChange: selectPanel,
@@ -780,7 +786,7 @@ async function uploadRadio(input: HTMLInputElement): Promise<void> {
       if (!type) throw new Error(`Неподдерживаемый файл: ${file.name}`);
       await new Promise<void>((resolve, reject) => {
         const xhr = uploadRequest = new XMLHttpRequest();
-        xhr.open('POST', `${API}/radio/upload?${new URLSearchParams({ playlist, title: file.name.replace(/\.[^.]+$/, '') })}`);
+        xhr.open('POST', `${INSTANCE.api}/radio/upload?${new URLSearchParams({ playlist, title: file.name.replace(/\.[^.]+$/, '') })}`);
         xhr.setRequestHeader('authorization', `Bearer ${uploadToken}`); xhr.setRequestHeader('content-type', type); xhr.timeout = 180000;
         xhr.upload.onprogress = event => { if (epoch === dashboardEpoch) progress.textContent = `${i + 1}/${files.length} · ${file.name} · ${event.lengthComputable ? Math.round(event.loaded / event.total * 100) : 0}%`; };
         xhr.onload = () => {

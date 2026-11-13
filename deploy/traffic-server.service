@@ -18,6 +18,8 @@ ExecStart=/usr/bin/node dist-server/main.js
 Environment=NODE_ENV=production
 Environment=PORT=8787
 Environment=HOST=127.0.0.1
+# Both shipped standalone proxy templates connect over this exact loopback address.
+Environment=TRUSTED_PROXIES=127.0.0.1
 Environment=ORIGINS=https://traffic.example.com
 Environment=MAX_PLAYERS=5
 Environment=LOG_EVERY=60

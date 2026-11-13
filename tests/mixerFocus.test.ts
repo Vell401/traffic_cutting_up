@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { stripTypeScriptTypes } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
 import { describe, expect, it } from 'vitest';
@@ -10,10 +11,23 @@ const executable = process.env.PLAYWRIGHT_EXECUTABLE_PATH
   || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 
 describe('mixer driving focus lifecycle', () => {
-  it('wires menu, solo pause and online pause visibility through the shared state sync', () => {
+  it.each([
+    ['menu', false, false, true], ['play', false, false, false], ['pause', false, false, true],
+    ['play', true, false, true], ['menu', false, true, false], ['pause', false, true, false], ['play', true, true, false],
+  ] as const)('sets mixer visibility from lifecycle state %s / onlinePause=%s / loading=%s', (state, onlineMenu, active, expected) => {
     const main = readFileSync(resolve('src/main.ts'), 'utf8');
-    expect(main).toContain("const paused = state === 'pause' || onlineMenu;");
-    expect(main).toContain("mixer.setVisible(state === 'menu' || paused);");
+    const start = main.indexOf('function syncTouch():');
+    const end = main.indexOf('touchLayout.addEventListener(', start);
+    if (start < 0 || end <= start) throw new Error('Missing production syncTouch');
+    let visible: boolean | undefined;
+    const env = {
+      state, onlineMenu, loading: { active, refreshLocks() {} }, chat: { active: false },
+      touchLayout: { matches: false }, touch: { setActive() {} },
+      mixer: { setVisible(value: boolean) { visible = value; } }, startEl: {}, pauseEl: {},
+      document: { body: { classList: { toggle() {} } } }, audioPanels: [], mobileAudio: { remove() {} },
+    };
+    new Function(...Object.keys(env), stripTypeScriptTypes(`let touchSnapshot = '';\n${main.slice(start, end)}\nsyncTouch();`))(...Object.values(env));
+    expect(visible).toBe(expected);
   });
 
   // Native Tab navigation and visibility cannot be verified by a DOM stub.
