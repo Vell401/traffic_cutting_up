@@ -15,6 +15,7 @@ import { ringScript, RING_LEN } from '../src/sim/ring';
 import { mulberry32 } from '../src/core/rng';
 import { createTyreFeedback, sampleTyreFeedback } from '../src/presentation/tyres';
 import { TyreEffects, TyreEmissionClock, TYRE_EFFECT_BUDGET } from '../src/render/tyreEffects';
+import { rendererHarness } from './rendererHarness';
 
 const zero = new THREE.Vector3();
 const matrix = (mesh: THREE.InstancedMesh, wheel: number): number[] => {
@@ -95,11 +96,12 @@ describe('independent presentation wheel phases', () => {
 
   it('keeps deferred remote detail phases current behind the proxy without hidden-time catch-up', async () => {
     const remote = new RemoteCar(2, 0x225599, new THREE.Texture(), 4.6, 1.785);
-    const renderer = { compileAsync: vi.fn().mockResolvedValue(undefined) } as unknown as THREE.WebGLRenderer;
+    const renderer = rendererHarness() as unknown as THREE.WebGLRenderer;
+    const scene = new THREE.Scene(); scene.add(remote.root);
     const car = new R34Car() as R34Car & { visualWheelOmega?: ArrayLike<number> };
     car.visualWheelOmega = new Float64Array([0, 0, 5, -4]); car.wheelSpin = 999;
     try {
-      await remote.prepare(renderer, new THREE.PerspectiveCamera(), new THREE.Scene());
+      await remote.prepare(renderer, new THREE.PerspectiveCamera(), scene);
       const detail = (remote as unknown as { detail: PlayerView }).detail;
       remote.update(.1, car, zero, 0, 100);
       remote.update(.1, car, zero, 0, 300);

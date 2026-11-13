@@ -14,7 +14,7 @@ import { SKY_PRESETS, skyPreset, skySwatch } from './render/sky';
 import { CARS, type CarId } from './sim/cars';
 import type { DriveInput } from './sim/vehicle';
 import { TRAFFIC_PRESETS } from './sim/director';
-import { bodyPhysics, type PhysicsId } from './sim/physics';
+import { bodyPhysics, createCar, type PhysicsId } from './sim/physics';
 import { getMap, mapSpawnS } from './sim/maps';
 import { SHOWCASES } from './sim/testTrack';
 import { Sim } from './sim/world';
@@ -572,10 +572,13 @@ const showPauseCar = choice('pauseCarSeg', 'pauseCarDesc', CARS, car, id => void
 let carRevision = 0;
 let choosingCar = false;
 let restoringCar = false;
+let carReady = true;
 async function chooseCar(id: CarId): Promise<void> {
-  if (id === car) return;
+  if (id === car && carReady) return;
   choosingCar = true;
   const revision = ++carRevision;
+  const previousCar = car, previousPaint = paint;
+  const authoritative = !!session && state !== 'menu';
   loading.begin('car', 'Готовим твою машину');
   try {
     await loading.stage(10, 'Подготовка модели');
@@ -583,32 +586,41 @@ async function chooseCar(id: CarId): Promise<void> {
       if (revision === carRevision) loading.set(15 + fraction * 70, unpacking ? 'Подготовка материалов' : 'Загрузка автомобиля');
     });
     if (revision !== carRevision) return;
-    const color = loadPaint(id);
-    if (session && state !== 'menu') await session.changeCar(id, color);
-    else sim.setPhysics(bodyPhysics(id), state !== 'menu');
+    const color = authoritative && id === car ? paint : loadPaint(id);
+    if (authoritative && id !== car) await session!.changeCar(id, color);
     if (revision !== carRevision) return;
+    // Solo changes are candidates until GPU readiness. Online changes may already be accepted:
+    // retain server physics/identity and retry only the visual preparation after a late failure.
+    if (authoritative) { car = id; paint = color; carReady = false; }
+    view.setPaint(color);
+    view.setCar(id, loadCameraMode(id) as CameraMode, authoritative ? sim.player.tune : createCar(bodyPhysics(id)).tune);
+    await loading.stage(92, 'Подготовка первого кадра');
+    await view.prepareCar();
+    if (revision !== carRevision) return;
+    if (!authoritative) sim.setPhysics(bodyPhysics(id), state !== 'menu');
     car = id;
     paint = color;
+    carReady = true;
     saveCar(id);
     sound.setCar(id);
-    view.setPaint(paint);
-    view.setCar(id, loadCameraMode(id) as CameraMode);
     showPaint();
     showCar(id);
     showPauseCar(id);
     pendingShift = 0;
     blinker = 0;
     mouse.centre();
-    await loading.stage(92, 'Подготовка первого кадра');
     view.render(1, 0);
-    await view.prepareCar();
     if (revision === carRevision) loading.finish();
   } catch (error) {
     if (revision !== carRevision) return;
+    if (!authoritative) {
+      view.setPaint(previousPaint);
+      view.setCar(previousCar, loadCameraMode(previousCar) as CameraMode);
+    }
     showCar(car);
     showPauseCar(car);
     console.warn('Car selection failed', error);
-    loading.fail('Не удалось сменить автомобиль. Проверьте подключение и попробуйте ещё раз.', () => {}, 'Вернуться');
+    loading.fail('Не удалось подготовить автомобиль. Проверьте подключение и попробуйте ещё раз.', () => { void chooseCar(id); });
   } finally {
     if (revision === carRevision) choosingCar = false;
   }
@@ -616,10 +628,10 @@ async function chooseCar(id: CarId): Promise<void> {
 
 /** A dropped garage ACK must not leave the old visual body on the server's new chassis. */
 async function syncAuthoritativeCar(): Promise<void> {
-  if (!session || choosingCar) return;
+  if (!session || choosingCar || restoringCar) return;
   const owner = session;
   const own = owner.core.players.find(player => player.id === owner.core.id);
-  if (!own || own.physics !== sim.player.physicsId || (own.car === car && own.color === paint)) return;
+  if (!own || own.physics !== sim.player.physicsId || (own.car === car && own.color === paint && carReady)) return;
   const revision = ++carRevision;
   restoringCar = true;
   const showLoading = !loading.active;
@@ -629,6 +641,7 @@ async function syncAuthoritativeCar(): Promise<void> {
     if (owner !== session || revision !== carRevision) return;
     car = own.car;
     paint = own.color;
+    carReady = false;
     saveCar(car);
     sound.setCar(car);
     view.setPaint(paint);
@@ -637,6 +650,8 @@ async function syncAuthoritativeCar(): Promise<void> {
     showCar(car);
     showPauseCar(car);
     await view.prepareCar();
+    if (owner !== session || revision !== carRevision) return;
+    carReady = true;
     if (showLoading && revision === carRevision && loading.context === 'car-sync') loading.finish();
   } catch (error) {
     if (owner !== session || revision !== carRevision) return;

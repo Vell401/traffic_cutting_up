@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RemoteCar } from '../src/render/remoteCar';
 import { View } from '../src/render/view';
 import { PlayerCar } from '../src/sim/vehicle';
+import { rendererHarness } from './rendererHarness';
 
 const control = vi.hoisted(() => ({ fail: true, created: 0, disposed: 0 }));
 vi.mock('../src/render/playerView', async () => {
@@ -26,9 +27,46 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
-const renderer = () => ({ compileAsync: vi.fn(async () => {}) }) as unknown as THREE.WebGLRenderer;
+const renderer = () => rendererHarness() as unknown as THREE.WebGLRenderer;
 
 describe('remote car fallback and retries', () => {
+  it('yields between actual lazy texture/geometry uploads, keeping the proxy until all batches finish', async () => {
+    control.fail = false;
+    const remote = new RemoteCar(1, 0xffffff, new THREE.Texture(), 4.6, 1.9), scene = new THREE.Scene(); scene.add(remote.root);
+    const r = rendererHarness(); let draws = 0;
+    r.render.mockImplementation(() => {
+      draws++; remote.update(1, new PlayerCar(), new THREE.Vector3(), 0, 20);
+      expect(remote.root.children[0].visible).toBe(true);
+    });
+    const task = remote.prepare(r as unknown as THREE.WebGLRenderer, new THREE.PerspectiveCamera(), scene);
+    await vi.runAllTimersAsync(); await task;
+    expect(draws).toBeGreaterThan(0);
+    remote.update(1, new PlayerCar(), new THREE.Vector3(), 0, 20);
+    expect(remote.root.children[0].visible).toBe(false); remote.dispose();
+  });
+
+  it('does not reveal or retain readiness when disposed during shader preparation', async () => {
+    control.fail = false;
+    const remote = new RemoteCar(1, 0xffffff, new THREE.Texture(), 4.6, 1.9), r = rendererHarness();
+    let finish!: () => void;
+    r.compileAsync.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    const task = remote.prepare(r as unknown as THREE.WebGLRenderer, new THREE.PerspectiveCamera(), new THREE.Scene());
+    await vi.runAllTimersAsync(); remote.dispose(); finish(); await vi.runAllTimersAsync(); await task;
+    expect(r.render).not.toHaveBeenCalled(); expect(remote.root.children).toHaveLength(1);
+  });
+
+  it('retries an upload failure with a fresh detail while retaining the proxy and renderer state', async () => {
+    control.fail = false;
+    const remote = new RemoteCar(1, 0xffffff, new THREE.Texture(), 4.6, 1.9), scene = new THREE.Scene(); scene.add(remote.root);
+    const r = rendererHarness(), target = r.getRenderTarget(); r.render.mockImplementationOnce(() => { throw new Error('upload'); });
+    const failed = expect(remote.prepare(r as unknown as THREE.WebGLRenderer, new THREE.Camera(), scene)).rejects.toThrow('upload');
+    await vi.runAllTimersAsync(); await failed;
+    expect(remote.root.children).toHaveLength(1); expect(remote.root.children[0].visible).toBe(true);
+    expect(r.getRenderTarget()).toBe(target);
+    const retry = remote.prepare(r as unknown as THREE.WebGLRenderer, new THREE.Camera(), scene);
+    await vi.runAllTimersAsync(); await retry;
+    expect(control.created).toBe(2); expect(control.disposed).toBe(1); remote.dispose();
+  });
   it('keeps the proxy visible after failure, then fades it only after a successful retry', async () => {
     const remote = new RemoteCar(1, 0xffffff, new THREE.Texture(), 4.6, 1.9);
     const proxy = remote.root.children[0];

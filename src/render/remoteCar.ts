@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
 import { PlayerView } from './playerView';
+import { prepareObjectBatched } from './prepareObject';
 
 /** Screen-door fade: no transparent sorting, extra render pass or changes to shared materials. */
 export function revealMaterials(root: THREE.Object3D): { value: number } {
@@ -49,6 +50,7 @@ export class RemoteCar {
   private disposed = false;
   private preparing = false;
   private fade = 0;
+  private prepared = false;
 
   constructor(readonly car: CarId, private color: number, private readonly shadow: THREE.Texture, private readonly length: number, private readonly width: number) {
     this.paint = new THREE.MeshStandardMaterial({ color, roughness: .55, metalness: .25 });
@@ -75,7 +77,7 @@ export class RemoteCar {
   setPaint(color: number): void { this.color = color; this.paint.color.setHex(color); this.detail?.setPaint(color); }
 
   async prepare(renderer: THREE.WebGLRenderer, camera: THREE.Camera, scene: THREE.Scene): Promise<void> {
-    if (this.disposed || this.preparing || this.detail?.root.parent) return;
+    if (this.disposed || this.preparing || this.prepared) return;
     this.preparing = true;
     try {
       // Called outside render(), and serialized by View to avoid join/reconnect bursts.
@@ -85,13 +87,16 @@ export class RemoteCar {
       await view.ready;
       if (this.disposed) return;
       this.reveal = revealMaterials(view.root);
-      await renderer.compileAsync(view.root, camera, scene);
-      if (!this.disposed) { view.root.visible = false; this.root.add(view.root); }
+      view.root.visible = false;
+      this.root.add(view.root);
+      await prepareObjectBatched(renderer, scene, camera, view.root, () => !this.disposed && this.detail === view);
+      if (!this.disposed && this.detail === view) this.prepared = true;
     } catch (error) {
       this.detail?.dispose();
       this.detail = null;
       this.reveal = null;
       this.fade = 0;
+      this.prepared = false;
       this.proxy.visible = true;
       throw error;
     } finally {
@@ -102,7 +107,7 @@ export class RemoteCar {
   update(dt: number, car: PlayerCar, pos: THREE.Vector3, yaw: number, distance: number): void {
     this.root.position.copy(pos); this.root.rotation.y = -yaw;
     const view = this.detail;
-    if (!view?.root.parent || !this.reveal) return;
+    if (!this.prepared || !view?.root.parent || !this.reveal) return;
     // Hysteresis prevents rebuilding/toggling a detailed car at the distance boundary.
     const close = distance < (view.root.visible ? 160 : 130);
     view.root.visible = close;
@@ -115,6 +120,7 @@ export class RemoteCar {
 
   dispose(): void {
     this.disposed = true;
+    this.prepared = false;
     this.detail?.dispose();
     const materials = new Set<THREE.Material>();
     this.proxy.traverse(o => { const m = (o as THREE.Mesh).material; if (m) for (const mat of Array.isArray(m) ? m : [m]) materials.add(mat); });

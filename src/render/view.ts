@@ -21,6 +21,7 @@ import { TrafficView } from './trafficView';
 import { RemoteCar, revealMaterials } from './remoteCar';
 import { ResolutionBudget } from './resolution';
 import { r34ChaseYaw } from './r34Feedback';
+import { prepareObject } from './prepareObject';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
@@ -37,6 +38,9 @@ export class View {
   private playerView: PlayerView;
   private readonly playerViews = new Map<CarId, { view: PlayerView; length: number; width: number }>();
   private readonly carPreparations = new WeakMap<PlayerView, Promise<void>>();
+  private readonly preparedCars = new WeakSet<PlayerView>();
+  private carSelection = 0;
+  private preparingOwnCar: Promise<void> | null = null;
   private readonly trafficView: TrafficView;
   private readonly lampLights = new LampLights();
   private readonly sky: THREE.Group;
@@ -154,6 +158,9 @@ export class View {
   }
 
   render(alpha: number, dt: number): void {
+    // Keep live frames from replacing compileAsync's in-flight material programs. The loader owns
+    // this short interval; variants and renderer state are still restored at every synchronous step.
+    if (this.preparingOwnCar && this.carPreparations.get(this.playerView) === this.preparingOwnCar) return;
     const sim = this.sim;
     const p = sim.player;
     this.time += dt;
@@ -312,24 +319,44 @@ export class View {
     return this.chase.mode;
   }
 
-  /** Compile after attachment, once per cached car, including both Porsche material sets. */
+  /** Attach, compile and upload all own-car camera/material variants before readiness. */
   prepareCar(): Promise<void> {
     const player = this.playerView;
     const existing = this.carPreparations.get(player);
     if (existing) return existing;
+    const selection = this.carSelection;
+    const current = () => player === this.playerView && selection === this.carSelection && this.playerViews.get(player.car)?.view === player;
     const prepare = (async () => {
-      await player.ready;
-      if (player !== this.playerView) return;
-      await this.renderer.compileAsync(this.scene, this.camera);
-      if (player !== this.playerView || player.car !== 1 || !player.hasCockpit) return;
-      player.setCockpit(this.cameraMode !== 'cockpit');
-      try { await this.renderer.compileAsync(this.scene, this.camera); }
-      finally { player.setCockpit(this.cameraMode === 'cockpit'); }
+      try { await player.ready; }
+      catch (error) {
+        // Attachment readiness is immutable: retry must build a fresh instance, not reuse rejection.
+        if (this.playerViews.get(player.car)?.view === player) this.playerViews.delete(player.car);
+        player.dispose();
+        throw error;
+      }
+      if (!current()) return;
+      for (const cockpit of player.hasCockpit ? [false, true] : [false]) {
+        for (const ghost of [false, true]) {
+          await prepareObject(this.renderer, this.scene, this.camera, player.root, {
+            current,
+            variant: () => {
+              player.setCockpit(cockpit); player.setGhost(ghost);
+              return () => { player.setCockpit(this.cameraMode === 'cockpit'); player.setGhost(this.sim.player.ghost); };
+            },
+          });
+          if (!current()) return;
+        }
+      }
     })().then(() => {
       // A superseded menu choice was not actually compiled; it is still preparable later.
-      if (player !== this.playerView) this.carPreparations.delete(player);
-    }, error => { this.carPreparations.delete(player); throw error; });
+      if (current()) this.preparedCars.add(player);
+      else if (this.carPreparations.get(player) === prepare) this.carPreparations.delete(player);
+    }, error => {
+      if (this.carPreparations.get(player) === prepare) this.carPreparations.delete(player);
+      throw error;
+    }).finally(() => { if (this.preparingOwnCar === prepare) this.preparingOwnCar = null; });
     this.carPreparations.set(player, prepare);
+    this.preparingOwnCar = prepare;
     return prepare;
   }
 
@@ -357,21 +384,8 @@ export class View {
         revealMaterials(spare.root).value = 1;
         spare.root.position.copy(this.playerView.root.position);
         this.scene.add(spare.root);
-        await this.renderer.compileAsync(spare.root, this.camera, this.scene);
-        // compileAsync only compiles programs: the first draw must also upload geometry/textures.
-        const target = new THREE.WebGLRenderTarget(4, 4);
-        const previous = this.renderer.getRenderTarget();
-        const culled: THREE.Object3D[] = [];
-        spare.root.traverse(o => { if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
-        try {
-          this.renderer.setRenderTarget(target);
-          this.renderer.render(this.scene, this.camera);
-        } finally {
-          this.renderer.setRenderTarget(previous);
-          target.dispose();
-          for (const o of culled) o.frustumCulled = true;
-          spare.root.visible = false;
-        }
+        await prepareObject(this.renderer, this.scene, this.camera, spare.root);
+        spare.root.visible = false;
         this.remoteSpares.push(spare); // Keep shared shader programs resident for future joins.
       } catch (error) {
         spare.dispose();
@@ -387,14 +401,16 @@ export class View {
   }
 
   /** Our car's body changed (menu choice): new model, its own camera rig (keeping `mode` if it has one). */
-  setCar(car: CarId, mode?: CameraMode): CameraMode {
-    if (car === this.playerView.car) {
+  setCar(car: CarId, mode?: CameraMode, dimensions = this.sim.player.tune): CameraMode {
+    if (car === this.playerView.car && this.playerViews.get(car)?.view === this.playerView) {
       if (mode) this.chase.setRig(CAMERA_RIGS[car], mode);
       this.applyCameraMode();
       return this.chase.mode;
     }
+    this.carSelection = (this.carSelection ?? 0) + 1;
+    if (!this.preparedCars.has(this.playerView)) this.carPreparations.delete(this.playerView);
     this.tyreEffects.resetTrails();
-    const { length, width } = this.sim.player.tune;
+    const { length, width } = dimensions;
     const cached = this.playerViews.get(car);
     if (cached && (cached.length !== length || cached.width !== width)) {
       cached.view.dispose();

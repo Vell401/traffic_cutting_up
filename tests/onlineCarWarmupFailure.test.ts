@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlayerView } from '../src/render/playerView';
 import type { View } from '../src/render/view';
 import type { CarId } from '../src/sim/cars';
+import { rendererHarness } from './rendererHarness';
 
 // Use the real builders, readiness chains and warmup method; only HTTP and GPU work are replaced.
 const files = { 1: 'porsche-911', 3: 'mercedes-a45s', 4: 'mercedes-w204' } as const;
 const model = (): GLTF => {
   const scene = new THREE.Group();
-  scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.4, 4.6), new THREE.MeshStandardMaterial()));
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.4, 4.6), new THREE.MeshStandardMaterial({ name: 'leather' }));
+  cabin.name = 'warm-cabin'; scene.add(cabin);
   for (const corner of ['FL', 'FR', 'RL', 'RR']) {
     const wheel = new THREE.Group();
     wheel.name = `Wheel_${corner}`;
@@ -122,13 +124,12 @@ async function harness(car: CarId = 2) {
   const { PlayerView } = await import('../src/render/playerView');
   const { View } = await import('../src/render/view');
   const shadowTex = new THREE.Texture();
-  const selected = new PlayerView(car, 0x123456, shadowTex, 4.6, 1.9, false);
-  const renderer = {
-    compileAsync: vi.fn().mockResolvedValue(undefined),
-    getRenderTarget: vi.fn().mockReturnValue(null), setRenderTarget: vi.fn(), render: vi.fn(),
-  };
+  const selected = new PlayerView(car, 0x123456, shadowTex, 4.6, 1.9);
+  const renderer = rendererHarness();
   const view = Object.assign(Object.create(View.prototype), {
     playerView: selected, remoteSpares: [], shadowTex, renderer,
+    playerViews: new Map([[car, { view: selected, length: 4.6, width: 1.9 }]]),
+    carPreparations: new WeakMap(), preparedCars: new WeakSet(), sim: { player: { ghost: false } }, chase: { mode: 'bumper' },
     camera: new THREE.PerspectiveCamera(), scene: new THREE.Scene(),
   }) as Harness;
   view.scene.add(selected.root);
@@ -137,6 +138,29 @@ async function harness(car: CarId = 2) {
 }
 
 describe('optional online car warmup failure', () => {
+  it('warms real selected Porsche exterior/cockpit opaque/ghost materials after attachment and restores bumper state', async () => {
+    const g = new Proxy({ createRadialGradient: () => ({ addColorStop() {} }) }, {
+      get: (target, key) => key in target ? target[key as keyof typeof target] : () => {}, set: () => true,
+    });
+    vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => g }) });
+    const { view, selected, renderer } = await harness(1);
+    selected.root.visible = false; selected.setCockpit(false);
+    const ghostStates: boolean[] = [], cockpitStates: boolean[] = [], materialTypes: string[] = [];
+    const ghost = vi.spyOn(selected, 'setGhost'), cockpit = vi.spyOn(selected, 'setCockpit');
+    renderer.render.mockImplementation(() => {
+      expect(selected.body.children.length).toBeGreaterThan(0); expect(selected.root.visible).toBe(true);
+      ghostStates.push(ghost.mock.lastCall![0]); cockpitStates.push(cockpit.mock.lastCall![0]);
+      materialTypes.push(((selected.body.getObjectByName('warm-cabin') as THREE.Mesh).material as THREE.Material).type);
+      selected.root.traverse(o => { expect(o.visible).toBe(true); expect(o.frustumCulled).toBe(false); });
+    });
+    await (view as unknown as View).prepareCar();
+    expect(ghostStates).toEqual([false, true, false, true]); expect(cockpitStates).toEqual([false, false, true, true]);
+    expect(materialTypes).toEqual(['MeshStandardMaterial', 'MeshStandardMaterial', 'MeshLambertMaterial', 'MeshLambertMaterial']);
+    expect(selected.root.visible).toBe(false); expect(ghost).toHaveBeenLastCalledWith(false); expect(cockpit).toHaveBeenLastCalledWith(false);
+    const material = (selected.body.getObjectByProperty('isMesh', true) as THREE.Mesh).material as THREE.Material;
+    expect(material.opacity).toBe(material.userData.baseOpacity); expect(material.transparent).toBe(material.userData.baseTransparent);
+    expect(material.depthWrite).toBe(material.userData.baseDepthWrite);
+  });
   it.each([1, 3, 4] as const)('does not block the selected R34 when only model %i rejects', async id => {
     failFile = files[id];
     const { view, selected, renderer } = await harness();
