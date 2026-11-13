@@ -1,14 +1,24 @@
-# Task 2 — production Miami world replacement
+# Task 2 — DONE_WITH_CONCERNS: production Miami world replacement
 
-**Status: implemented, but NOT acceptance-complete.** The full R34 120-pose sweep
-passes 500 calls / 5M submitted triangles. An additional selected-default-A45 probe
-exposed **966 whole-frame calls** at8600 (4,628,235 triangles, Medium/DPR1). The
-binding call budget therefore does not pass with the default car. Do not promote
-this report to DONE or hide this by changing car selection, DPR/detail, budgets or
-protected vehicle hashes. Controller decision is needed on the additional render-
-budget integration (e.g. bounded car-shadow policy plus scaffolding batching, or
-full-detail car batching); protected builders/models have deliberately not been
-edited. See final evidence below.
+**Current status: DONE_WITH_CONCERNS at `706367a`.** Existing completed evidence
+passes the controller-clarified fixed Medium/DPR1 **normal opaque selected-car**
+reference gate for **all four cars**, including first usable frames, authored world,
+sun shadows and post: maximum499 calls and4,633,191 submitted triangles. Full
+geometry/material/caster detail, correct transparency ordering, Highway defaults
+and protected source fingerprints remain intact. No new implementation or rerun
+was needed for this status-only handoff.
+
+Limits remain explicit: the fixed marina poses leave only **1 call A45 /2 calls
+W204** headroom. Correctly ordered protected-spawn ghost transitions cost **716
+calls A45 /697 W204 at6100** and are measured/disclosed separately under the latest
+design-budget and ledger ruling. This is not a universal call/FPS guarantee across
+ghost, preparation or arbitrary multiplayer density. No cap raise, geometry/caster
+cut, forced car/DPR or transparency rewrite was used. Task3 art refinement and
+independent task/final acceptance remain separate gates.
+
+The original966-call checkpoint and subsequent NEEDS_CONTEXT investigation below
+are historical evidence; the normal-state blocker is fixed and the controller has
+resolved the ghost-reference scope. The final continuation tables are authoritative.
 
 ## Outcome / boundary
 
@@ -195,3 +205,198 @@ the actual game renderer for every fixed pose with a longer shell allowance. No
 test timeout or skip was changed. The final full sweep passed for the matched R34
 reference car, but its additional A45 probe exposed the blocking call-budget issue
 above. No car-asset/builder optimization was silently added outside the owned scope.
+
+## Extra-ownership continuation from `1c9760d`
+
+Controller explicitly granted the Miami-only lossless helper and opt-in wrapper
+wiring in the updated Task2 brief. This continuation adds
+`src/render/miami/carBatching.ts`, opts in only from Miami View construction/car
+cache/optional remote preparation, and wires PlayerView/RemoteCar before readiness
+and GPU warm-up. Highway's constructor default remains false. No original builder,
+GLB, physics, camera rig, quality preset or protected hash assertion was edited.
+The coordinator's plan edit is left unstaged and was not changed by this task.
+Owned source/tests continuation commit: **`706367a`**. Per the ruling's
+"commit ONLY owned source/tests", this appended report is left as an unstaged
+owned handoff artifact; the separate coordinator plan edit remains unstaged too.
+
+### Actual source boundary and equivalence
+
+- A45: actual downloaded GLB has394 meshes /77 materials /828 nodes. Real builder
+  boundary gives789 colour+sun draw submissions and1,314,218 complete triangles in
+  the Node fixture. No placeholder/proxy is used. Node substitutes only native
+  image decoding, as existing W204 tests do; actual geometry, hierarchy, quantized
+  buffers and material definitions pass through GLTFLoader/Meshopt and real builders.
+- A45 wheel/disc/front-suspension controls, steering wheel and shift paddles are
+  independent motion domains. Rear calipers are genuinely non-animated in the
+  original ImportedWheels implementation. W204 adds its independent steering wheel,
+  calibrated speed/tach needles, rolling pivots and front steering pivots; its rear
+  fixed calipers/discs consolidate separately under wheelRoot, never suspended body.
+- Same material **object identity**, complete compatible attribute layout and draw
+  flags are required. No material-value merging or decimation. Skinned/instanced,
+  morph, material-array, displacement/object-normal-map, custom depth/distance and
+  non-default per-mesh render-callback cases are excluded. Existing source nodes,
+  setters and authored hidden branches stay present.
+- Real RED exposed normalized Int16 POSITION wrapping when transforms were baked
+  in place. The helper now decodes transformed POSITION/NORMAL/TANGENT into shader-
+  input Float32 first, without re-quantization. Other attributes remain byte-identical.
+  Root-relative transforms are applied once; negative determinants reverse index
+  winding to match Three's original front-face convention, not normals/tangent.w.
+- Actual A45 and W204 tests inspect every derived vertex/index and material binding
+  through representative steering, independent spin, suspension, cockpit/visibility,
+  paint, brake, signals and ghost states. Position/normal tolerance is1e-5 (render
+  Float32 precision); all remaining original attribute components and index mapping
+  match exactly. Synthetic negative/non-uniform/mirrored parent+child cases verify
+  effective triangle orientation, normals and tangent handedness as well.
+- Transparent **colour** objects are never merged or re-ordered. Compatible static
+  shadow/depth draws can consolidate on a Miami sun-only layer: identical-material
+  depth writes have no transparent blend ordering. Original duplicate shadow draws
+  are routed off only while the full replacement caster is active; caster triangle
+  totals are equal, not reduced. Material, transform or visibility changes restore
+  the exact source path. Ghost opaque-to-transparent transitions keep original colour
+  objects/order and use the same full shadow geometry. No caster-quality disable.
+- Private derived geometry is bounded per resident car (53 A45 batches,44 W204),
+  reused across camera/ghost/visibility changes and disposed once. Materials/maps/
+  source geometry remain borrowed. Disposal restores source layers/caster flags;
+  late-cancel cannot attach. Actual optional remote preparation/reveal/repaint and
+  default-unbatched Highway wrapper paths have focused regressions.
+
+### RED/GREEN and verification commands
+
+- `npm test -- tests/miamiCarBatching.test.ts`: real A45 RED789 submissions against
+  absent opt-in integration; transformed-geometry RED found2.81m quantization wrap;
+  W204 RED found zero supported batches and later missing wheelRoot consolidation.
+  All corresponding regressions are GREEN. The final A45 fixture is286 submissions
+  with exactly the same1,314,218 triangles. An initial arbitrary280 helper estimate
+  was replaced by the explicit measured286 assertion; the binding whole-frame
+  **500/5M** bounds have never been changed.
+- Final focused command also covered `viewLoading`, `remoteLoading`, `miamiLoading`,
+  `playerView` and `playerViewDisposal`; all passed. Final full `npm test` was run
+  **once after this integration**: **122 files,1338 passed /1 existing Linux-only
+  systemd-analyze skip**. No test timeout, skip, frozen assertion or source fingerprint
+  was weakened/recaptured. Existing experimental SQLite notices only.
+- `npm run typecheck`: pass. `npm run build`: pass (428 modules).
+  `npm run build:server`: pass (50 modules; unchanged gameServer bundle identity).
+
+### Actual renderer evidence — all cars, unchanged world/shadows/detail
+
+`all-car-budgets.mjs` / `all-car-budgets.json` are in the same approved scratch
+directory. Each car has a fresh Medium/DPR1 1280×800 native Edge context, only its
+own selected heavy model request, required world/HDR readiness, first usable frame
+measurement and real View.render at300/850/6100/8600/8800. Normal car-camera rigs
+and all authored world geometry remain unchanged. Photos/HDR, local shadows and
+post remain active. Page errors zero. No software timings/FPS claim.
+
+| Car | First usable calls | Normal pose max calls | Normal pose max triangles |
+|---|---:|---:|---:|
+| Default A45 |472|499|4,633,191|
+| Porsche |333|360|3,568,932|
+| R34 |289|316|4,139,039|
+| W204 |471|498|3,788,231|
+
+Normal firstframes and fixed poses therefore pass, but A45/W204 marina headroom
+is only1/2 calls in this fixed evidence. Broader traffic/content acceptance still
+belongs to the controller/Task3; this is not an arbitrary-density guarantee.
+The final A45 spawn/downtown and all four downtown PNGs were opened and inspected;
+full exterior/interior detail, surfaces and actual car/world shadows remain present.
+
+### Disclosed ordered ghost colour draws — scope resolved
+
+`ghost-structure.mjs` / `ghost-structure.json` instrument the actual game's main and
+sun submissions and read the actual sorted render list at6100, Medium/DPR1:
+
+| Ghost car | Full calls | Main | Sun shadow | Post | Own transparent draws | Own transparent materials | Own consecutive material runs |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A45 |716|558|149|9|389|83|283|
+| W204 |697|525|163|9|263|81|211|
+
+Both have153 opaque render-list items. The whole scene has286/214 consecutive
+transparent material runs. Even optimistically merging those whole-scene runs
+without attribute/motion/visibility restrictions gives153+286+149+9=**597** A45
+and153+214+163+9=**539** W204 (ignoring additional two-sided costs). Non-adjacent
+same-material items have other transparent materials between them in the actual
+camera-depth order, so a static per-material colour merge is not equivalent.
+Existing wheel, needle and paddle domains prevent simply joining the remaining
+dynamic casters either. Camera/visibility/ghost equivalence tests deliberately keep
+these original draws; hiding the issue or merging by approximate material colour
+would violate the ruling.
+
+**Controller ruling resolved this context:** the design budget and ledger now
+explicitly apply500 calls /5M submitted triangles to fixed Medium/DPR1 normal
+opaque reference poses for every selected car, including sun/post/world. Correctly
+ordered protected-spawn transparent ghost transitions are measured and disclosed
+separately, not subject to that fixed-reference cap. The716/697-call measurements
+remain explicit; no500-call ghost result or universal FPS claim is made. Therefore
+no global transparency rewrite or further ghost-colour merging is required or
+performed. The unchanged normal cap passes for all four cars on the completed
+evidence above, with the narrow1–2-call marina headroom retained as a concern.
+
+**Final handoff: DONE_WITH_CONCERNS.** Commits `1c9760d` and `706367a`; completed
+verification is122 files /1338 passed /1 existing platform skip, typecheck and both
+builds passing. This report and the coordinator plan/spec edits remain unstaged
+for the controller's handoff commit. No other file was changed for finalization.
+
+## Task2 fix round1/5 — Important I1 (FIX_BASE `706367a`)
+
+Review: `.superpowers/sdd/2026-11-13-miami-assetto-visual-rebuild/task-2-review.md`,
+I1 only. A definite required model/map/HDR failure now rejects promptly and clears
+only that job's coalescing/retry slot, without awaiting unrelated stalled transfers.
+Each failed job retains its own completion/rejection handlers and resource registry;
+already-loaded and late-successful textures/source geometry/materials are disposed
+exactly once. Old jobs never extract/attach a late model, clear a newer pending
+retry, replace its cached success, or dispose its distinct resources. Successful
+extraction retains the existing ownership handoff, including extraction-failure
+cleanup without a second disposal by the request job. No timeout, global abort
+rewrite, car/art change or deferred M1 readability work was introduced.
+
+Owned covering files: `src/render/miami/assets.ts` and
+`tests/miamiEnvironment.test.ts`. The loader tests use the actual
+`createMiamiAssetLoader` and delivered manifest, controlled unresolved sibling
+promises, coalesced callers, and separate model/map/HDR failures. They assert
+rejection and successful retry **before** releasing old siblings, then late old
+model/map cleanup, shared-resource disposal-once, successful-cache isolation and
+a second late old rejection while the new retry is still pending. The successful
+retry's textures, materials and derived geometry stay undisposed through old-job
+cleanup and are disposed once only on its own final lease release. A separate
+invalid-semantic-root test checks original/copied geometry, source materials and
+maps are consumed once on extraction failure and can be retried cleanly.
+
+Exact RED command/output:
+
+```text
+npm test -- tests/miamiEnvironment.test.ts
+Test Files  1 failed (1)
+Tests       3 failed | 6 passed (9)
+model / map / HDR: required failure must reach callers before stalled siblings
+are released: expected 'pending' to be 'rejected'
+```
+
+An intermediate run confirmed the new immediate rejection exposed the existing
+late-cleanup test's delayed rejection observer (PromiseRejectionHandledWarning).
+That test now observes rejection immediately and still asserts eventual once-only
+cleanup after releasing its held sibling; its ownership assertions were not removed.
+
+Exact final covering GREEN commands/output:
+
+```text
+npm test -- tests/miamiEnvironment.test.ts tests/miamiLoading.test.ts tests/viewLoading.test.ts
+Test Files  3 passed (3)
+Tests       33 passed (33)
+Duration    1.31s
+
+npm run typecheck
+tsc --noEmit && tsc --noEmit -p server
+Exit 0
+```
+
+No unhandled errors or rejection warnings in the final covering run. Full suite,
+builds and browser were intentionally not rerun for this localized fix, as directed;
+the earlier complete campaign remains historical evidence, not a new recertification.
+The coordinator plan/spec and this report remain unstaged for handoff; only owned
+loader/tests are included in the fix commit. I1 is addressed, pending localized
+re-review. Existing normal-budget headroom, ghost-cost disclosure and Task3/final
+acceptance limits are unchanged.
+
+Fix commit: **`4b0c782`**, based on `706367a`; contains only
+`src/render/miami/assets.ts` and `tests/miamiEnvironment.test.ts`. Ready for focused
+I1 re-review. The report and coordinator plan/spec edits are not included in this
+commit and remain unstaged for controller handoff.
