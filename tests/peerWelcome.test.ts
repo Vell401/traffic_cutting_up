@@ -33,15 +33,22 @@ it('rejects a connection error and removes every handler', async () => {
   for (const handler of [ws.onopen, ws.onmessage, ws.onerror, ws.onclose]) expect(handler).toBeNull();
 });
 
-it('clears its timer and ignores late events after one settlement', async () => {
-  vi.useFakeTimers();
-  const ws = { onopen: null, onmessage: null, onerror: null, onclose: null, send: vi.fn(), close: vi.fn() } as unknown as WebSocket;
-  const waiting = peerWelcome(ws, {}, 80);
-  const lateClose = ws.onclose;
-  ws.onmessage!(new MessageEvent('message', { data: JSON.stringify({ t: 'welcome', id: 3, players: [] }) }));
-  await expect(waiting).resolves.toEqual({ id: 3, players: 0 });
-  lateClose?.call(ws, new CloseEvent('close'));
-  expect(vi.getTimerCount()).toBe(0);
-  await vi.advanceTimersByTimeAsync(100);
-  expect(ws.close).not.toHaveBeenCalled();
+it.each([false, true])('clears its timer and ignores late events after one settlement (missing global CloseEvent=%s)', async missingCloseEvent => {
+  if (missingCloseEvent) vi.stubGlobal('CloseEvent', undefined);
+  try {
+    if (missingCloseEvent) expect(globalThis.CloseEvent).toBeUndefined();
+    vi.useFakeTimers();
+    const ws = { onopen: null, onmessage: null, onerror: null, onclose: null, send: vi.fn(), close: vi.fn() } as unknown as WebSocket;
+    const waiting = peerWelcome(ws, {}, 80);
+    const lateClose = ws.onclose;
+    ws.onmessage!(new MessageEvent('message', { data: JSON.stringify({ t: 'welcome', id: 3, players: [] }) }));
+    await expect(waiting).resolves.toEqual({ id: 3, players: 0 });
+    expect(lateClose).toBeTypeOf('function');
+    // The handler ignores close-specific fields; no runtime CloseEvent constructor is needed.
+    lateClose!.call(ws, new Event('close') as CloseEvent);
+    for (const handler of [ws.onopen, ws.onmessage, ws.onerror, ws.onclose]) expect(handler).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(ws.close).not.toHaveBeenCalled();
+  } finally { vi.unstubAllGlobals(); }
 });
