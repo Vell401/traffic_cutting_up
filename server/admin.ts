@@ -31,6 +31,7 @@ import { defaultTuning, validateTuning } from '../src/sim/tuning';
 import type { RadioStore } from './radio';
 import { queryLimit } from './api';
 import { parseRequestTarget } from './requestTarget';
+import type { ClientAddressResolver } from './clientAddress';
 
 const SESSION_MS = 12 * 3600_000;
 /** Settings key of the traffic configuration the admin page set last. */
@@ -49,6 +50,8 @@ export interface AdminOptions {
   /** Empty: the admin API answers 404 to everything. */
   password: string;
   origins: readonly string[];
+  /** Same verified proxy policy as HTTP/WS. Omitted: socket-only, never trust XFF. */
+  clientAddress?: ClientAddressResolver;
   game: GameServer;
   store: Store;
   radio?: RadioStore;
@@ -71,6 +74,33 @@ export class Admin {
     return this.o.password.length > 0;
   }
 
+  /** Shared browser admission for local admin and the server-controlled Miami gateway. */
+  authorize(req: IncomingMessage, res: ServerResponse, upload = false): boolean {
+    if (!this.admit(req, res, upload)) return false;
+    const now = Date.now();
+    for (const [token, until] of this.sessions) if (until <= now) this.sessions.delete(token);
+    const token = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+    if (!this.valid(token)) {
+      send(res, 401, { ok: false, error: 'login' });
+      return false;
+    }
+    return true;
+  }
+
+  private admit(req: IncomingMessage, res: ServerResponse, upload: boolean): boolean {
+    if (!this.enabled) {
+      send(res, 404, { ok: false, error: 'admin is off (ADMIN_PASSWORD not set)' });
+      return false;
+    }
+    const origin = req.headers.origin;
+    if ((origin && this.o.origins.length && !this.o.origins.includes(origin)) ||
+        (req.method === 'POST' && !upload && !ownJson(req, this.o.origins))) {
+      send(res, 403, { ok: false });
+      return false;
+    }
+    return true;
+  }
+
   /** Handles /api/admin/*; false for any other path. */
   handle(req: IncomingMessage, res: ServerResponse): boolean {
     const url = parseRequestTarget(req.url ?? '/');
@@ -80,27 +110,16 @@ export class Admin {
       return true;
     }
     if (!url.pathname.startsWith('/api/admin/')) return false;
-    if (!this.enabled) {
-      send(res, 404, { ok: false, error: 'admin is off (ADMIN_PASSWORD not set)' });
-      return true;
-    }
     const path = url.pathname.slice('/api/admin/'.length);
-    const ip = clientIp(req);
+    const ip = (this.o.clientAddress ?? clientIp)(req);
     const upload = req.method === 'POST' && path === 'radio/upload';
-    const badUploadOrigin = upload && !!req.headers.origin && this.o.origins.length > 0 && !this.o.origins.includes(req.headers.origin);
-    if (req.method === 'POST' && (upload ? badUploadOrigin : !ownJson(req, this.o.origins))) {
-      send(res, 403, { ok: false });
-      return true;
-    }
     if (req.method === 'POST' && path === 'login') {
+      if (!this.admit(req, res, false)) return true;
       this.withBody(req, res, (b) => this.login(b, ip, res));
       return true;
     }
+    if (!this.authorize(req, res, upload)) return true;
     const token = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
-    if (!this.valid(token)) {
-      send(res, 401, { ok: false, error: 'login' });
-      return true;
-    }
     if (upload && this.o.radio) {
       void this.o.radio.upload(req, res, url).catch(() => { if (!res.destroyed && !res.headersSent) send(res, 500, { error: 'Ошибка загрузки трека' }); });
       return true;
@@ -147,7 +166,10 @@ export class Admin {
   }
 
   private login(b: Record<string, unknown>, ip: string, res: ServerResponse): void {
-    if (!this.perAddr.take(ip) || !this.overall.take('all')) {
+    this.perAddr.prune();
+    this.overall.prune();
+    // Aggregate admission first bounds even a flood of distinct (verified) addresses to 40 keys.
+    if (!this.overall.take('all') || !this.perAddr.take(ip)) {
       send(res, 429, { ok: false, error: 'Слишком много попыток, подождите 10 минут' });
       return;
     }
@@ -158,7 +180,7 @@ export class Admin {
       return;
     }
     const now = Date.now();
-    for (const [t, until] of this.sessions) if (until < now) this.sessions.delete(t);
+    for (const [t, until] of this.sessions) if (until <= now) this.sessions.delete(t);
     if (this.sessions.size >= MAX_SESSIONS) this.sessions.delete(this.sessions.keys().next().value!);
     const token = randomBytes(32).toString('base64url');
     this.sessions.set(token, now + SESSION_MS);
@@ -169,7 +191,7 @@ export class Admin {
   private valid(token: string): boolean {
     const until = token ? this.sessions.get(token) : undefined;
     if (until === undefined) return false;
-    if (until < Date.now()) {
+    if (until <= Date.now()) {
       this.sessions.delete(token);
       return false;
     }

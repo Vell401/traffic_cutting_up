@@ -128,6 +128,18 @@ describe('map deployment routing', () => {
 });
 
 describe('map deployment safety gates', () => {
+  it('gives only Highway a gateway URL without leaking it through the shared environment anchor', () => {
+    const highway = compose.slice(compose.indexOf('\n  game:'), compose.indexOf('\n  game-miami:'));
+    const miami = compose.slice(compose.indexOf('\n  game-miami:'), compose.indexOf('\n  web:'));
+    expect(highway).toContain('ADMIN_MIAMI_URL: http://game-miami:8787');
+    // Miami deliberately overrides the environment anchor; it must not self-proxy.
+    expect(miami).toContain('ADMIN_MIAMI_URL: ""');
+    expect(miami).toContain('ADMIN_PASSWORD: ${ADMIN_MIAMI_PASSWORD:-${ADMIN_PASSWORD:-}}');
+    const main = read('server/main.ts');
+    expect(main).toContain("map.id === 'highway' ? env.ADMIN_MIAMI_URL : undefined");
+    expect(main.indexOf('if (adminGateway.handle(req, res))')).toBeLessThan(main.indexOf('if (admin.handle(req, res))'));
+  });
+
   it('lets hardened Caddy read host-owned TLS keys and checks actual HTTPS readiness', () => {
     const web = compose.slice(compose.indexOf('\n  web:'), compose.indexOf('\nnetworks:'));
     expect(web).toContain('cap_drop: [ALL]');

@@ -1,12 +1,13 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Admin, trafficSettings } from '../server/admin';
 import { Api } from '../server/api';
 import { GameServer } from '../src/online/gameServer';
 import { PROTOCOL_VERSION, rulesHash } from '../src/online/rules';
 import { MIN_SCORE, Store, type RunRecord } from '../server/store';
 import { defaultTuning, applyTuning } from '../src/sim/tuning';
+import { createClientAddressResolver } from '../server/clientAddress';
 
 const run = (over: Partial<RunRecord>): RunRecord => ({ mode: 'solo', name: 'A', score: 5000, car: 1, physics: 1, near: 10, topKmh: 250, seconds: 60, ...over });
 
@@ -260,5 +261,58 @@ describe('admin API', () => {
       ).status;
     }
     expect(last).toBe(429);
+  });
+
+  it('separates trusted-proxy admin login buckets/audits, rejects forged prepends and keeps the overall cap', async () => {
+    const messages: string[] = [];
+    const trusted = new Admin({ password: 'fixture password', origins: [], game, store, health: () => ({}), diag: (_level, text) => messages.push(text), clientAddress: createClientAddressResolver('127.0.0.1') });
+    const s = createServer((req, res) => void trusted.handle(req, res));
+    await new Promise<void>(done => s.listen(0, '127.0.0.1', done));
+    const url = `http://127.0.0.1:${(s.address() as AddressInfo).port}/api/admin/login`;
+    const login = (xff: string, password = 'wrong') => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': xff }, body: JSON.stringify({ password }) });
+    try {
+      for (let i = 0; i < 8; i++) expect((await login(`203.0.113.${i}, 198.51.100.1`)).status).toBe(401);
+      expect((await login('203.0.113.99, 198.51.100.1', 'fixture password')).status).toBe(429);
+      expect((await login('203.0.113.99, 198.51.100.2', 'fixture password')).status).toBe(200);
+      expect(messages).toContain('admin: login from 198.51.100.2');
+      expect(messages).toContain('admin: wrong password from 198.51.100.1');
+      expect(messages.join()).not.toMatch(/203\.0\.113|127\.0\.0/);
+      const statuses = [];
+      for (let i = 3; i < 50; i++) statuses.push((await login(`198.51.100.${i}`)).status);
+      expect(statuses.filter(x => x === 401).length).toBeLessThanOrEqual(31);
+      expect(statuses.at(-1)).toBe(429);
+    } finally { s.closeAllConnections(); await new Promise<void>(done => s.close(() => done())); }
+  });
+
+  it('retains at most 50 sessions/40 address keys and prunes expired auth state on use', async () => {
+    let now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const bounded = new Admin({ password: 'fixture password', origins: [], game, store, health: () => ({}), diag() {}, clientAddress: createClientAddressResolver('127.0.0.1') });
+    const s = createServer((req, res) => void bounded.handle(req, res));
+    await new Promise<void>(done => s.listen(0, '127.0.0.1', done));
+    const url = `http://127.0.0.1:${(s.address() as AddressInfo).port}/api/admin/`;
+    const login = (ip: string) => fetch(url + 'login', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': ip }, body: JSON.stringify({ password: 'fixture password' }) });
+    const state = (token: string) => fetch(url + 'state', { headers: { authorization: `Bearer ${token}` } });
+    try {
+      const tokens: string[] = [];
+      for (let i = 0; i < 51; i++) {
+        if (i === 40) {
+          for (let j = 100; j < 180; j++) expect((await login(`198.51.100.${j}`)).status).toBe(429);
+          // Inspect the retained-state invariant, not just statuses: rejected new keys must not grow memory.
+          expect(Reflect.get(Reflect.get(bounded, 'perAddr'), 'hits').size).toBeLessThanOrEqual(40);
+          now += 10 * 60_000 + 1;
+        }
+        const response = await login(`198.51.100.${i + 1}`);
+        expect(response.status).toBe(200); tokens.push((await response.json() as { token: string }).token);
+      }
+      expect((await state(tokens[0])).status).toBe(401);
+      expect((await state(tokens[1])).status).toBe(200);
+      expect(Reflect.get(bounded, 'sessions').size).toBe(50);
+      now += 12 * 3600_000 + 1;
+      expect((await state(tokens.at(-1)!)).status).toBe(401);
+      expect(Reflect.get(bounded, 'sessions').size).toBe(0);
+      expect((await login('198.51.100.250')).status).toBe(200);
+      expect(Reflect.get(Reflect.get(bounded, 'perAddr'), 'hits').size).toBe(1);
+    } finally { clock.mockRestore(); s.closeAllConnections(); await new Promise<void>(done => s.close(() => done())); }
   });
 });

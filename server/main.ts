@@ -30,6 +30,7 @@ import { GameServer, type LogLevel } from '../src/online/gameServer';
 import { PROTOCOL_VERSION, rulesHash, type OnlineRules } from '../src/online/rules';
 import type { Stimulus, WorldConfig } from '../src/online/world';
 import { Admin, TRAFFIC_SETTINGS } from './admin';
+import { AdminGateway } from './adminGateway';
 import { Api, claimDatabaseMap, claimRadioMap } from './api';
 import { createClientAddressResolver } from './clientAddress';
 import { Store } from './store';
@@ -168,6 +169,12 @@ const admin = new Admin({
   radio,
   health: () => health(false),
   diag: (level, message) => api?.diag(level, message),
+  clientAddress: clientIp,
+});
+const adminGateway = new AdminGateway({
+  admin,
+  url: map.id === 'highway' ? env.ADMIN_MIAMI_URL : undefined,
+  password: env.ADMIN_MIAMI_PASSWORD ?? env.ADMIN_PASSWORD ?? '',
 });
 if (admin.enabled && (env.ADMIN_PASSWORD ?? '').length < 12) log('warn', 'ADMIN_PASSWORD is short: use 12+ characters');
 
@@ -193,6 +200,7 @@ const http = createServer((req, res) => {
     send(res, 400, { ok: false, error: 'Invalid request target' });
     return;
   }
+  if (adminGateway.handle(req, res)) return;
   if (admin.handle(req, res)) return;
   if (radio.handle(req, res)) return;
   if (req.method === 'GET' && (req.url ?? '').split('?')[0] === '/api/tuning') { res.setHeader('access-control-allow-origin', '*'); send(res, 200, currentTuning()); return; }
