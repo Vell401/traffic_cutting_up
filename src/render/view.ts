@@ -22,6 +22,10 @@ import { RemoteCar, revealMaterials } from './remoteCar';
 import { ResolutionBudget } from './resolution';
 import { r34ChaseYaw } from './r34Feedback';
 import { prepareObject } from './prepareObject';
+import { loadMiamiAssets, type MiamiAssets } from './miami/assets';
+import { MiamiWorld } from './miami/world';
+import { MiamiEnvironment } from './miami/environment';
+import { MIAMI_CAR_SHADOW_LAYER } from './miami/carBatching';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
@@ -74,6 +78,14 @@ export class View {
   private readonly spawnPad: SpawnPad | null;
   private readonly anchor: CockpitAnchor;
   private readonly resolution: ResolutionBudget;
+  private miamiWorld: MiamiWorld | null = null;
+  private miamiEnvironment: MiamiEnvironment | null = null;
+  private environmentPreparation: Promise<void> | null = null;
+  private environmentReady = false;
+  private environmentGeneration = 0;
+  private environmentDisposed = false;
+  private skyId: SkyId = 'night';
+  private roomTarget: THREE.WebGLRenderTarget | null = null;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -104,30 +116,33 @@ export class View {
     this.moon.position.copy(MOON_DIR).multiplyScalar(100);
     this.scene.add(this.moon);
 
-    const pmrem = new THREE.PMREMGenerator(r);
-    const room = new RoomEnvironment();
-    try {
-      this.scene.environment = pmrem.fromScene(room, 0.04).texture;
-    } finally {
-      // RoomEnvironment.dispose owns its unique geometries/materials, not instance buffers.
-      room.traverse(o => { if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose(); });
-      room.dispose();
-      pmrem.dispose();
+    if (sim.map.theme !== 'miami') {
+      const pmrem = new THREE.PMREMGenerator(r);
+      const room = new RoomEnvironment();
+      try {
+        this.roomTarget = pmrem.fromScene(room, 0.04);
+        this.scene.environment = this.roomTarget.texture;
+      } finally {
+        // RoomEnvironment.dispose owns its unique geometries/materials, not instance buffers.
+        room.traverse(o => { if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose(); });
+        room.dispose();
+        pmrem.dispose();
+      }
     }
     this.scene.environmentIntensity = 0.12;
 
     const shadowTex = makeRadialTexture(64, 1.2);
     this.shadowTex = shadowTex;
     this.farGround = new FarGround(sim.map.theme);
-    this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy(), sim.map.theme);
-    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width);
+    this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy(), sim.map.theme, sim.map.theme === 'miami' ? 'assets' : 'legacy');
+    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width, true, false, sim.map.theme === 'miami');
     this.playerViews.set(car, { view: this.playerView, length: sim.player.tune.length, width: sim.player.tune.width });
     this.chase.setRig(CAMERA_RIGS[car]);
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
     this.trafficView = new TrafficView(shadowTex);
     this.sky = makeSky();
     this.scene.add(this.roadView.group, this.playerView.root, this.trafficView.group, this.sky, this.lampLights.group, this.tyreEffects.group, this.sparks.points, this.farGround.mesh, this.blimp.group);
-    this.post = new Post(r, this.scene, this.camera, quality);
+    this.post = new Post(r, this.scene, this.camera, quality, sim.map.theme);
     this.spawnPad = sim.online ? new SpawnPad(sim.map.spawn.places, sim.map.id) : null;
     if (this.spawnPad) this.scene.add(this.spawnPad.group);
     sim.events.on('nearMiss', (e) => {
@@ -168,6 +183,7 @@ export class View {
     // Keep live frames from replacing compileAsync's in-flight material programs. The loader owns
     // this short interval; variants and renderer state are still restored at every synchronous step.
     if (this.preparingOwnCar && this.carPreparations.get(this.playerView) === this.preparingOwnCar) return;
+    if (this.sim.map?.theme === 'miami' && !this.environmentReady) return;
     const sim = this.sim;
     const p = sim.player;
     this.time += dt;
@@ -200,6 +216,8 @@ export class View {
     this.sparks.update(dt, this.ox, this.oz);
     this.trafficView.update(sim, alpha, this.ox, this.oz, this.time);
     this.roadView.update(sim.road, s - 150, s + 1300, this.ox, this.oz);
+    this.miamiWorld?.update(sim.road, s, this.ox, this.oz, this.time);
+    this.miamiEnvironment?.update(sim.road, s, this.ox, this.oz, this.moon);
     this.lampLights.update(this.roadView, sim.road, s, this.ox, this.oz);
     let cockpit: CockpitAnchor | null = null;
     const eye = this.playerView.eye;
@@ -215,7 +233,7 @@ export class View {
     this.chase.update(dt, this.camera, this.carPos, cameraYaw, cameraKmh, cockpit);
     this.sky.position.copy(this.camera.position);
     this.farGround.update(sim.road, s, this.camera.position);
-    this.blimp.update(sim.road, s, this.ox, this.oz, this.time);
+    if (sim.map.theme !== 'miami') this.blimp.update(sim.road, s, this.ox, this.oz, this.time);
     this.spawnPad?.update(sim.road, s, this.ox, this.oz, sim.spawn.owners, sim.spawn.mine);
 
     if (!this.warmedUp) this.warmUp();
@@ -234,7 +252,7 @@ export class View {
         entry = undefined;
       }
       if (!entry) {
-        const view = new RemoteCar(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width);
+        const view = new RemoteCar(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, sim.map?.theme === 'miami');
         this.scene.add(view.root);
         entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame, prepared: false, retryAt: 0 };
         this.remoteViews.set(r.id, entry);
@@ -300,6 +318,7 @@ export class View {
   /** Mouse drag with the left button: look around (see ChaseCamera.mouseLook). */
   /** Switch the sky: dome, stars, fog, background and the ambient light all follow. */
   setSky(id: SkyId): void {
+    this.skyId = id;
     const p = skyPreset(id);
     applySky(this.sky, p);
     const fog = this.scene.fog as THREE.Fog;
@@ -311,6 +330,80 @@ export class View {
     this.hemi.intensity = p.hemi;
     this.moon.color.setHex(p.moon);
     this.moon.intensity = p.moonLight;
+    if (this.miamiEnvironment) {
+      this.miamiEnvironment.apply(this.scene, this.sky, id);
+      if (id === 'miami-night') {
+        this.hemi.color.setHex(0xaac1d8); this.hemi.groundColor.setHex(0x85705b); this.hemi.intensity = 0.65;
+        this.moon.color.setHex(0xffd2a1); this.moon.intensity = 2.6;
+      }
+    }
+  }
+
+  private makeMiamiEnvironment(assets: MiamiAssets): MiamiEnvironment { return MiamiEnvironment.create(assets, this.renderer); }
+
+  /** Required Miami loading is separate from optional remote cars and selected-car residency.
+   * A rejection clears this job, so retry downloads/attaches/compiles instead of reusing a rejection. */
+  prepareEnvironment(): Promise<void> {
+    if (this.sim.map.theme !== 'miami') return Promise.resolve();
+    if (this.environmentDisposed) return Promise.reject(Error('Miami environment cancelled'));
+    if (this.environmentPreparation) return this.environmentPreparation;
+    const generation = this.environmentGeneration;
+    const current = () => !this.environmentDisposed && generation === this.environmentGeneration;
+    const task = (async () => {
+      const assets = await loadMiamiAssets();
+      if (!current()) {
+        // Other consumers of the same fulfilled promise claim their leases in this microtask turn.
+        // Do not let a cancelled first waiter free the shared completion before they can retain it.
+        await Promise.resolve(); assets.dispose(); throw Error('Miami environment cancelled');
+      }
+      try {
+        this.miamiWorld = new MiamiWorld(assets);
+        this.miamiEnvironment = this.makeMiamiEnvironment(assets);
+        this.scene.add(this.miamiWorld.group);
+        const water = this.roadView.applyMiamiMaterials(assets); this.farGround.setMiamiMaterial(water);
+        const s = this.sim.player.s;
+        this.roadView.update(this.sim.road, s - 150, s + 1300, this.ox, this.oz);
+        this.miamiWorld.update(this.sim.road, s, this.ox, this.oz, this.time);
+        this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        this.moon.castShadow = true; this.moon.shadow.mapSize.set(2048, 2048);
+        Object.assign(this.moon.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 1, far: 350 });
+        this.moon.shadow.camera.updateProjectionMatrix(); this.moon.shadow.bias = -0.0002; this.moon.shadow.normalBias = 0.12;
+        this.moon.shadow.camera.layers.enable(MIAMI_CAR_SHADOW_LAYER);
+        this.scene.add(this.moon.target);
+        this.setSky(this.skyId);
+        this.miamiEnvironment.update(this.sim.road, s, this.ox, this.oz, this.moon);
+        for (const texture of assets.textures.values()) this.renderer.initTexture(texture);
+        // Revealing all parts (including prototypes not present at spawn) submits real geometry uploads.
+        const world = this.miamiWorld;
+        await prepareObject(this.renderer, this.scene, this.camera, world.group, { current, variant: () => {
+          const states = world.group.children.map(o => { const m = o as THREE.InstancedMesh; const count = m.count;
+            if (!count) { m.count = 1; m.setMatrixAt(0, new THREE.Matrix4()); m.instanceMatrix.needsUpdate = true; }
+            return { m, count }; });
+          return () => { states.forEach(({ m, count }) => { m.count = count; }); };
+        } });
+        if (!current()) throw Error('Miami environment cancelled');
+        await prepareObject(this.renderer, this.scene, this.camera, this.roadView.group, { current });
+        if (!current()) throw Error('Miami environment cancelled');
+        this.environmentReady = true;
+      } catch (error) {
+        this.miamiWorld?.dispose(); this.miamiWorld = null;
+        this.miamiEnvironment?.dispose(); this.miamiEnvironment = null;
+        assets.dispose(); throw error;
+      }
+    })().catch(error => { if (this.environmentPreparation === task) this.environmentPreparation = null; throw error; });
+    this.environmentPreparation = task; return task;
+  }
+
+  /** Cancels late jobs; derived scaffolding is disposed before releasing its borrowed shared maps. */
+  disposeEnvironment(): void {
+    if (this.environmentDisposed) return; this.environmentDisposed = true; this.environmentGeneration++;
+    this.environmentReady = false; this.scene.environment = null; this.scene.background = null;
+    this.roadView.dispose(); this.farGround.dispose?.();
+    this.miamiWorld?.dispose(); this.miamiWorld = null;
+    this.miamiEnvironment?.dispose(); this.miamiEnvironment = null;
+    this.moon.castShadow = false; this.moon.shadow.dispose(); this.moon.target.removeFromParent();
+    this.renderer.shadowMap.enabled = false;
+    this.roomTarget?.dispose(); this.roomTarget = null;
   }
 
   /** C held: rear view. */
@@ -386,7 +479,7 @@ export class View {
     await this.playerView.ready;
     for (const id of [1, 2, 3, 4] as const) {
       if (this.remoteSpares.some(spare => spare.car === id)) continue;
-      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
+      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false, false, this.sim.map?.theme === 'miami');
       try {
         await spare.ready;
         revealMaterials(spare.root).value = 1;
@@ -424,7 +517,7 @@ export class View {
       cached.view.dispose();
       this.playerViews.delete(car);
     }
-    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width);
+    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width, true, false, this.sim.map?.theme === 'miami');
     this.playerViews.set(car, { view: next, length, width });
     next.setPaint(this.paint);
     next.setHighBeam(this.highBeam);

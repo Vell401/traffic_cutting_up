@@ -12,6 +12,34 @@
 
 ## Ограничения
 
+### Authored Miami environment
+
+Miami additionally awaits `View.prepareEnvironment()` under the initial loader:
+local manifest + GLB + nine shared photo maps + HDR, attachment, PMREM, compile and
+upload. Required failure keeps the menu locked and offers a real retry; Highway is
+a no-op. Optional remote-car failure does not become an environment failure. The
+environment and all four selected-car views stay resident on ordinary menu return.
+
+The new kit is 28.72 MiB before the manifest, 10 source textures, 74 instanced
+prototype/material parts, with fixed explicit placement capacities. The GLB
+intentionally contains no images: runtime restores manifest maps with sRGB diffuse,
+linear normal/roughness, `flipY=false`, metric UVs and scalar × roughness-map G.
+Blender source and restored previews use the same scalar/G sampling contract.
+Only distant island towers additionally own two tiny metadata textures and opaque
+colour/depth coverage variants, warmed by the same loader. The 100/600m close-detail
+window is unchanged; the separate bounded 300/1000m skyline range transitions only
+outside its full-coverage interval. Steady movement/rebase does not rebuild or
+upload instance/metadata buffers. See the asset contract for ownership/bounds.
+
+Miami opts into lossless static car batching by material/motion domain; original
+vehicle assets/builders, animation and Highway stay untouched. Transparent spawn
+ghosts keep the original ordered colour draws and can exceed 500 calls. The stated
+500-call/5M-triangle rejection bounds apply to **normal opaque selected-car reference
+poses at fixed Medium/DPR1**, including shadows/post, not every multiplayer/ghost
+frame. No DPR/preset/range/detail cut was added for this art rebuild. Counters and
+software-WebGL images are not physical-GPU/FPS/VRAM proof. See the
+[rebuild evidence and reproduction commands](reviews/2026-11-13-miami-asset-rebuild.md).
+
 ### Готовность и текущие доказательства (13.11.2026)
 
 Выбранная машина прикрепляется до сериализованной compile→draw подготовки exterior/cockpit/opaque/ghost вариантов, с восстановлением renderer/object state при ошибке. Solo сначала проверяет кандидат и живой draw, затем меняет identity/run; принятая online identity сохраняется при visual failure, повтор действительно готовит её заново. Ошибочная attachment-инстанция удаляется из кэша; загрузка выбранной машины до доступного меню намеренна. Lazy remote сохраняет proxy до завершения подготовки: загрузки текстур/геометрии и warm draws разбиты на очереди, но не каждый вызов драйвера делим.

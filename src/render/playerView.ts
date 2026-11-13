@@ -5,6 +5,7 @@ import type { PlayerCar } from '../sim/vehicle';
 import { buildCar, isShared, waitForCar, type CarParts } from './car';
 import { createTyreFeedback, sampleTyreFeedback } from '../presentation/tyres';
 import { W204Cockpit } from './car/w204Cockpit';
+import { MiamiCarBatching } from './miami/carBatching';
 
 /** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
 const BLINK_PERIOD = 0.7;
@@ -30,6 +31,7 @@ export class PlayerView {
   private roll = 0;
   private ghost = false;
   private cockpitOn = false;
+  private miamiBatching: MiamiCarBatching | null = null;
   private blinkSide = 0;
   private blinkT = 0;
   /** Presentation-local phase; never write physics wheelSpin or integrate the rear axle for fronts. */
@@ -55,6 +57,8 @@ export class PlayerView {
     own = true,
     /** A hidden spare built only to compile shaders: skip heavy downloads. */
     spare = false,
+    /** Full-detail static draw consolidation; never implicitly changes Highway. */
+    miamiStaticDraws = false,
   ) {
     const L = length;
     const W = width;
@@ -64,7 +68,9 @@ export class PlayerView {
     // A fresh instance can attach the model after the caller retries its download.
     // Headless instrument/animation consumers have no page URL for relative model requests and
     // retain the builder's placeholder contract. A real browser must also verify the download.
-    const loaded = Promise.all([p.ready, !spare && typeof window !== 'undefined' ? waitForCar(car) : undefined]).then(() => {});
+    const loaded = Promise.all([p.ready, !spare && typeof window !== 'undefined' ? waitForCar(car) : undefined]).then(() => {
+      if (!this.disposed && miamiStaticDraws) this.miamiBatching = new MiamiCarBatching(p.body, p.wheelRoot);
+    });
     const cancelled = new Promise<never>((_resolve, reject) => {
       this.cancelReady = () => {
         const error = new Error('Car view disposed before it was ready');
@@ -192,6 +198,7 @@ export class PlayerView {
     this.parts.wheelRoot.visible = !this.cockpitOn;
     this.parts.setCockpit?.(this.cockpitOn);
     this.applyGhost();
+    this.miamiBatching?.update();
   }
 
   /** Online spawn protection: the car is drawn see-through while traffic passes through it. */
@@ -199,6 +206,7 @@ export class PlayerView {
     if (on === this.ghost) return;
     this.ghost = on;
     this.applyGhost();
+    this.miamiBatching?.update();
   }
 
   private applyGhost(): void {
@@ -249,6 +257,7 @@ export class PlayerView {
     if (p.cockpit instanceof W204Cockpit) p.cockpit.setSignals(this.blinkLit && this.blinkSide === 1, this.blinkLit && this.blinkSide === 2);
     if (p.updateCabin) p.updateCabin(car, dt);
     else if (this.cockpitOn||this.car===1) p.cockpit?.update(car, dt);
+    this.miamiBatching?.update();
   }
 
   /** Take it out of the scene and free its materials (geometry is shared between cars of a model). */
@@ -256,6 +265,7 @@ export class PlayerView {
     if (this.disposed) return;
     this.disposed = true;
     this.cancelReady();
+    this.miamiBatching?.dispose(); this.miamiBatching = null;
     this.parts.dispose?.();
     this.shadowGeometry.dispose();
     this.root.removeFromParent();

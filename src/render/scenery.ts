@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MIAMI_WATER } from './miami/layout';
 import { CHUNK_LEN, GROUND_LEVEL, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
 import { MIAMI, type MapTheme } from './miami';
 
@@ -16,6 +17,7 @@ export class FarGround {
   readonly mesh: THREE.Mesh;
   private readonly mat: THREE.MeshStandardMaterial;
   private disposed = false;
+  private borrowed = false;
 
   constructor(private readonly theme: MapTheme = 'highway') {
     this.mat = new THREE.MeshStandardMaterial({ color: GROUND.clone(), roughness: 1, metalness: 0 });
@@ -31,12 +33,16 @@ export class FarGround {
       level = Math.min(level, GROUND_LEVEL[c.kind]);
       if (c.kind === 'bridge') water = true;
     }
-    this.mesh.position.set(camera.x, this.theme === 'miami' ? MIAMI.waterLevel - 0.35 : level - 0.35, camera.z);
+    this.mesh.position.set(camera.x, this.theme === 'miami' ? (this.borrowed ? MIAMI_WATER : MIAMI.waterLevel) - 0.35 : level - 0.35, camera.z);
+    if (this.borrowed) return;
     if (this.theme === 'miami') this.mat.color.setHex(MIAMI.water);
     else this.mat.color.copy(water ? WATER : GROUND);
     this.mat.roughness = this.theme === 'miami' ? 0.32 : water ? 0.16 : 1;
     this.mat.metalness = this.theme === 'miami' ? 0.2 : water ? 0.6 : 0;
   }
+
+  /** RoadView owns this material; the far disc only borrows it, including its shared normal map. */
+  setMiamiMaterial(material: THREE.Material): void { this.mesh.material = material; this.borrowed = true; }
 
   dispose(): void {
     if (this.disposed) return;
