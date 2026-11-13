@@ -273,4 +273,21 @@ describe('map deployment safety gates', () => {
     expect(workflow).toContain('npm run --silent netcheck');
     expect(read('.github/workflows/deploy.yml')).toContain('needs: test');
   });
+
+  it('admits the self-hosted deploy job only on main, including historical-main reruns', () => {
+    const deployWorkflow = read('.github/workflows/deploy.yml');
+    const job = deployWorkflow.slice(deployWorkflow.indexOf('  deploy:'));
+    // Read only the job-level condition: a step guard cannot protect runner admission/checkout.
+    const guard = job.match(/^    if:\s*(.+)$/m)?.[1] ?? 'true';
+    for (const event_name of ['push', 'workflow_dispatch']) {
+      for (const ref of ['refs/heads/topic', 'refs/tags/main', 'refs/pull/1/merge']) {
+        expect(runInNewContext(guard, { github: { ref, event_name, sha: 'unapproved' } }), `${event_name} ${ref}`).toBe(false);
+      }
+      // Re-running an approved historical main build must not require SHA == current main HEAD.
+      expect(runInNewContext(guard, { github: { ref: 'refs/heads/main', event_name, sha: 'historical-main', run_attempt: 2 } })).toBe(true);
+    }
+    expect(job).toContain('needs: test');
+    expect(job).toContain('runs-on: [self-hosted, vps_ru]');
+    expect(deployWorkflow.slice(0, deployWorkflow.indexOf('  deploy:'))).toContain('uses: ./.github/workflows/test.yml');
+  });
 });

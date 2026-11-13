@@ -40,11 +40,11 @@ const CASES: Case[] = [
   { name: '150 ms crashes 30 fps', delay: 75, jitter: 40, stall: 0, fps: 30, reckless: true },
 ];
 
-const pct = (xs: number[], p: number) => (xs.length ? xs[Math.min(xs.length - 1, Math.floor(p * xs.length))] : 0);
 const cm = (m: number) => (m * 100).toFixed(1).padStart(6);
 
 console.log(`${seconds} s per case, 2 drivers (Grip + R34 RWD), server traffic as in a session\n`);
 console.log('case                    ahead   corrections  p50     p95     max (cm)   hits seen / runs ended');
+console.log('Count/max cover every correction; p50/p95 are exact up to 16384 events, then labelled reservoir estimates.');
 for (const c of CASES) {
   const net = new NetSession(11, {}, false, map);
   const l = link(c.delay, c.jitter, c.stall);
@@ -52,27 +52,21 @@ for (const c of CASES) {
     net.add({ name: 'A', physics: 1, up: l, down: l, fps: c.fps, bot: { kmh: 220, weave: !c.reckless, reckless: c.reckless } }),
     net.add({ name: 'B', physics: 2, up: l, down: l, fps: c.fps, bot: { kmh: 200, weave: true } }),
   ];
-  const sizes: number[] = [];
-  const last = clients.map(() => 0);
   let ahead = 0;
   let aheadN = 0;
   net.run(seconds, (now) => {
-    clients.forEach((cl, i) => {
+    clients.forEach((cl) => {
       const st = cl.core.stats;
-      if (st.corrections !== last[i]) {
-        last[i] = st.corrections;
-        sizes.push(st.lastCorrection);
-      }
       if (now % 100 === 0 && cl.core.ready) {
         ahead += st.horizon;
         aheadN++;
       }
     });
   });
-  sizes.sort((a, b) => a - b);
+  const corrections = net.corrections.summary();
   const crashesClient = clients.reduce((n, cl) => n + cl.localCrashes, 0);
   const runsServer = clients.reduce((n, cl) => n + (cl.events.get('runEnd') ?? 0), 0);
   console.log(
-    `${c.name.padEnd(22)} ${(ahead / Math.max(1, aheadN)).toFixed(1).padStart(6)}  ${String(sizes.length).padStart(10)}  ${cm(pct(sizes, 0.5))}  ${cm(pct(sizes, 0.95))}  ${cm(pct(sizes, 1))}      ${crashesClient} / ${runsServer}`,
+    `${c.name.padEnd(22)} ${(ahead / Math.max(1, aheadN)).toFixed(1).padStart(6)}  ${String(corrections.count).padStart(10)}  ${cm(corrections.p50)}  ${cm(corrections.p95)}  ${cm(corrections.max)}      ${crashesClient} / ${runsServer}${corrections.sampled ? ' (p50/p95 reservoir estimates, n=16384)' : ''}`,
   );
 }

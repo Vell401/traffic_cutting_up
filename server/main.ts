@@ -286,7 +286,9 @@ const tickMs = 1000 / game.world.rules.tickHz;
 const now = () => performance.now();
 let next = now();
 let lagDrops = 0;
+let shuttingDown = false;
 function loop(): void {
+  if (shuttingDown) return;
   const t = now();
   let n = 0;
   while (t >= next && n < 12) {
@@ -325,8 +327,11 @@ http.listen(PORT, HOST, () => {
 });
 
 function shutdown(signal: string): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
   log('info', `${signal}: shutting down`);
   game.closeAll('Сервер перезапускается');
+  game.finalizeRuns();
   clearInterval(heartbeat);
   clearInterval(status);
   journal?.end();

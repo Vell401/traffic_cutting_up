@@ -15,6 +15,7 @@ import type { PhysicsId } from '../src/sim/physics';
 import type { DriveInput } from '../src/sim/vehicle';
 import { Sim } from '../src/sim/world';
 import type { MapId } from '../src/sim/maps';
+import { CorrectionStats } from './correctionStats';
 
 export interface LinkSpec {
   /** One-way base delay, ms. */
@@ -178,7 +179,13 @@ export class NetClient {
     // Server → client.
     this.inbox.length = 0;
     this.down.take(now, this.inbox);
-    for (const m of this.inbox) this.core.receive(m, now);
+    for (const m of this.inbox) {
+      const before = this.core.stats.corrections;
+      this.core.receive(m, now);
+      // One receive processes at most one snapshot/correction. Observe before the next delivery
+      // can overwrite lastCorrection, even if the whole inbox arrives in one virtual millisecond.
+      if (this.core.stats.corrections !== before) this.net.corrections.record(this.core.stats.lastCorrection);
+    }
     // Client → server.
     this.inbox.length = 0;
     this.up.take(now, this.inbox);
@@ -198,6 +205,7 @@ export class NetClient {
 }
 
 export class NetSession {
+  readonly corrections = new CorrectionStats();
   readonly server: GameServer;
   readonly clients: NetClient[] = [];
   readonly journal: Stimulus[] = [];

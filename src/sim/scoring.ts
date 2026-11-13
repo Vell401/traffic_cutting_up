@@ -37,11 +37,24 @@ export class Scoring {
 
   private slots(n: number): void {
     if (this.gen.length >= n) return;
-    this.gen = new Int32Array(n).fill(-1);
-    this.ovl = new Uint8Array(n);
-    this.ovlSign = new Int8Array(n);
-    this.minGap = new Float64Array(n).fill(Infinity);
-    this.splitDone = new Uint8Array(n);
+    const old = this.gen.length;
+    const gen = new Int32Array(n);
+    const ovl = new Uint8Array(n);
+    const ovlSign = new Int8Array(n);
+    const minGap = new Float64Array(n);
+    const splitDone = new Uint8Array(n);
+    gen.set(this.gen);
+    gen.fill(-1, old);
+    ovl.set(this.ovl);
+    ovlSign.set(this.ovlSign);
+    minGap.set(this.minGap);
+    minGap.fill(Infinity, old);
+    splitDone.set(this.splitDone);
+    this.gen = gen;
+    this.ovl = ovl;
+    this.ovlSign = ovlSign;
+    this.minGap = minGap;
+    this.splitDone = splitDone;
   }
 
   private rel(a: number, b: number): number {

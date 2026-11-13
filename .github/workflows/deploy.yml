@@ -25,6 +25,7 @@ jobs:
     uses: ./.github/workflows/test.yml
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: test
     runs-on: [self-hosted, vps_ru]
     timeout-minutes: 30

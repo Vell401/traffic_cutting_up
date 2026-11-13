@@ -417,8 +417,7 @@ export class GameServer {
     const slot = conn.slot;
     if (!slot) return this.violation(conn, 'leave before hello');
     const dr = slot.driver;
-    this.world.leave(dr.id);
-    this.slots.delete(dr.id);
+    this.removeDriver(slot);
     conn.slot = null;
     conn.peer.close(1000, 'bye');
     conn.close();
@@ -635,10 +634,15 @@ export class GameServer {
     this.feed(`Админ: ${text}`);
   }
 
-  /** Close every socket (shutdown). */
+  /** Close every socket, retaining resumable slots until expiry or permanent shutdown cleanup. */
   closeAll(text: string): void {
     this.feed(text);
     for (const c of [...this.conns]) this.kick(c, 1012, 'restart');
+  }
+
+  /** Permanent process shutdown: finalize connected and offline slots before storage closes. */
+  finalizeRuns(): void {
+    for (const slot of [...this.slots.values()]) this.removeDriver(slot);
   }
 
   /** Numbers for /health and the periodic log line; resets the step window. */

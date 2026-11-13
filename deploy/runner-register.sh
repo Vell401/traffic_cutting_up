@@ -2,7 +2,7 @@
 # One time on the VPS, as root: register the self-hosted GitHub Actions runner for this repository
 # and run it as a systemd service (user gha). deploy/vps-setup.sh must have run before.
 #
-#   bash /opt/actions-runner/register.sh
+#   bash deploy/runner-register.sh   # from the checkout used for vps-setup.sh
 #
 # The token: GitHub → repository Settings → Actions → Runners → New self-hosted runner → the value
 # after --token in the "Configure" step (valid for an hour). It is read without echo and kept only
