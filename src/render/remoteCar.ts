@@ -52,7 +52,7 @@ export class RemoteCar {
   private fade = 0;
   private prepared = false;
 
-  constructor(readonly car: CarId, private color: number, private readonly shadow: THREE.Texture, private readonly length: number, private readonly width: number) {
+  constructor(readonly car: CarId, private color: number, private readonly shadow: THREE.Texture, private readonly length: number, private readonly width: number, private readonly miamiStaticDraws = false) {
     this.paint = new THREE.MeshStandardMaterial({ color, roughness: .55, metalness: .25 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x101319, roughness: .8 });
     const lamps = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.5, 2.4, 2.1) });
@@ -83,7 +83,7 @@ export class RemoteCar {
       // Called outside render(), and serialized by View to avoid join/reconnect bursts.
       await new Promise<void>(resolve => setTimeout(resolve, 0));
       if (this.disposed) return;
-      const view = this.detail = new PlayerView(this.car, this.color, this.shadow, this.length, this.width, false);
+      const view = this.detail = new PlayerView(this.car, this.color, this.shadow, this.length, this.width, false, false, this.miamiStaticDraws);
       await view.ready;
       if (this.disposed) return;
       this.reveal = revealMaterials(view.root);

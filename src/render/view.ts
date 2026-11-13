@@ -25,6 +25,7 @@ import { prepareObject } from './prepareObject';
 import { loadMiamiAssets, type MiamiAssets } from './miami/assets';
 import { MiamiWorld } from './miami/world';
 import { MiamiEnvironment } from './miami/environment';
+import { MIAMI_CAR_SHADOW_LAYER } from './miami/carBatching';
 
 /** Re-centre the render origin when the car drifts this far from it (keeps float32 precise on the GPU). */
 const ORIGIN_SHIFT = 1000;
@@ -134,7 +135,7 @@ export class View {
     this.shadowTex = shadowTex;
     this.farGround = new FarGround(sim.map.theme);
     this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy(), sim.map.theme, sim.map.theme === 'miami' ? 'assets' : 'legacy');
-    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width);
+    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width, true, false, sim.map.theme === 'miami');
     this.playerViews.set(car, { view: this.playerView, length: sim.player.tune.length, width: sim.player.tune.width });
     this.chase.setRig(CAMERA_RIGS[car]);
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
@@ -251,7 +252,7 @@ export class View {
         entry = undefined;
       }
       if (!entry) {
-        const view = new RemoteCar(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width);
+        const view = new RemoteCar(r.carId, r.color, this.shadowTex, r.car.tune.length, r.car.tune.width, sim.map?.theme === 'miami');
         this.scene.add(view.root);
         entry = { view, color: r.color, car: r.carId, physics: r.car.physicsId, frame, prepared: false, retryAt: 0 };
         this.remoteViews.set(r.id, entry);
@@ -367,6 +368,7 @@ export class View {
         this.moon.castShadow = true; this.moon.shadow.mapSize.set(2048, 2048);
         Object.assign(this.moon.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 1, far: 350 });
         this.moon.shadow.camera.updateProjectionMatrix(); this.moon.shadow.bias = -0.0002; this.moon.shadow.normalBias = 0.12;
+        this.moon.shadow.camera.layers.enable(MIAMI_CAR_SHADOW_LAYER);
         this.scene.add(this.moon.target);
         this.setSky(this.skyId);
         this.miamiEnvironment.update(this.sim.road, s, this.ox, this.oz, this.moon);
@@ -477,7 +479,7 @@ export class View {
     await this.playerView.ready;
     for (const id of [1, 2, 3, 4] as const) {
       if (this.remoteSpares.some(spare => spare.car === id)) continue;
-      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false);
+      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false, false, this.sim.map?.theme === 'miami');
       try {
         await spare.ready;
         revealMaterials(spare.root).value = 1;
@@ -515,7 +517,7 @@ export class View {
       cached.view.dispose();
       this.playerViews.delete(car);
     }
-    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width);
+    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width, true, false, this.sim.map?.theme === 'miami');
     this.playerViews.set(car, { view: next, length, width });
     next.setPaint(this.paint);
     next.setHighBeam(this.highBeam);
