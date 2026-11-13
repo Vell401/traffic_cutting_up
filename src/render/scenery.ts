@@ -31,11 +31,11 @@ export class FarGround {
       level = Math.min(level, GROUND_LEVEL[c.kind]);
       if (c.kind === 'bridge') water = true;
     }
-    this.mesh.position.set(camera.x, level - (this.theme === 'miami' ? 1.55 : 0.35), camera.z);
+    this.mesh.position.set(camera.x, this.theme === 'miami' ? MIAMI.waterLevel - 0.35 : level - 0.35, camera.z);
     if (this.theme === 'miami') this.mat.color.setHex(MIAMI.water);
     else this.mat.color.copy(water ? WATER : GROUND);
-    this.mat.roughness = water ? 0.16 : 1;
-    this.mat.metalness = water ? 0.6 : 0;
+    this.mat.roughness = this.theme === 'miami' ? 0.32 : water ? 0.16 : 1;
+    this.mat.metalness = this.theme === 'miami' ? 0.2 : water ? 0.6 : 0;
   }
 
   dispose(): void {

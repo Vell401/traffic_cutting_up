@@ -55,8 +55,8 @@ export const SKY_PRESETS: readonly SkyPreset[] = [
   },
   {
     id: 'miami-night', name: 'Майами · ночь', desc: 'Синяя бухта, тёплые фонари и пастельный город у воды',
-    top: 0x020c1e, horizon: 0x163344, glow: 0x3d5264, fogNear: 100, fogFar: 1400,
-    hemiSky: 0x839bb8, hemiGround: 0x333028, hemi: 1.5, moon: 0xb6d4ed, moonLight: 0.8, stars: 0.65,
+    top: 0x061126, horizon: 0x183445, glow: 0x35475a, fogNear: 100, fogFar: 1400,
+    hemiSky: 0x91a5bd, hemiGround: 0x393329, hemi: 1.6, moon: 0xb6d4ed, moonLight: 0.8, stars: 0.65,
   },
 ];
 
