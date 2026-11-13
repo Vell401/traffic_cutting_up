@@ -179,6 +179,7 @@ function syncTouch(): void {
     }
     mobileAudio.remove();
   }
+  loading.refreshLocks(); // Audio moved out of an inert menu must stay locked until loading ends.
 }
 // Unlock synchronously: a loader must never clear the hidden overlays' lifecycle-owned inertness.
 loading.onLockChange = () => { touchSnapshot = ''; syncTouch(); };

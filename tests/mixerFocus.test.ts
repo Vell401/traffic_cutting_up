@@ -21,7 +21,7 @@ describe('mixer driving focus lifecycle', () => {
     if (start < 0 || end <= start) throw new Error('Missing production syncTouch');
     let visible: boolean | undefined;
     const env = {
-      state, onlineMenu, loading: { active }, chat: { active: false },
+      state, onlineMenu, loading: { active, refreshLocks() {} }, chat: { active: false },
       touchLayout: { matches: false }, touch: { setActive() {} },
       mixer: { setVisible(value: boolean) { visible = value; } }, startEl: {}, pauseEl: {},
       document: { body: { classList: { toggle() {} } } }, audioPanels: [], mobileAudio: { remove() {} },

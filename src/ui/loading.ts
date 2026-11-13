@@ -14,14 +14,19 @@ class LoadingScreen {
   context = 'boot';
   active = true;
 
+  /** Reparenting can expose a new body child: acquire its temporary lock in the same task. */
+  refreshLocks(): void {
+    if (!this.active) return;
+    for (const element of document.body.children) {
+      if (!(element instanceof HTMLElement) || element === this.root) continue;
+      if (!this.background.has(element)) this.background.set(element, element.inert);
+      element.inert = true;
+    }
+  }
+
   private lockUI(locked: boolean): void {
-    if (locked) {
-      for (const element of document.body.children) {
-        if (!(element instanceof HTMLElement) || element === this.root) continue;
-        if (!this.background.has(element)) this.background.set(element, element.inert);
-        element.inert = true;
-      }
-    } else {
+    if (locked) this.refreshLocks();
+    else {
       for (const [element, inert] of this.background) element.inert = inert;
       this.background.clear();
     }
