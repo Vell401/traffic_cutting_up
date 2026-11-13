@@ -1,0 +1,423 @@
+{
+  "generator": {
+    "name": "scripts/blender/build_miami.py",
+    "version": "1.0.0",
+    "blender": "4.5.9 LTS",
+    "seed": 13062026
+  },
+  "materials": [
+    {
+      "name": "plaster_ivory",
+      "baseColor": [
+        0.9046611785888672,
+        0.7835378050804138,
+        0.6307571530342102,
+        1.0
+      ],
+      "roughness": 0.78,
+      "metalness": 0,
+      "maps": {
+        "map": "painted_plaster_wall_diffuse",
+        "normalMap": "painted_plaster_wall_nor_gl",
+        "roughnessMap": "painted_plaster_wall_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "name": "plaster_coral",
+      "baseColor": [
+        0.7454041838645935,
+        0.35153260827064514,
+        0.28314873576164246,
+        1.0
+      ],
+      "roughness": 0.76,
+      "metalness": 0,
+      "maps": {
+        "map": "painted_plaster_wall_diffuse",
+        "normalMap": "painted_plaster_wall_nor_gl",
+        "roughnessMap": "painted_plaster_wall_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "name": "plaster_mint",
+      "baseColor": [
+        0.38132601976394653,
+        0.5647115111351013,
+        0.5088813304901123,
+        1.0
+      ],
+      "roughness": 0.72,
+      "metalness": 0,
+      "maps": {
+        "map": "painted_plaster_wall_diffuse",
+        "normalMap": "painted_plaster_wall_nor_gl",
+        "roughnessMap": "painted_plaster_wall_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "name": "concrete_warm",
+      "baseColor": [
+        0.637596845626831,
+        0.5840784311294556,
+        0.4793201684951782,
+        1.0
+      ],
+      "roughness": 0.86,
+      "metalness": 0,
+      "maps": {
+        "map": "concrete_wall_007_diffuse",
+        "normalMap": "concrete_wall_007_nor_gl",
+        "roughnessMap": "concrete_wall_007_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.48,
+        0.48
+      ]
+    },
+    {
+      "name": "asphalt_road",
+      "baseColor": [
+        0.33716362714767456,
+        0.34670406579971313,
+        0.35640013217926025,
+        1.0
+      ],
+      "roughness": 0.9,
+      "metalness": 0,
+      "maps": {
+        "map": "aerial_asphalt_01_diffuse",
+        "normalMap": "aerial_asphalt_01_nor_gl",
+        "roughnessMap": "aerial_asphalt_01_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.65,
+        0.65
+      ]
+    },
+    {
+      "name": "frame_ivory",
+      "baseColor": [
+        0.8148465752601624,
+        0.7835378050804138,
+        0.715693473815918,
+        1.0
+      ],
+      "roughness": 0.38,
+      "metalness": 0.15
+    },
+    {
+      "name": "glazing_blue",
+      "baseColor": [
+        0.03433980792760849,
+        0.109461709856987,
+        0.14995978772640228,
+        1.0
+      ],
+      "roughness": 0.17,
+      "metalness": 0.38
+    },
+    {
+      "name": "metal_satin",
+      "baseColor": [
+        0.3967552185058594,
+        0.47353148460388184,
+        0.4677838087081909,
+        1.0
+      ],
+      "roughness": 0.29,
+      "metalness": 0.82
+    },
+    {
+      "name": "bronze_dark",
+      "baseColor": [
+        0.13286831974983215,
+        0.0802198201417923,
+        0.05780543014407158,
+        1.0
+      ],
+      "roughness": 0.35,
+      "metalness": 0.7
+    },
+    {
+      "name": "roof_graphite",
+      "baseColor": [
+        0.04666508734226227,
+        0.05951123684644699,
+        0.06480326503515244,
+        1.0
+      ],
+      "roughness": 0.87,
+      "metalness": 0
+    },
+    {
+      "name": "palm_bark",
+      "baseColor": [
+        0.23839756846427917,
+        0.16513219475746155,
+        0.10461648553609848,
+        1.0
+      ],
+      "roughness": 0.93,
+      "metalness": 0
+    },
+    {
+      "name": "palm_leaf",
+      "baseColor": [
+        0.08437620848417282,
+        0.18782077729701996,
+        0.05780543014407158,
+        1.0
+      ],
+      "roughness": 0.72,
+      "metalness": 0
+    },
+    {
+      "name": "hedge_leaf",
+      "baseColor": [
+        0.052860647439956665,
+        0.14126329123973846,
+        0.06480326503515244,
+        1.0
+      ],
+      "roughness": 0.8,
+      "metalness": 0
+    },
+    {
+      "name": "hull_pearl",
+      "baseColor": [
+        0.8962693810462952,
+        0.8713670969009399,
+        0.7991027235984802,
+        1.0
+      ],
+      "roughness": 0.24,
+      "metalness": 0.05
+    },
+    {
+      "name": "teak_deck",
+      "baseColor": [
+        0.3915724754333496,
+        0.22696587443351746,
+        0.09530746936798096,
+        1.0
+      ],
+      "roughness": 0.66,
+      "metalness": 0
+    },
+    {
+      "name": "light_warm",
+      "baseColor": [
+        1.0,
+        0.8796223998069763,
+        0.6172065734863281,
+        1.0
+      ],
+      "roughness": 0.3,
+      "metalness": 0,
+      "emissive": [
+        1.0,
+        0.6795424696330938,
+        0.3277780980565422
+      ],
+      "emissiveIntensity": 2.0
+    }
+  ],
+  "prototypes": {
+    "hotel_deco": {
+      "recessed_core": 7,
+      "floor_slab": 7,
+      "window_component": 430,
+      "continuous_rebated_frame": 144,
+      "recessed_windows": 144,
+      "facade_pier": 170,
+      "authored_floors": 7,
+      "balcony_slab": 2,
+      "balcony_toprail": 2,
+      "balcony_baluster": 276,
+      "entrance_awning": 1,
+      "deco_vertical_flute": 6,
+      "stepped_sign_blade": 5,
+      "deco_horizontal_ribbon": 3,
+      "roof_membrane": 1,
+      "parapet": 4,
+      "hvac": 2,
+      "hvac_louvre": 18,
+      "roof_access": 1
+    },
+    "hotel_colonnade": {
+      "recessed_ground_lobby": 1,
+      "column_plinth": 9,
+      "colonnade_column": 9,
+      "column_capital": 9,
+      "colonnade_architrave": 1,
+      "recessed_core": 5,
+      "floor_slab": 5,
+      "window_component": 411,
+      "continuous_rebated_frame": 137,
+      "recessed_windows": 137,
+      "facade_pier": 150,
+      "authored_floors": 5,
+      "balcony_slab": 2,
+      "balcony_toprail": 2,
+      "balcony_baluster": 344,
+      "roof_membrane": 1,
+      "parapet": 4,
+      "hvac": 2,
+      "hvac_louvre": 18,
+      "roof_access": 1,
+      "stepped_roof_pavilion": 1
+    },
+    "condo_terrace": {
+      "recessed_core": 8,
+      "floor_slab": 8,
+      "window_component": 520,
+      "continuous_rebated_frame": 174,
+      "recessed_windows": 174,
+      "facade_pier": 204,
+      "authored_floors": 8,
+      "balcony_slab": 8,
+      "balcony_toprail": 8,
+      "balcony_baluster": 1286,
+      "terrace_pier": 16,
+      "entrance_awning": 1,
+      "roof_membrane": 1,
+      "parapet": 4,
+      "hvac": 2,
+      "hvac_louvre": 18,
+      "roof_access": 1
+    },
+    "tower_glass": {
+      "recessed_core": 3,
+      "floor_slab": 3,
+      "window_component": 754,
+      "continuous_rebated_frame": 560,
+      "recessed_windows": 560,
+      "facade_pier": 108,
+      "authored_floors": 3,
+      "curtain_core": 21,
+      "curtain_floor_nosing": 21,
+      "curtain_vertical_fin": 546,
+      "curtain_floors": 21,
+      "curtain_spandrel": 42,
+      "roof_membrane": 1,
+      "parapet": 4,
+      "hvac": 2,
+      "hvac_louvre": 18,
+      "roof_access": 1,
+      "crown_service_screen": 1,
+      "crown_louvre": 12,
+      "entrance_awning": 1
+    },
+    "tower_setback": {
+      "recessed_core": 19,
+      "floor_slab": 19,
+      "window_component": 1390,
+      "continuous_rebated_frame": 464,
+      "recessed_windows": 464,
+      "facade_pier": 538,
+      "authored_floors": 19,
+      "curtain_spandrel": 32,
+      "balcony_slab": 3,
+      "balcony_toprail": 3,
+      "balcony_baluster": 462,
+      "roof_membrane": 1,
+      "parapet": 4,
+      "hvac": 2,
+      "hvac_louvre": 18,
+      "roof_access": 1,
+      "crown_service_screen": 1,
+      "crown_louvre": 12,
+      "entrance_awning": 1
+    },
+    "garage_canopy": {
+      "canopy_column": 6,
+      "rounded_canopy": 1,
+      "sunshade_louvre": 13,
+      "parking_kiosk": 1
+    },
+    "palm_coconut": {
+      "curved_trunk": 1,
+      "trunk_growth_ring": 42,
+      "curved_frond_rachis": 13,
+      "individual_leaflet": 696,
+      "coconut": 6
+    },
+    "palm_royal": {
+      "curved_trunk": 1,
+      "trunk_growth_ring": 42,
+      "royal_crownshaft": 1,
+      "curved_frond_rachis": 15,
+      "individual_leaflet": 792
+    },
+    "yacht": {
+      "lofted_v_chine_hull": 1,
+      "shaped_deck": 1,
+      "deck_plank": 48,
+      "perimeter_safety_rail": 1,
+      "rail_stanchion": 20,
+      "raked_cabin": 1,
+      "cabin_side_glazing": 10,
+      "hull_porthole": 10,
+      "raked_windscreen": 1,
+      "cabin_roof": 1,
+      "flybridge": 1,
+      "flybridge_seat": 2,
+      "radar_arch": 2,
+      "radar": 1,
+      "aft_bench": 1,
+      "swim_platform": 1
+    },
+    "streetlight": {
+      "bevelled_base": 1,
+      "curved_lamp_arm": 1,
+      "luminaire": 1,
+      "emissive_diffuser": 1
+    },
+    "bench": {
+      "curved_bench_leg": 2,
+      "bench_armrest": 2,
+      "seat_slat": 5,
+      "back_slat": 4
+    },
+    "bollard": {
+      "bevelled_bollard": 1,
+      "reflective_band": 1
+    },
+    "planter": {
+      "hollow_planter": 1,
+      "bevelled_planter_rim": 4,
+      "soil": 1,
+      "planter_leaf": 24
+    },
+    "hedge": {
+      "hedge_border": 1,
+      "rounded_foliage_cluster": 7,
+      "hedge_leaflet": 500
+    },
+    "marina_pontoon": {
+      "pontoon_float": 1,
+      "dock_edge": 2,
+      "dock_fender": 6,
+      "pontoon_plank": 60,
+      "mooring_cleat": 8,
+      "dock_guardrail": 3
+    }
+  }
+}

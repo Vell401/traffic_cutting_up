@@ -1,0 +1,2295 @@
+{
+  "schema": 1,
+  "generator": {
+    "name": "scripts/blender/build_miami.py",
+    "version": "1.0.0",
+    "blender": "4.5.9 LTS",
+    "seed": 13062026
+  },
+  "contract": {
+    "units": "metres",
+    "up": "+Y",
+    "front": "-Z",
+    "pivot": "bottom-centre",
+    "textureMode": "runtime-shared",
+    "uv": "UV0 is pre-scaled metres/2; use RepeatWrapping and repeat=(1,1); flipY=false for GLB UVs",
+    "extraction": "Each identity root has one identity mesh per shared material; bake mesh.matrixWorld relative to root before instancing. No lights/cameras/animations in GLB."
+  },
+  "model": {
+    "path": "/models/miami/coastal-kit.glb",
+    "bytes": 23724768,
+    "sha256": "d572be94c0e7d83ce1cdab3f256d69505f40e1521b89df0255b201e8d2412ff5",
+    "author": "Traffic Cutting Up project",
+    "source": "project-authored in Blender; no extracted game models",
+    "license": "project-authored; project rights unchanged (not covered by Poly Haven CC0)"
+  },
+  "totalBytes": 30168332,
+  "partBatches": 74,
+  "prototypes": [
+    {
+      "name": "hotel_deco",
+      "bounds": {
+        "min": [
+          -11.899999618530273,
+          0,
+          -8.574999809265137
+        ],
+        "max": [
+          11.899999618530273,
+          26.290000915527344,
+          8.574999809265137
+        ]
+      },
+      "triangles": 38668,
+      "parts": [
+        {
+          "name": "hotel_deco__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 100,
+          "bounds": {
+            "min": [
+              -3,
+              1.090000033378601,
+              -8.574999809265137
+            ],
+            "max": [
+              3,
+              3.119999885559082,
+              -6.675000190734863
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 7368,
+          "bounds": {
+            "min": [
+              -11.899999618530273,
+              0,
+              -7.224999904632568
+            ],
+            "max": [
+              11.899999618530273,
+              24.165000915527344,
+              8.574999809265137
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__frame_ivory",
+          "material": "frame_ivory",
+          "triangles": 15156,
+          "bounds": {
+            "min": [
+              -11.859999656677246,
+              0.07500000298023224,
+              -7.184999465942383
+            ],
+            "max": [
+              11.859999656677246,
+              22.094999313354492,
+              8.53499984741211
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 1728,
+          "bounds": {
+            "min": [
+              -11.3725004196167,
+              0.16499994695186615,
+              -6.727499961853027
+            ],
+            "max": [
+              11.3725004196167,
+              22.0049991607666,
+              8.047499656677246
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__light_warm",
+          "material": "light_warm",
+          "triangles": 264,
+          "bounds": {
+            "min": [
+              -2.75,
+              0.48999980092048645,
+              -8.425000190734863
+            ],
+            "max": [
+              2.75,
+              25.889999389648438,
+              -6.824999809265137
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__metal_satin",
+          "material": "metal_satin",
+          "triangles": 208,
+          "bounds": {
+            "min": [
+              -4.510000228881836,
+              22.639999389648438,
+              0.7250000238418579
+            ],
+            "max": [
+              4.510000228881836,
+              23.84000015258789,
+              3.174999952316284
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__plaster_coral",
+          "material": "plaster_coral",
+          "triangles": 7536,
+          "bounds": {
+            "min": [
+              -11.680000305175781,
+              0.08999999612569809,
+              -7.005000114440918
+            ],
+            "max": [
+              11.680000305175781,
+              12.890000343322754,
+              8.354999542236328
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__plaster_ivory",
+          "material": "plaster_ivory",
+          "triangles": 5108,
+          "bounds": {
+            "min": [
+              -9.930000305175781,
+              12.890000343322754,
+              -6.005000114440918
+            ],
+            "max": [
+              9.930000305175781,
+              23.190000534057617,
+              7.355000019073486
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__plaster_mint",
+          "material": "plaster_mint",
+          "triangles": 300,
+          "bounds": {
+            "min": [
+              -1.1749999523162842,
+              0.08999961614608765,
+              -7.454999923706055
+            ],
+            "max": [
+              1.1749999523162842,
+              26.290000915527344,
+              -6.855000019073486
+            ]
+          }
+        },
+        {
+          "name": "hotel_deco__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 900,
+          "bounds": {
+            "min": [
+              -7.599999904632568,
+              22.489999771118164,
+              -4.425000190734863
+            ],
+            "max": [
+              7.599999904632568,
+              23.885000228881836,
+              5.775000095367432
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "concrete_warm",
+        "frame_ivory",
+        "glazing_blue",
+        "light_warm",
+        "metal_satin",
+        "plaster_coral",
+        "plaster_ivory",
+        "plaster_mint",
+        "roof_graphite"
+      ],
+      "features": {
+        "recessed_core": 7,
+        "floor_slab": 7,
+        "window_component": 430,
+        "continuous_rebated_frame": 144,
+        "recessed_windows": 144,
+        "facade_pier": 170,
+        "authored_floors": 7,
+        "balcony_slab": 2,
+        "balcony_toprail": 2,
+        "balcony_baluster": 276,
+        "entrance_awning": 1,
+        "deco_vertical_flute": 6,
+        "stepped_sign_blade": 5,
+        "deco_horizontal_ribbon": 3,
+        "roof_membrane": 1,
+        "parapet": 4,
+        "hvac": 2,
+        "hvac_louvre": 18,
+        "roof_access": 1
+      }
+    },
+    {
+      "name": "hotel_colonnade",
+      "bounds": {
+        "min": [
+          -13.774999618530273,
+          0,
+          -9.274999618530273
+        ],
+        "max": [
+          13.774999618530273,
+          22.100000381469727,
+          9.274999618530273
+        ]
+      },
+      "triangles": 38536,
+      "parts": [
+        {
+          "name": "hotel_colonnade__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 7492,
+          "bounds": {
+            "min": [
+              -13.774999618530273,
+              0,
+              -9.274999618530273
+            ],
+            "max": [
+              13.774999618530273,
+              21.825000762939453,
+              9.274999618530273
+            ]
+          }
+        },
+        {
+          "name": "hotel_colonnade__frame_ivory",
+          "material": "frame_ivory",
+          "triangles": 16776,
+          "bounds": {
+            "min": [
+              -13.734999656677246,
+              0.36000001430511475,
+              -9.234999656677246
+            ],
+            "max": [
+              13.734999656677246,
+              19.7549991607666,
+              9.234999656677246
+            ]
+          }
+        },
+        {
+          "name": "hotel_colonnade__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 1644,
+          "bounds": {
+            "min": [
+              -12.8725004196167,
+              0.45000001788139343,
+              -8.3725004196167
+            ],
+            "max": [
+              12.8725004196167,
+              19.665000915527344,
+              8.3725004196167
+            ]
+          }
+        },
+        {
+          "name": "hotel_colonnade__metal_satin",
+          "material": "metal_satin",
+          "triangles": 208,
+          "bounds": {
+            "min": [
+              -6.820000171661377,
+              20.299999237060547,
+              0.05000000074505806
+            ],
+            "max": [
+              6.820000171661377,
+              21.5,
+              2.5
+            ]
+          }
+        },
+        {
+          "name": "hotel_colonnade__plaster_ivory",
+          "material": "plaster_ivory",
+          "triangles": 836,
+          "bounds": {
+            "min": [
+              -13.149999618530273,
+              0.47499996423721313,
+              -8.40999984741211
+            ],
+            "max": [
+              13.149999618530273,
+              22.100000381469727,
+              8.40999984741211
+            ]
+          }
+        },
+        {
+          "name": "hotel_colonnade__plaster_mint",
+          "material": "plaster_mint",
+          "triangles": 10680,
+          "bounds": {
+            "min": [
+              -13.180000305175781,
+              0.20000000298023224,
+              -8.680000305175781
+            ],
+            "max": [
+              13.180000305175781,
+              20.149999618530273,
+              8.680000305175781
+            ]
+          }
+        },
+        {
+          "name": "hotel_colonnade__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 900,
+          "bounds": {
+            "min": [
+              -12.850000381469727,
+              20.149999618530273,
+              -8.350000381469727
+            ],
+            "max": [
+              12.850000381469727,
+              21.545000076293945,
+              8.350000381469727
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "concrete_warm",
+        "frame_ivory",
+        "glazing_blue",
+        "metal_satin",
+        "plaster_ivory",
+        "plaster_mint",
+        "roof_graphite"
+      ],
+      "features": {
+        "recessed_ground_lobby": 1,
+        "column_plinth": 9,
+        "colonnade_column": 9,
+        "column_capital": 9,
+        "colonnade_architrave": 1,
+        "recessed_core": 5,
+        "floor_slab": 5,
+        "window_component": 411,
+        "continuous_rebated_frame": 137,
+        "recessed_windows": 137,
+        "facade_pier": 150,
+        "authored_floors": 5,
+        "balcony_slab": 2,
+        "balcony_toprail": 2,
+        "balcony_baluster": 344,
+        "roof_membrane": 1,
+        "parapet": 4,
+        "hvac": 2,
+        "hvac_louvre": 18,
+        "roof_access": 1,
+        "stepped_roof_pavilion": 1
+      }
+    },
+    {
+      "name": "condo_terrace",
+      "bounds": {
+        "min": [
+          -15.125,
+          0,
+          -11.1875
+        ],
+        "max": [
+          15.125,
+          28.565000534057617,
+          11.1875
+        ]
+      },
+      "triangles": 69832,
+      "parts": [
+        {
+          "name": "condo_terrace__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 100,
+          "bounds": {
+            "min": [
+              -3,
+              1.090000033378601,
+              -11.1875
+            ],
+            "max": [
+              3,
+              3.119999885559082,
+              -9.287500381469727
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 9444,
+          "bounds": {
+            "min": [
+              -15.125,
+              0,
+              -10.0625
+            ],
+            "max": [
+              15.125,
+              28.565000534057617,
+              11.1875
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__frame_ivory",
+          "material": "frame_ivory",
+          "triangles": 9024,
+          "bounds": {
+            "min": [
+              -14.595000267028809,
+              0.07500000298023224,
+              -9.5625
+            ],
+            "max": [
+              14.595000267028809,
+              26.4950008392334,
+              10.657500267028809
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 2088,
+          "bounds": {
+            "min": [
+              -14.3725004196167,
+              0.16499994695186615,
+              -9.34000015258789
+            ],
+            "max": [
+              14.3725004196167,
+              26.405000686645508,
+              10.4350004196167
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__light_warm",
+          "material": "light_warm",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -2.75,
+              2.9200000762939453,
+              -11.037500381469727
+            ],
+            "max": [
+              2.75,
+              2.9600000381469727,
+              -9.4375
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__metal_satin",
+          "material": "metal_satin",
+          "triangles": 32264,
+          "bounds": {
+            "min": [
+              -15.085000038146973,
+              0.4699999988079071,
+              -10.022500038146973
+            ],
+            "max": [
+              15.085000038146973,
+              28.239999771118164,
+              11.147500038146973
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__plaster_coral",
+          "material": "plaster_coral",
+          "triangles": 960,
+          "bounds": {
+            "min": [
+              -14.449999809265137,
+              0.13999997079372406,
+              -9.837499618530273
+            ],
+            "max": [
+              14.449999809265137,
+              26.290000915527344,
+              -6.012499809265137
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__plaster_ivory",
+          "material": "plaster_ivory",
+          "triangles": 15008,
+          "bounds": {
+            "min": [
+              -14.680000305175781,
+              0.08999999612569809,
+              -9.617500305175781
+            ],
+            "max": [
+              14.680000305175781,
+              27.59000015258789,
+              10.742500305175781
+            ]
+          }
+        },
+        {
+          "name": "condo_terrace__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 900,
+          "bounds": {
+            "min": [
+              -9.100000381469727,
+              26.889999389648438,
+              -5.962500095367432
+            ],
+            "max": [
+              9.100000381469727,
+              28.28499984741211,
+              7.087500095367432
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "concrete_warm",
+        "frame_ivory",
+        "glazing_blue",
+        "light_warm",
+        "metal_satin",
+        "plaster_coral",
+        "plaster_ivory",
+        "roof_graphite"
+      ],
+      "features": {
+        "recessed_core": 8,
+        "floor_slab": 8,
+        "window_component": 520,
+        "continuous_rebated_frame": 174,
+        "recessed_windows": 174,
+        "facade_pier": 204,
+        "authored_floors": 8,
+        "balcony_slab": 8,
+        "balcony_toprail": 8,
+        "balcony_baluster": 1286,
+        "terrace_pier": 16,
+        "entrance_awning": 1,
+        "roof_membrane": 1,
+        "parapet": 4,
+        "hvac": 2,
+        "hvac_louvre": 18,
+        "roof_access": 1
+      }
+    },
+    {
+      "name": "tower_glass",
+      "bounds": {
+        "min": [
+          -14.774999618530273,
+          0,
+          -13.512499809265137
+        ],
+        "max": [
+          14.774999618530273,
+          87.69000244140625,
+          13.512499809265137
+        ]
+      },
+      "triangles": 74844,
+      "parts": [
+        {
+          "name": "tower_glass__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 100,
+          "bounds": {
+            "min": [
+              -3,
+              1.090000033378601,
+              -13.512499809265137
+            ],
+            "max": [
+              3,
+              3.119999885559082,
+              -11.612500190734863
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 12148,
+          "bounds": {
+            "min": [
+              -14.774999618530273,
+              0,
+              -12.067500114440918
+            ],
+            "max": [
+              14.774999618530273,
+              86.06500244140625,
+              13.512499809265137
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__frame_ivory",
+          "material": "frame_ivory",
+          "triangles": 51692,
+          "bounds": {
+            "min": [
+              -14.595000267028809,
+              0.07500000298023224,
+              -11.887499809265137
+            ],
+            "max": [
+              14.595000267028809,
+              84.38999938964844,
+              13.332500457763672
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 6720,
+          "bounds": {
+            "min": [
+              -14.3725004196167,
+              0.16499994695186615,
+              -11.664999961853027
+            ],
+            "max": [
+              14.3725004196167,
+              84.30000305175781,
+              13.109999656677246
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__light_warm",
+          "material": "light_warm",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -2.75,
+              2.9200000762939453,
+              -13.362500190734863
+            ],
+            "max": [
+              2.75,
+              2.9600000381469727,
+              -11.762499809265137
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__metal_satin",
+          "material": "metal_satin",
+          "triangles": 268,
+          "bounds": {
+            "min": [
+              -6.050000190734863,
+              84.48999786376953,
+              -4.012499809265137
+            ],
+            "max": [
+              6.050000190734863,
+              87.69000244140625,
+              5.487500190734863
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__plaster_ivory",
+          "material": "plaster_ivory",
+          "triangles": 176,
+          "bounds": {
+            "min": [
+              -10.90999984741211,
+              84.38999938964844,
+              -8.672499656677246
+            ],
+            "max": [
+              10.90999984741211,
+              85.08999633789062,
+              10.147500038146973
+            ]
+          }
+        },
+        {
+          "name": "tower_glass__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 3696,
+          "bounds": {
+            "min": [
+              -10.850000381469727,
+              10.890000343322754,
+              -8.612500190734863
+            ],
+            "max": [
+              10.850000381469727,
+              87.48999786376953,
+              10.087499618530273
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "concrete_warm",
+        "frame_ivory",
+        "glazing_blue",
+        "light_warm",
+        "metal_satin",
+        "plaster_ivory",
+        "roof_graphite"
+      ],
+      "features": {
+        "recessed_core": 3,
+        "floor_slab": 3,
+        "window_component": 754,
+        "continuous_rebated_frame": 560,
+        "recessed_windows": 560,
+        "facade_pier": 108,
+        "authored_floors": 3,
+        "curtain_core": 21,
+        "curtain_floor_nosing": 21,
+        "curtain_vertical_fin": 546,
+        "curtain_floors": 21,
+        "curtain_spandrel": 42,
+        "roof_membrane": 1,
+        "parapet": 4,
+        "hvac": 2,
+        "hvac_louvre": 18,
+        "roof_access": 1,
+        "crown_service_screen": 1,
+        "crown_louvre": 12,
+        "entrance_awning": 1
+      }
+    },
+    {
+      "name": "tower_setback",
+      "bounds": {
+        "min": [
+          -14.774999618530273,
+          0,
+          -13.512499809265137
+        ],
+        "max": [
+          14.774999618530273,
+          70.19000244140625,
+          13.512499809265137
+        ]
+      },
+      "triangles": 106000,
+      "parts": [
+        {
+          "name": "tower_setback__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 100,
+          "bounds": {
+            "min": [
+              -3,
+              1.090000033378601,
+              -13.512499809265137
+            ],
+            "max": [
+              3,
+              3.119999885559082,
+              -11.612500190734863
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 30304,
+          "bounds": {
+            "min": [
+              -14.774999618530273,
+              0,
+              -12.067500114440918
+            ],
+            "max": [
+              14.774999618530273,
+              68.56500244140625,
+              13.512499809265137
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__frame_ivory",
+          "material": "frame_ivory",
+          "triangles": 37128,
+          "bounds": {
+            "min": [
+              -14.595000267028809,
+              0.07500000298023224,
+              -11.887499809265137
+            ],
+            "max": [
+              14.595000267028809,
+              66.49500274658203,
+              13.332500457763672
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 5568,
+          "bounds": {
+            "min": [
+              -14.3725004196167,
+              0.16499994695186615,
+              -11.664999961853027
+            ],
+            "max": [
+              14.3725004196167,
+              66.40499877929688,
+              13.109999656677246
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__light_warm",
+          "material": "light_warm",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -2.75,
+              2.9200000762939453,
+              -13.362500190734863
+            ],
+            "max": [
+              2.75,
+              2.9600000381469727,
+              -11.762499809265137
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__metal_satin",
+          "material": "metal_satin",
+          "triangles": 268,
+          "bounds": {
+            "min": [
+              -4.400000095367432,
+              66.98999786376953,
+              -2.7875001430511475
+            ],
+            "max": [
+              4.400000095367432,
+              70.19000244140625,
+              4.262500286102295
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__plaster_ivory",
+          "material": "plaster_ivory",
+          "triangles": 31160,
+          "bounds": {
+            "min": [
+              -12.180000305175781,
+              10.890000343322754,
+              -9.942500114440918
+            ],
+            "max": [
+              12.180000305175781,
+              67.58999633789062,
+              11.417499542236328
+            ]
+          }
+        },
+        {
+          "name": "tower_setback__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 1428,
+          "bounds": {
+            "min": [
+              -7.349999904632568,
+              66.88999938964844,
+              -6.162499904632568
+            ],
+            "max": [
+              7.349999904632568,
+              69.98999786376953,
+              7.637499809265137
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "concrete_warm",
+        "frame_ivory",
+        "glazing_blue",
+        "light_warm",
+        "metal_satin",
+        "plaster_ivory",
+        "roof_graphite"
+      ],
+      "features": {
+        "recessed_core": 19,
+        "floor_slab": 19,
+        "window_component": 1390,
+        "continuous_rebated_frame": 464,
+        "recessed_windows": 464,
+        "facade_pier": 538,
+        "authored_floors": 19,
+        "curtain_spandrel": 32,
+        "balcony_slab": 3,
+        "balcony_toprail": 3,
+        "balcony_baluster": 462,
+        "roof_membrane": 1,
+        "parapet": 4,
+        "hvac": 2,
+        "hvac_louvre": 18,
+        "roof_access": 1,
+        "crown_service_screen": 1,
+        "crown_louvre": 12,
+        "entrance_awning": 1
+      }
+    },
+    {
+      "name": "garage_canopy",
+      "bounds": {
+        "min": [
+          -7.949999809265137,
+          0,
+          -5.449999809265137
+        ],
+        "max": [
+          7.949999809265137,
+          5.230000019073486,
+          5.449999809265137
+        ]
+      },
+      "triangles": 1852,
+      "parts": [
+        {
+          "name": "garage_canopy__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 572,
+          "bounds": {
+            "min": [
+              -6.84499979019165,
+              2.5999999046325684,
+              4.400000095367432
+            ],
+            "max": [
+              6.804999828338623,
+              4.599999904632568,
+              4.599999904632568
+            ]
+          }
+        },
+        {
+          "name": "garage_canopy__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 468,
+          "bounds": {
+            "min": [
+              -7.5,
+              0,
+              -5
+            ],
+            "max": [
+              7.5,
+              0.42500001192092896,
+              5
+            ]
+          }
+        },
+        {
+          "name": "garage_canopy__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -5.900000095367432,
+              1.4500000476837158,
+              -3.737499952316284
+            ],
+            "max": [
+              -5.5,
+              1.850000023841858,
+              -3.702500104904175
+            ]
+          }
+        },
+        {
+          "name": "garage_canopy__light_warm",
+          "material": "light_warm",
+          "triangles": 132,
+          "bounds": {
+            "min": [
+              -7.650000095367432,
+              4.670000076293945,
+              -0.09000000357627869
+            ],
+            "max": [
+              7.650000095367432,
+              4.730000019073486,
+              0.09000000357627869
+            ]
+          }
+        },
+        {
+          "name": "garage_canopy__plaster_ivory",
+          "material": "plaster_ivory",
+          "triangles": 468,
+          "bounds": {
+            "min": [
+              -7.800000190734863,
+              0.15000009536743164,
+              -5.300000190734863
+            ],
+            "max": [
+              7.800000190734863,
+              5.230000019073486,
+              5.300000190734863
+            ]
+          }
+        },
+        {
+          "name": "garage_canopy__plaster_mint",
+          "material": "plaster_mint",
+          "triangles": 108,
+          "bounds": {
+            "min": [
+              -7.949999809265137,
+              5.019999980926514,
+              -5.449999809265137
+            ],
+            "max": [
+              7.949999809265137,
+              5.179999828338623,
+              5.449999809265137
+            ]
+          }
+        },
+        {
+          "name": "garage_canopy__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 60,
+          "bounds": {
+            "min": [
+              -6.025000095367432,
+              0.3500000238418579,
+              -3.700000047683716
+            ],
+            "max": [
+              -5.375,
+              2.1500000953674316,
+              -3.299999952316284
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "concrete_warm",
+        "glazing_blue",
+        "light_warm",
+        "plaster_ivory",
+        "plaster_mint",
+        "roof_graphite"
+      ],
+      "features": {
+        "canopy_column": 6,
+        "rounded_canopy": 1,
+        "sunshade_louvre": 13,
+        "parking_kiosk": 1
+      }
+    },
+    {
+      "name": "palm_coconut",
+      "bounds": {
+        "min": [
+          -4.911518096923828,
+          0,
+          -4.777573585510254
+        ],
+        "max": [
+          4.911518096923828,
+          10.42525863647461,
+          4.777573585510254
+        ]
+      },
+      "triangles": 12964,
+      "parts": [
+        {
+          "name": "palm_coconut__palm_bark",
+          "material": "palm_bark",
+          "triangles": 4736,
+          "bounds": {
+            "min": [
+              -1.166441559791565,
+              0,
+              -0.9588696360588074
+            ],
+            "max": [
+              0.6411416530609131,
+              8.049850463867188,
+              0.11599358916282654
+            ]
+          }
+        },
+        {
+          "name": "palm_coconut__palm_leaf",
+          "material": "palm_leaf",
+          "triangles": 8228,
+          "bounds": {
+            "min": [
+              -4.911518096923828,
+              5.638218879699707,
+              -4.777573585510254
+            ],
+            "max": [
+              4.911518096923828,
+              10.42525863647461,
+              4.777573585510254
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "palm_bark",
+        "palm_leaf"
+      ],
+      "features": {
+        "curved_trunk": 1,
+        "trunk_growth_ring": 42,
+        "curved_frond_rachis": 13,
+        "individual_leaflet": 696,
+        "coconut": 6
+      }
+    },
+    {
+      "name": "palm_royal",
+      "bounds": {
+        "min": [
+          -4.285023212432861,
+          0,
+          -4.660233020782471
+        ],
+        "max": [
+          4.285023212432861,
+          14.277923583984375,
+          4.660233020782471
+        ]
+      },
+      "triangles": 13584,
+      "parts": [
+        {
+          "name": "palm_royal__hedge_leaf",
+          "material": "hedge_leaf",
+          "triangles": 52,
+          "bounds": {
+            "min": [
+              -0.09328313171863556,
+              10.515294075012207,
+              -0.09810668230056763
+            ],
+            "max": [
+              0.3867168426513672,
+              11.965293884277344,
+              0.36985868215560913
+            ]
+          }
+        },
+        {
+          "name": "palm_royal__palm_bark",
+          "material": "palm_bark",
+          "triangles": 4136,
+          "bounds": {
+            "min": [
+              -0.4778071641921997,
+              0,
+              -0.14295753836631775
+            ],
+            "max": [
+              0.4479922652244568,
+              11.318205833435059,
+              0.6586220264434814
+            ]
+          }
+        },
+        {
+          "name": "palm_royal__palm_leaf",
+          "material": "palm_leaf",
+          "triangles": 9396,
+          "bounds": {
+            "min": [
+              -4.285023212432861,
+              9.924239158630371,
+              -4.660233020782471
+            ],
+            "max": [
+              4.285023212432861,
+              14.277923583984375,
+              4.660233020782471
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "hedge_leaf",
+        "palm_bark",
+        "palm_leaf"
+      ],
+      "features": {
+        "curved_trunk": 1,
+        "trunk_growth_ring": 42,
+        "royal_crownshaft": 1,
+        "curved_frond_rachis": 15,
+        "individual_leaflet": 792
+      }
+    },
+    {
+      "name": "yacht",
+      "bounds": {
+        "min": [
+          -2.3182756900787354,
+          0,
+          -8.882169723510742
+        ],
+        "max": [
+          2.3182756900787354,
+          7,
+          8.882169723510742
+        ]
+      },
+      "triangles": 5434,
+      "parts": [
+        {
+          "name": "yacht__glazing_blue",
+          "material": "glazing_blue",
+          "triangles": 462,
+          "bounds": {
+            "min": [
+              -2.3107757568359375,
+              1.5385290384292603,
+              -3.727830648422241
+            ],
+            "max": [
+              2.3107757568359375,
+              4.110000133514404,
+              5.992169380187988
+            ]
+          }
+        },
+        {
+          "name": "yacht__hull_pearl",
+          "material": "hull_pearl",
+          "triangles": 740,
+          "bounds": {
+            "min": [
+              -2.3049166202545166,
+              0,
+              -8.867830276489258
+            ],
+            "max": [
+              2.3049166202545166,
+              6.21999979019165,
+              8.332169532775879
+            ]
+          }
+        },
+        {
+          "name": "yacht__metal_satin",
+          "material": "metal_satin",
+          "triangles": 2076,
+          "bounds": {
+            "min": [
+              -2.3182756900787354,
+              1.486029028892517,
+              -8.882169723510742
+            ],
+            "max": [
+              2.3182756900787354,
+              7,
+              8.360169410705566
+            ]
+          }
+        },
+        {
+          "name": "yacht__teak_deck",
+          "material": "teak_deck",
+          "triangles": 2156,
+          "bounds": {
+            "min": [
+              -2.1666998863220215,
+              1.690000057220459,
+              -8.089810371398926
+            ],
+            "max": [
+              2.1666998863220215,
+              2.833003282546997,
+              8.882169723510742
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "glazing_blue",
+        "hull_pearl",
+        "metal_satin",
+        "teak_deck"
+      ],
+      "features": {
+        "lofted_v_chine_hull": 1,
+        "shaped_deck": 1,
+        "deck_plank": 48,
+        "perimeter_safety_rail": 1,
+        "rail_stanchion": 20,
+        "raked_cabin": 1,
+        "cabin_side_glazing": 10,
+        "hull_porthole": 10,
+        "raked_windscreen": 1,
+        "cabin_roof": 1,
+        "flybridge": 1,
+        "flybridge_seat": 2,
+        "radar_arch": 2,
+        "radar": 1,
+        "aft_bench": 1,
+        "swim_platform": 1
+      },
+      "waterline": 0.9,
+      "placement": "pivot at water surface minus 0.9m; bow -Z"
+    },
+    {
+      "name": "streetlight",
+      "bounds": {
+        "min": [
+          -0.2800000011920929,
+          0,
+          -1.149999976158142
+        ],
+        "max": [
+          0.2800000011920929,
+          7.6335601806640625,
+          1.149999976158142
+        ]
+      },
+      "triangles": 324,
+      "parts": [
+        {
+          "name": "streetlight__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 280,
+          "bounds": {
+            "min": [
+              -0.2800000011920929,
+              0,
+              -1.149999976158142
+            ],
+            "max": [
+              0.2800000011920929,
+              7.6335601806640625,
+              1.149999976158142
+            ]
+          }
+        },
+        {
+          "name": "streetlight__light_warm",
+          "material": "light_warm",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -0.2150000035762787,
+              7.307499885559082,
+              -1.0399999618530273
+            ],
+            "max": [
+              0.2150000035762787,
+              7.362500190734863,
+              -0.3100000023841858
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "light_warm"
+      ],
+      "features": {
+        "bevelled_base": 1,
+        "curved_lamp_arm": 1,
+        "luminaire": 1,
+        "emissive_diffuser": 1
+      }
+    },
+    {
+      "name": "bench",
+      "bounds": {
+        "min": [
+          -0.9300000071525574,
+          0,
+          -0.37119728326797485
+        ],
+        "max": [
+          0.9300000071525574,
+          0.9094957709312439,
+          0.37119728326797485
+        ]
+      },
+      "triangles": 768,
+      "parts": [
+        {
+          "name": "bench__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 372,
+          "bounds": {
+            "min": [
+              -0.7020000219345093,
+              0,
+              -0.37119728326797485
+            ],
+            "max": [
+              0.7020000219345093,
+              0.9094957709312439,
+              0.36732232570648193
+            ]
+          }
+        },
+        {
+          "name": "bench__teak_deck",
+          "material": "teak_deck",
+          "triangles": 396,
+          "bounds": {
+            "min": [
+              -0.9300000071525574,
+              0.4001315236091614,
+              -0.27580270171165466
+            ],
+            "max": [
+              0.9300000071525574,
+              0.8991315364837646,
+              0.37119728326797485
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "teak_deck"
+      ],
+      "features": {
+        "curved_bench_leg": 2,
+        "bench_armrest": 2,
+        "seat_slat": 5,
+        "back_slat": 4
+      }
+    },
+    {
+      "name": "bollard",
+      "bounds": {
+        "min": [
+          -0.18000000715255737,
+          0,
+          -0.18000000715255737
+        ],
+        "max": [
+          0.18000000715255737,
+          0.9399999976158142,
+          0.18000000715255737
+        ]
+      },
+      "triangles": 308,
+      "parts": [
+        {
+          "name": "bollard__bronze_dark",
+          "material": "bronze_dark",
+          "triangles": 76,
+          "bounds": {
+            "min": [
+              -0.18000000715255737,
+              0,
+              -0.18000000715255737
+            ],
+            "max": [
+              0.18000000715255737,
+              0.04500000178813934,
+              0.18000000715255737
+            ]
+          }
+        },
+        {
+          "name": "bollard__light_warm",
+          "material": "light_warm",
+          "triangles": 76,
+          "bounds": {
+            "min": [
+              -0.11400000005960464,
+              0.7599999904632568,
+              -0.11400000005960464
+            ],
+            "max": [
+              0.11400000005960464,
+              0.800000011920929,
+              0.11400000005960464
+            ]
+          }
+        },
+        {
+          "name": "bollard__metal_satin",
+          "material": "metal_satin",
+          "triangles": 156,
+          "bounds": {
+            "min": [
+              -0.14000000059604645,
+              0,
+              -0.14000000059604645
+            ],
+            "max": [
+              0.14000000059604645,
+              0.9399999976158142,
+              0.14000000059604645
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "bronze_dark",
+        "light_warm",
+        "metal_satin"
+      ],
+      "features": {
+        "bevelled_bollard": 1,
+        "reflective_band": 1
+      }
+    },
+    {
+      "name": "planter",
+      "bounds": {
+        "min": [
+          -0.5983061790466309,
+          0,
+          -0.5746651291847229
+        ],
+        "max": [
+          0.5983061790466309,
+          1.4673538208007812,
+          0.5746651291847229
+        ]
+      },
+      "triangles": 428,
+      "parts": [
+        {
+          "name": "planter__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 192,
+          "bounds": {
+            "min": [
+              -0.5983061790466309,
+              0,
+              -0.5653348565101624
+            ],
+            "max": [
+              0.5416938662528992,
+              0.7699999809265137,
+              0.5746651291847229
+            ]
+          }
+        },
+        {
+          "name": "planter__hedge_leaf",
+          "material": "hedge_leaf",
+          "triangles": 192,
+          "bounds": {
+            "min": [
+              -0.5794863700866699,
+              0.6600000262260437,
+              -0.5746651291847229
+            ],
+            "max": [
+              0.5983061790466309,
+              1.4673538208007812,
+              0.5192436575889587
+            ]
+          }
+        },
+        {
+          "name": "planter__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -0.4883061647415161,
+              0.5899999737739563,
+              -0.45533487200737
+            ],
+            "max": [
+              0.4316938519477844,
+              0.6499999761581421,
+              0.46466514468193054
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "concrete_warm",
+        "hedge_leaf",
+        "roof_graphite"
+      ],
+      "features": {
+        "hollow_planter": 1,
+        "bevelled_planter_rim": 4,
+        "soil": 1,
+        "planter_leaf": 24
+      }
+    },
+    {
+      "name": "hedge",
+      "bounds": {
+        "min": [
+          -1.4838937520980835,
+          0,
+          -0.440551221370697
+        ],
+        "max": [
+          1.4838937520980835,
+          1.338201880455017,
+          0.440551221370697
+        ]
+      },
+      "triangles": 5024,
+      "parts": [
+        {
+          "name": "hedge__concrete_warm",
+          "material": "concrete_warm",
+          "triangles": 44,
+          "bounds": {
+            "min": [
+              -1.3642311096191406,
+              0,
+              -0.4256877601146698
+            ],
+            "max": [
+              1.3357689380645752,
+              0.20000000298023224,
+              0.4243122637271881
+            ]
+          }
+        },
+        {
+          "name": "hedge__hedge_leaf",
+          "material": "hedge_leaf",
+          "triangles": 4840,
+          "bounds": {
+            "min": [
+              -1.4838937520980835,
+              0.24434879422187805,
+              -0.440551221370697
+            ],
+            "max": [
+              1.4838937520980835,
+              1.338201880455017,
+              0.440551221370697
+            ]
+          }
+        },
+        {
+          "name": "hedge__palm_bark",
+          "material": "palm_bark",
+          "triangles": 140,
+          "bounds": {
+            "min": [
+              -1.0942310094833374,
+              0.15000000596046448,
+              -0.02666850946843624
+            ],
+            "max": [
+              1.065768837928772,
+              0.699999988079071,
+              0.02529301308095455
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "concrete_warm",
+        "hedge_leaf",
+        "palm_bark"
+      ],
+      "features": {
+        "hedge_border": 1,
+        "rounded_foliage_cluster": 7,
+        "hedge_leaflet": 500
+      }
+    },
+    {
+      "name": "marina_pontoon",
+      "bounds": {
+        "min": [
+          -1.6197500228881836,
+          0,
+          -6
+        ],
+        "max": [
+          1.6197500228881836,
+          1.774999976158142,
+          6
+        ]
+      },
+      "triangles": 3768,
+      "parts": [
+        {
+          "name": "marina_pontoon__metal_satin",
+          "material": "metal_satin",
+          "triangles": 804,
+          "bounds": {
+            "min": [
+              -1.5099999904632568,
+              0.4099999964237213,
+              -6
+            ],
+            "max": [
+              1.5099999904632568,
+              1.774999976158142,
+              6
+            ]
+          }
+        },
+        {
+          "name": "marina_pontoon__roof_graphite",
+          "material": "roof_graphite",
+          "triangles": 324,
+          "bounds": {
+            "min": [
+              -1.6197500228881836,
+              0,
+              -5.949999809265137
+            ],
+            "max": [
+              1.6197500228881836,
+              0.6200000047683716,
+              5.949999809265137
+            ]
+          }
+        },
+        {
+          "name": "marina_pontoon__teak_deck",
+          "material": "teak_deck",
+          "triangles": 2640,
+          "bounds": {
+            "min": [
+              -1.4299999475479126,
+              0.6399999856948853,
+              -5.903500080108643
+            ],
+            "max": [
+              1.4299999475479126,
+              0.7200000286102295,
+              5.96150016784668
+            ]
+          }
+        }
+      ],
+      "materials": [
+        "metal_satin",
+        "roof_graphite",
+        "teak_deck"
+      ],
+      "features": {
+        "pontoon_float": 1,
+        "dock_edge": 2,
+        "dock_fender": 6,
+        "pontoon_plank": 60,
+        "mooring_cleat": 8,
+        "dock_guardrail": 3
+      },
+      "waterline": 0.3,
+      "placement": "pivot at water surface minus 0.3m; deck +0.42m above water"
+    }
+  ],
+  "materials": [
+    {
+      "name": "plaster_ivory",
+      "baseColor": [
+        0.9046611785888672,
+        0.7835378050804138,
+        0.6307571530342102,
+        1
+      ],
+      "roughness": 0.78,
+      "metalness": 0,
+      "maps": {
+        "map": "painted_plaster_wall_diffuse",
+        "normalMap": "painted_plaster_wall_nor_gl",
+        "roughnessMap": "painted_plaster_wall_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "name": "plaster_coral",
+      "baseColor": [
+        0.7454041838645935,
+        0.35153260827064514,
+        0.28314873576164246,
+        1
+      ],
+      "roughness": 0.76,
+      "metalness": 0,
+      "maps": {
+        "map": "painted_plaster_wall_diffuse",
+        "normalMap": "painted_plaster_wall_nor_gl",
+        "roughnessMap": "painted_plaster_wall_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "name": "plaster_mint",
+      "baseColor": [
+        0.38132601976394653,
+        0.5647115111351013,
+        0.5088813304901123,
+        1
+      ],
+      "roughness": 0.72,
+      "metalness": 0,
+      "maps": {
+        "map": "painted_plaster_wall_diffuse",
+        "normalMap": "painted_plaster_wall_nor_gl",
+        "roughnessMap": "painted_plaster_wall_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.22,
+        0.22
+      ]
+    },
+    {
+      "name": "concrete_warm",
+      "baseColor": [
+        0.637596845626831,
+        0.5840784311294556,
+        0.4793201684951782,
+        1
+      ],
+      "roughness": 0.86,
+      "metalness": 0,
+      "maps": {
+        "map": "concrete_wall_007_diffuse",
+        "normalMap": "concrete_wall_007_nor_gl",
+        "roughnessMap": "concrete_wall_007_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.48,
+        0.48
+      ]
+    },
+    {
+      "name": "asphalt_road",
+      "baseColor": [
+        0.33716362714767456,
+        0.34670406579971313,
+        0.35640013217926025,
+        1
+      ],
+      "roughness": 0.9,
+      "metalness": 0,
+      "maps": {
+        "map": "aerial_asphalt_01_diffuse",
+        "normalMap": "aerial_asphalt_01_nor_gl",
+        "roughnessMap": "aerial_asphalt_01_rough"
+      },
+      "uvTileMeters": 2,
+      "normalScale": [
+        0.65,
+        0.65
+      ]
+    },
+    {
+      "name": "frame_ivory",
+      "baseColor": [
+        0.8148465752601624,
+        0.7835378050804138,
+        0.715693473815918,
+        1
+      ],
+      "roughness": 0.38,
+      "metalness": 0.15
+    },
+    {
+      "name": "glazing_blue",
+      "baseColor": [
+        0.03433980792760849,
+        0.109461709856987,
+        0.14995978772640228,
+        1
+      ],
+      "roughness": 0.17,
+      "metalness": 0.38
+    },
+    {
+      "name": "metal_satin",
+      "baseColor": [
+        0.3967552185058594,
+        0.47353148460388184,
+        0.4677838087081909,
+        1
+      ],
+      "roughness": 0.29,
+      "metalness": 0.82
+    },
+    {
+      "name": "bronze_dark",
+      "baseColor": [
+        0.13286831974983215,
+        0.0802198201417923,
+        0.05780543014407158,
+        1
+      ],
+      "roughness": 0.35,
+      "metalness": 0.7
+    },
+    {
+      "name": "roof_graphite",
+      "baseColor": [
+        0.04666508734226227,
+        0.05951123684644699,
+        0.06480326503515244,
+        1
+      ],
+      "roughness": 0.87,
+      "metalness": 0
+    },
+    {
+      "name": "palm_bark",
+      "baseColor": [
+        0.23839756846427917,
+        0.16513219475746155,
+        0.10461648553609848,
+        1
+      ],
+      "roughness": 0.93,
+      "metalness": 0
+    },
+    {
+      "name": "palm_leaf",
+      "baseColor": [
+        0.08437620848417282,
+        0.18782077729701996,
+        0.05780543014407158,
+        1
+      ],
+      "roughness": 0.72,
+      "metalness": 0
+    },
+    {
+      "name": "hedge_leaf",
+      "baseColor": [
+        0.052860647439956665,
+        0.14126329123973846,
+        0.06480326503515244,
+        1
+      ],
+      "roughness": 0.8,
+      "metalness": 0
+    },
+    {
+      "name": "hull_pearl",
+      "baseColor": [
+        0.8962693810462952,
+        0.8713670969009399,
+        0.7991027235984802,
+        1
+      ],
+      "roughness": 0.24,
+      "metalness": 0.05
+    },
+    {
+      "name": "teak_deck",
+      "baseColor": [
+        0.3915724754333496,
+        0.22696587443351746,
+        0.09530746936798096,
+        1
+      ],
+      "roughness": 0.66,
+      "metalness": 0
+    },
+    {
+      "name": "light_warm",
+      "baseColor": [
+        1,
+        0.8796223998069763,
+        0.6172065734863281,
+        1
+      ],
+      "roughness": 0.3,
+      "metalness": 0,
+      "emissive": [
+        1,
+        0.6795424696330938,
+        0.3277780980565422
+      ],
+      "emissiveIntensity": 2
+    }
+  ],
+  "textures": [
+    {
+      "id": "aerial_asphalt_01_diffuse",
+      "path": "/textures/miami/aerial_asphalt_01_diff_1k.jpg",
+      "bytes": 635143,
+      "sha256": "28bfd71288b364f825e0feb750e487410422d80bf3c31d32da01cae3bf085b58",
+      "md5": "b41fc0114556f15fe59b260cf0978b89",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "sRGB",
+      "source": {
+        "asset": "aerial_asphalt_01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_asphalt_01/aerial_asphalt_01_diff_1k.jpg",
+        "api": "https://api.polyhaven.com/files/aerial_asphalt_01",
+        "author": "Rob Tuytel (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "b41fc0114556f15fe59b260cf0978b89"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "aerial_asphalt_01_nor_gl",
+      "path": "/textures/miami/aerial_asphalt_01_nor_gl_1k.jpg",
+      "bytes": 560227,
+      "sha256": "7a58cb4460f75b66359b8e19bc92585554a79c2b0009e2b9e21eccac0a58d3f6",
+      "md5": "4e57698a025ec6734d5d4fd025b4dfe9",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "aerial_asphalt_01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_asphalt_01/aerial_asphalt_01_nor_gl_1k.jpg",
+        "api": "https://api.polyhaven.com/files/aerial_asphalt_01",
+        "author": "Rob Tuytel (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "4e57698a025ec6734d5d4fd025b4dfe9"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "aerial_asphalt_01_rough",
+      "path": "/textures/miami/aerial_asphalt_01_rough_1k.jpg",
+      "bytes": 312445,
+      "sha256": "19ca745417e36a1cd1114411801933b3144a351d1409d0d9caa1046b9a20c0ec",
+      "md5": "086103ec0d34b82ba2def2d3584da8ed",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "aerial_asphalt_01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_asphalt_01/aerial_asphalt_01_rough_1k.jpg",
+        "api": "https://api.polyhaven.com/files/aerial_asphalt_01",
+        "author": "Rob Tuytel (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "086103ec0d34b82ba2def2d3584da8ed"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "concrete_wall_007_diffuse",
+      "path": "/textures/miami/concrete_wall_007_diff_1k.jpg",
+      "bytes": 654485,
+      "sha256": "1a5ff668a66e147d9fb795d8407ca67a144a1ca010779a5b8386137a4917a086",
+      "md5": "f8a951200ebe1a42ba57ef331d94f8e2",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "sRGB",
+      "source": {
+        "asset": "concrete_wall_007",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_diff_1k.jpg",
+        "api": "https://api.polyhaven.com/files/concrete_wall_007",
+        "author": "Dario Barresi (Processing); Rico Cilliers (Tiling); Charlotte Baglioni (Photography)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "f8a951200ebe1a42ba57ef331d94f8e2"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "concrete_wall_007_nor_gl",
+      "path": "/textures/miami/concrete_wall_007_nor_gl_1k.jpg",
+      "bytes": 602349,
+      "sha256": "cccb1841908ced8b89b65b5de97c1926f717dab63a14559264703a99639c291f",
+      "md5": "7d62088fb4f40833226cdb2a09476a58",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "concrete_wall_007",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_nor_gl_1k.jpg",
+        "api": "https://api.polyhaven.com/files/concrete_wall_007",
+        "author": "Dario Barresi (Processing); Rico Cilliers (Tiling); Charlotte Baglioni (Photography)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "7d62088fb4f40833226cdb2a09476a58"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "concrete_wall_007_rough",
+      "path": "/textures/miami/concrete_wall_007_rough_1k.jpg",
+      "bytes": 563812,
+      "sha256": "5de46a478cbcb4cf4851be9b1dc4a58609c580e498fe758a6959119d45e7a5cb",
+      "md5": "57fc45c0410543a5117bbfab360e040a",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "concrete_wall_007",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_rough_1k.jpg",
+        "api": "https://api.polyhaven.com/files/concrete_wall_007",
+        "author": "Dario Barresi (Processing); Rico Cilliers (Tiling); Charlotte Baglioni (Photography)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "57fc45c0410543a5117bbfab360e040a"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "painted_plaster_wall_diffuse",
+      "path": "/textures/miami/painted_plaster_wall_diff_1k.jpg",
+      "bytes": 686726,
+      "sha256": "440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c",
+      "md5": "15ba8c1f63a5ab412b1eabe31728540a",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "sRGB",
+      "source": {
+        "asset": "painted_plaster_wall",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_diff_1k.jpg",
+        "api": "https://api.polyhaven.com/files/painted_plaster_wall",
+        "author": "Amal Kumar (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "15ba8c1f63a5ab412b1eabe31728540a"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "painted_plaster_wall_nor_gl",
+      "path": "/textures/miami/painted_plaster_wall_nor_gl_1k.jpg",
+      "bytes": 900461,
+      "sha256": "8eb01647d126eb5341e2c325821ad48c8ca11349dbef53447c95422c5d91cc9d",
+      "md5": "43fff290583dbdfc9bfa088a2750e840",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "painted_plaster_wall",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_nor_gl_1k.jpg",
+        "api": "https://api.polyhaven.com/files/painted_plaster_wall",
+        "author": "Amal Kumar (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "43fff290583dbdfc9bfa088a2750e840"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "painted_plaster_wall_rough",
+      "path": "/textures/miami/painted_plaster_wall_rough_1k.jpg",
+      "bytes": 354762,
+      "sha256": "e0564c297b22ab1cf4ef02a82157b84ce3b92eb4fd49d9c64b7256a8b300af82",
+      "md5": "e076a6360329a2bc18c7397dc50c074a",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "painted_plaster_wall",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_rough_1k.jpg",
+        "api": "https://api.polyhaven.com/files/painted_plaster_wall",
+        "author": "Amal Kumar (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "e076a6360329a2bc18c7397dc50c074a"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "kloppenheim_06_puresky_hdri",
+      "path": "/textures/miami/kloppenheim_06_puresky_1k.hdr",
+      "bytes": 1173154,
+      "sha256": "206c67e3a1b992282821cf06662bdd69bbb4915c1c4444a66338a40d6a7d4e34",
+      "md5": "995d68b1656f26452572645c0ffe898b",
+      "width": 1024,
+      "height": 512,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "kloppenheim_06_puresky",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloppenheim_06_puresky_1k.hdr",
+        "api": "https://api.polyhaven.com/files/kloppenheim_06_puresky",
+        "author": "Greg Zaal (Original); Jarod Guest (Sky edits)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "995d68b1656f26452572645c0ffe898b"
+      },
+      "derivative": "none; byte-identical published original"
+    }
+  ],
+  "environment": {
+    "texture": "kloppenheim_06_puresky_hdri",
+    "projection": "equirectangular",
+    "colorSpace": "linear",
+    "notes": "Photographed late-sunset sky; use PMREM for reflections and original for background; no runtime third-party URLs."
+  },
+  "limits": {
+    "initialBytes": 50331648,
+    "sharedTextures": 48,
+    "prototypePartBatches": 120,
+    "runtimeVisibleInstances": 1800,
+    "wholeFrameCalls": 500,
+    "wholeFrameTriangles": 5000000
+  }
+}

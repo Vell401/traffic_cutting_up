@@ -1,0 +1,206 @@
+{
+  "schema": 1,
+  "userAgent": "TrafficCuttingUp-MiamiRebuild/1.0",
+  "textures": [
+    {
+      "id": "aerial_asphalt_01_diffuse",
+      "path": "/textures/miami/aerial_asphalt_01_diff_1k.jpg",
+      "bytes": 635143,
+      "sha256": "28bfd71288b364f825e0feb750e487410422d80bf3c31d32da01cae3bf085b58",
+      "md5": "b41fc0114556f15fe59b260cf0978b89",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "sRGB",
+      "source": {
+        "asset": "aerial_asphalt_01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_asphalt_01/aerial_asphalt_01_diff_1k.jpg",
+        "api": "https://api.polyhaven.com/files/aerial_asphalt_01",
+        "author": "Rob Tuytel (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "b41fc0114556f15fe59b260cf0978b89"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "aerial_asphalt_01_nor_gl",
+      "path": "/textures/miami/aerial_asphalt_01_nor_gl_1k.jpg",
+      "bytes": 560227,
+      "sha256": "7a58cb4460f75b66359b8e19bc92585554a79c2b0009e2b9e21eccac0a58d3f6",
+      "md5": "4e57698a025ec6734d5d4fd025b4dfe9",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "aerial_asphalt_01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_asphalt_01/aerial_asphalt_01_nor_gl_1k.jpg",
+        "api": "https://api.polyhaven.com/files/aerial_asphalt_01",
+        "author": "Rob Tuytel (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "4e57698a025ec6734d5d4fd025b4dfe9"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "aerial_asphalt_01_rough",
+      "path": "/textures/miami/aerial_asphalt_01_rough_1k.jpg",
+      "bytes": 312445,
+      "sha256": "19ca745417e36a1cd1114411801933b3144a351d1409d0d9caa1046b9a20c0ec",
+      "md5": "086103ec0d34b82ba2def2d3584da8ed",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "aerial_asphalt_01",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_asphalt_01/aerial_asphalt_01_rough_1k.jpg",
+        "api": "https://api.polyhaven.com/files/aerial_asphalt_01",
+        "author": "Rob Tuytel (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "086103ec0d34b82ba2def2d3584da8ed"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "concrete_wall_007_diffuse",
+      "path": "/textures/miami/concrete_wall_007_diff_1k.jpg",
+      "bytes": 654485,
+      "sha256": "1a5ff668a66e147d9fb795d8407ca67a144a1ca010779a5b8386137a4917a086",
+      "md5": "f8a951200ebe1a42ba57ef331d94f8e2",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "sRGB",
+      "source": {
+        "asset": "concrete_wall_007",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_diff_1k.jpg",
+        "api": "https://api.polyhaven.com/files/concrete_wall_007",
+        "author": "Dario Barresi (Processing); Rico Cilliers (Tiling); Charlotte Baglioni (Photography)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "f8a951200ebe1a42ba57ef331d94f8e2"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "concrete_wall_007_nor_gl",
+      "path": "/textures/miami/concrete_wall_007_nor_gl_1k.jpg",
+      "bytes": 602349,
+      "sha256": "cccb1841908ced8b89b65b5de97c1926f717dab63a14559264703a99639c291f",
+      "md5": "7d62088fb4f40833226cdb2a09476a58",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "concrete_wall_007",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_nor_gl_1k.jpg",
+        "api": "https://api.polyhaven.com/files/concrete_wall_007",
+        "author": "Dario Barresi (Processing); Rico Cilliers (Tiling); Charlotte Baglioni (Photography)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "7d62088fb4f40833226cdb2a09476a58"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "concrete_wall_007_rough",
+      "path": "/textures/miami/concrete_wall_007_rough_1k.jpg",
+      "bytes": 563812,
+      "sha256": "5de46a478cbcb4cf4851be9b1dc4a58609c580e498fe758a6959119d45e7a5cb",
+      "md5": "57fc45c0410543a5117bbfab360e040a",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "concrete_wall_007",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_rough_1k.jpg",
+        "api": "https://api.polyhaven.com/files/concrete_wall_007",
+        "author": "Dario Barresi (Processing); Rico Cilliers (Tiling); Charlotte Baglioni (Photography)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "57fc45c0410543a5117bbfab360e040a"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "painted_plaster_wall_diffuse",
+      "path": "/textures/miami/painted_plaster_wall_diff_1k.jpg",
+      "bytes": 686726,
+      "sha256": "440310f05af089f2c93353167573403cbc3f805948203237b5d26431eeb9e19c",
+      "md5": "15ba8c1f63a5ab412b1eabe31728540a",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "sRGB",
+      "source": {
+        "asset": "painted_plaster_wall",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_diff_1k.jpg",
+        "api": "https://api.polyhaven.com/files/painted_plaster_wall",
+        "author": "Amal Kumar (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "15ba8c1f63a5ab412b1eabe31728540a"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "painted_plaster_wall_nor_gl",
+      "path": "/textures/miami/painted_plaster_wall_nor_gl_1k.jpg",
+      "bytes": 900461,
+      "sha256": "8eb01647d126eb5341e2c325821ad48c8ca11349dbef53447c95422c5d91cc9d",
+      "md5": "43fff290583dbdfc9bfa088a2750e840",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "painted_plaster_wall",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_nor_gl_1k.jpg",
+        "api": "https://api.polyhaven.com/files/painted_plaster_wall",
+        "author": "Amal Kumar (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "43fff290583dbdfc9bfa088a2750e840"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "painted_plaster_wall_rough",
+      "path": "/textures/miami/painted_plaster_wall_rough_1k.jpg",
+      "bytes": 354762,
+      "sha256": "e0564c297b22ab1cf4ef02a82157b84ce3b92eb4fd49d9c64b7256a8b300af82",
+      "md5": "e076a6360329a2bc18c7397dc50c074a",
+      "width": 1024,
+      "height": 1024,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "painted_plaster_wall",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/painted_plaster_wall/painted_plaster_wall_rough_1k.jpg",
+        "api": "https://api.polyhaven.com/files/painted_plaster_wall",
+        "author": "Amal Kumar (All)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "e076a6360329a2bc18c7397dc50c074a"
+      },
+      "derivative": "none; byte-identical published original"
+    },
+    {
+      "id": "kloppenheim_06_puresky_hdri",
+      "path": "/textures/miami/kloppenheim_06_puresky_1k.hdr",
+      "bytes": 1173154,
+      "sha256": "206c67e3a1b992282821cf06662bdd69bbb4915c1c4444a66338a40d6a7d4e34",
+      "md5": "995d68b1656f26452572645c0ffe898b",
+      "width": 1024,
+      "height": 512,
+      "colorSpace": "linear",
+      "source": {
+        "asset": "kloppenheim_06_puresky",
+        "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloppenheim_06_puresky_1k.hdr",
+        "api": "https://api.polyhaven.com/files/kloppenheim_06_puresky",
+        "author": "Greg Zaal (Original); Jarod Guest (Sky edits)",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://polyhaven.com/license",
+        "publishedMd5": "995d68b1656f26452572645c0ffe898b"
+      },
+      "derivative": "none; byte-identical published original"
+    }
+  ]
+}
