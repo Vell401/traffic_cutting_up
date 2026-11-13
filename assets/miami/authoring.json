@@ -1,7 +1,7 @@
 {
   "generator": {
     "name": "scripts/blender/build_miami.py",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "blender": "4.5.9 LTS",
     "seed": 13062026
   },

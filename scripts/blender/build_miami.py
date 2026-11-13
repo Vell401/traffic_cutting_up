@@ -181,11 +181,13 @@ class Builder:
         faces += [(bottom, bottom-sides+(j+1) % sides, bottom-sides+j) for j in range(sides)]
         self.mesh(mat, verts, faces, smooth=True, feature=feature)
 
-    def slab(self, mat, width, depth, z, thickness, radius=.5, feature=None):
+    def slab(self, mat, width, depth, z, thickness, radius=.5, feature=None, top_cap=True):
         outline = rounded_outline(width, depth, radius)
         n = len(outline)
         verts = [(x, y, zz) for zz in [z, z+thickness] for x, y in outline]
-        faces = [tuple(reversed(range(n))), tuple(range(n, n*2))]
+        faces = [tuple(reversed(range(n)))]
+        if top_cap:
+            faces.append(tuple(range(n, n*2)))
         faces += [(i, (i+1) % n, (i+1) % n+n, i+n) for i in range(n)]
         self.mesh(mat, verts, faces, feature=feature)
 
@@ -264,11 +266,16 @@ def window(b, x, face_y, z, width=1.55, height=1.9, rotation=0, mullion=True, si
     b.features['recessed_windows'] += 1
 
 
-def wall_floor(b, width, depth, z, height=3.1, wall='plaster_ivory', bay=2.8, balconies=False):
-    b.slab(wall, width-.65, depth-.65, z, height, .8, 'recessed_core')
+def wall_floor(b, width, depth, z, height=3.1, wall='plaster_ivory', bay=2.8, balconies=False, top_finish=True):
+    # The full-width upper spandrel (or the setback's concrete balcony) closes
+    # the core. Do not leave another coplanar core cap under that exposed finish.
+    b.slab(wall, width-.65, depth-.65, z, height, .8, 'recessed_core', top_cap=False)
     b.slab('concrete_warm', width+.18, depth+.18, z, .19, .95, 'floor_slab')
     b.slab(wall, width, depth, z+.16, .38, .9)
-    b.slab(wall, width, depth, z+height-.38, .38, .9)
+    # A setback balcony covers this entire footprint and supplies its top cap.
+    # Remove the concealed spandrel cap there, rather than offsetting materials
+    # or lifting railings/floors. Non-balcony podiums keep this one finish cap.
+    b.slab(wall, width, depth, z+height-.38, .38, .9, top_cap=top_finish)
     for rotation, length, face in [(0, width, depth/2), (math.pi, width, depth/2),
                                     (math.pi/2, depth, width/2), (-math.pi/2, depth, width/2)]:
         # Rotate the whole local facade, including its normal, around the building.
@@ -343,7 +350,7 @@ def hotel_deco():
     b = Builder('hotel_deco')
     for i in range(7):
         w, d = (23, 15) if i < 4 else ((19.5, 13) if i < 6 else (15.5, 10.5))
-        wall_floor(b, w, d, i*3.2, 3.2, 'plaster_coral' if i < 4 else 'plaster_ivory')
+        wall_floor(b, w, d, i*3.2, 3.2, 'plaster_coral' if i < 4 else 'plaster_ivory', top_finish=i not in [3, 5])
         if i in [3, 5]:
             balcony_rail(b, w+.65, d+.65, i*3.2+3.2)
     entrance(b, 23, 15)
@@ -405,7 +412,7 @@ def tower(name, setback=False):
         z = 10.8+i*3.5
         # Curtain wall is physically segmented glazing, mullions and spandrels.
         if setback:
-            wall_floor(b, w, d, z, 3.5, 'plaster_ivory', 2.8)
+            wall_floor(b, w, d, z, 3.5, 'plaster_ivory', 2.8, top_finish=i not in [4, 9, 14])
         else:
             curtain_floor(b, w, d, z)
         for side in [-1, 1]:
@@ -705,7 +712,7 @@ def export_kit():
     bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE), compress=False)
     for root in PROTOTYPES.values():
         root.location = (0, 0, 0)
-    stats = dict(generator=dict(name='scripts/blender/build_miami.py', version='1.0.0',
+    stats = dict(generator=dict(name='scripts/blender/build_miami.py', version='1.0.1',
                                blender=bpy.app.version_string, seed=13062026),
                  materials=MATERIAL_SPEC, prototypes=FEATURES)
     (SOURCE.parent / 'authoring.json').write_text(json.dumps(stats, indent=2) + '\n')

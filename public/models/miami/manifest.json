@@ -2,7 +2,7 @@
   "schema": 1,
   "generator": {
     "name": "scripts/blender/build_miami.py",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "blender": "4.5.9 LTS",
     "seed": 13062026
   },
@@ -17,13 +17,13 @@
   },
   "model": {
     "path": "/models/miami/coastal-kit.glb",
-    "bytes": 23724768,
-    "sha256": "d572be94c0e7d83ce1cdab3f256d69505f40e1521b89df0255b201e8d2412ff5",
+    "bytes": 23675324,
+    "sha256": "a3bede50494f6d62d2adea2c9b43d4dbf2c706a11f639ee34554349795f52cee",
     "author": "Traffic Cutting Up project",
     "source": "project-authored in Blender; no extracted game models",
     "license": "project-authored; project rights unchanged (not covered by Poly Haven CC0)"
   },
-  "totalBytes": 30168332,
+  "totalBytes": 30118888,
   "partBatches": 74,
   "prototypes": [
     {
@@ -40,7 +40,7 @@
           8.574999809265137
         ]
       },
-      "triangles": 38668,
+      "triangles": 38434,
       "parts": [
         {
           "name": "hotel_deco__bronze_dark",
@@ -147,7 +147,7 @@
         {
           "name": "hotel_deco__plaster_coral",
           "material": "plaster_coral",
-          "triangles": 7536,
+          "triangles": 7406,
           "bounds": {
             "min": [
               -11.680000305175781,
@@ -164,7 +164,7 @@
         {
           "name": "hotel_deco__plaster_ivory",
           "material": "plaster_ivory",
-          "triangles": 5108,
+          "triangles": 5004,
           "bounds": {
             "min": [
               -9.930000305175781,
@@ -261,7 +261,7 @@
           9.274999618530273
         ]
       },
-      "triangles": 38536,
+      "triangles": 38406,
       "parts": [
         {
           "name": "hotel_colonnade__concrete_warm",
@@ -351,7 +351,7 @@
         {
           "name": "hotel_colonnade__plaster_mint",
           "material": "plaster_mint",
-          "triangles": 10680,
+          "triangles": 10550,
           "bounds": {
             "min": [
               -13.180000305175781,
@@ -430,7 +430,7 @@
           11.1875
         ]
       },
-      "triangles": 69832,
+      "triangles": 69624,
       "parts": [
         {
           "name": "condo_terrace__bronze_dark",
@@ -554,7 +554,7 @@
         {
           "name": "condo_terrace__plaster_ivory",
           "material": "plaster_ivory",
-          "triangles": 15008,
+          "triangles": 14800,
           "bounds": {
             "min": [
               -14.680000305175781,
@@ -631,7 +631,7 @@
           13.512499809265137
         ]
       },
-      "triangles": 74844,
+      "triangles": 74766,
       "parts": [
         {
           "name": "tower_glass__bronze_dark",
@@ -653,7 +653,7 @@
         {
           "name": "tower_glass__concrete_warm",
           "material": "concrete_warm",
-          "triangles": 12148,
+          "triangles": 12070,
           "bounds": {
             "min": [
               -14.774999618530273,
@@ -817,7 +817,7 @@
           13.512499809265137
         ]
       },
-      "triangles": 106000,
+      "triangles": 105428,
       "parts": [
         {
           "name": "tower_setback__bronze_dark",
@@ -839,7 +839,7 @@
         {
           "name": "tower_setback__concrete_warm",
           "material": "concrete_warm",
-          "triangles": 30304,
+          "triangles": 30226,
           "bounds": {
             "min": [
               -14.774999618530273,
@@ -924,7 +924,7 @@
         {
           "name": "tower_setback__plaster_ivory",
           "material": "plaster_ivory",
-          "triangles": 31160,
+          "triangles": 30666,
           "bounds": {
             "min": [
               -12.180000305175781,

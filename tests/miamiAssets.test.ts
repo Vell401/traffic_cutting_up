@@ -60,6 +60,31 @@ function imageDimensions(data: Buffer, path: string) {
   }
   throw new Error(`No JPEG dimensions: ${path}`);
 }
+function exposedUpwardFinishes(root: THREE.Object3D, x: number, z: number) {
+  const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, 300);
+  // A ray on an internal tessellation edge can legitimately hit two triangles
+  // of one cap. Move it <4mm within the same open terrace, rather than deduping
+  // by material/mesh (which would hide duplicate caps in the very same part).
+  for (let attempt = 0; attempt < 4; attempt++) {
+    ray.ray.origin.set(x + attempt * 0.000713, 200, z + attempt * 0.001137);
+    const upward = ray.intersectObject(root, true).filter(hit => hit.face && hit.face.normal.y > 0.9999);
+    expect(upward.length, `no upward finish at ${root.name} (${x},${z})`).toBeGreaterThan(0);
+    const top = upward.filter(hit => Math.abs(hit.point.y - upward[0].point.y) < 0.0001);
+    const onEdge = top.some(hit => {
+      const mesh = hit.object as THREE.Mesh, p = mesh.geometry.getAttribute('position'), face = hit.face!;
+      const triangle = new THREE.Triangle(
+        new THREE.Vector3().fromBufferAttribute(p, face.a).applyMatrix4(mesh.matrixWorld),
+        new THREE.Vector3().fromBufferAttribute(p, face.b).applyMatrix4(mesh.matrixWorld),
+        new THREE.Vector3().fromBufferAttribute(p, face.c).applyMatrix4(mesh.matrixWorld),
+      );
+      const bary = triangle.getBarycoord(hit.point, new THREE.Vector3())!;
+      return Math.min(bary.x, bary.y, bary.z) < 0.000001;
+    });
+    if (!onEdge) return top.map(hit => ({ material: ((hit.object as THREE.Mesh).material as THREE.Material).name,
+      y: hit.point.y, face: hit.faceIndex }));
+  }
+  throw new Error(`Could not sample a triangle interior at ${root.name} (${x},${z})`);
+}
 
 describe('physical Miami asset delivery contract', () => {
   it('delivers all fifteen metre-scale, bottom-centred, -Z-front prototypes without staging transforms', () => {
@@ -180,6 +205,24 @@ describe('physical Miami asset delivery contract', () => {
     for (let i = 0; i < pos.count; i++) bowZ = Math.min(bowZ, pos.getZ(i));
     const bowXs = Array.from({ length: pos.count }, (_, i) => i).filter(i => Math.abs(pos.getZ(i) - bowZ) < 0.001).map(i => pos.getX(i));
     expect(Math.max(...bowXs) - Math.min(...bowXs)).toBeLessThan(0.15);
+  });
+
+  it.each([
+    // The lower hotel's raised Deco ribbon is the actual visible top, not the
+    // concrete balcony below it; do not mistake that distinct layer for overlap.
+    { label: 'hotel lower setback', name: 'hotel_deco', material: 'frame_ivory', probes: [[10.5, 0, 13.24], [10.5, -4, 13.24], [-10.5, 3, 13.24]] },
+    { label: 'hotel upper setback', name: 'hotel_deco', material: 'concrete_warm', probes: [[8.5, 0, 19.29], [8.5, -4, 19.29], [9, 3, 19.29]] },
+    { label: 'glass tower podium', name: 'tower_glass', material: 'concrete_warm', probes: [[13.2, 0, 10.89], [13.2, -4, 10.89], [-13.2, 3, 10.89]] },
+    { label: 'setback tower podium', name: 'tower_setback', material: 'concrete_warm', probes: [[13.2, 0, 10.89], [13.2, -4, 10.89], [-13.2, 3, 10.89]] },
+    { label: 'tower upper setbacks', name: 'tower_setback', material: 'concrete_warm', probes: [[11.4, 0, 28.39], [9.8, -2, 45.89], [8.2, 2, 63.39]] },
+  ])('has one non-overlapping exposed finish on $label in the actual GLB', ({ name, material, probes }) => {
+    const { gltf: g } = kit(), root = g.scene.getObjectByName(name)!;
+    for (const [x, z, y] of probes) {
+      const finishes = exposedUpwardFinishes(root, x, z);
+      expect(finishes, `competing coplanar finish caps at ${name} (${x},${z}): ${JSON.stringify(finishes)}`).toHaveLength(1);
+      expect(finishes[0].material).toBe(material);
+      expect(finishes[0].y).toBeCloseTo(y, 3);
+    }
   });
 
   it('self-hosts bounded verified photos with original source, author, CC0, dimensions and exact checksums', () => {

@@ -25,21 +25,21 @@ Assetto Corsa is a visual reference, not an asset source or a claim of parity.
 - `public/textures/miami/*`: exactly nine 1K JPEG surface maps and one 1K HDR.
 
 The delivered kit has 15 prototypes, **74 prototype/material mesh parts**,
-**372,334 unique triangles**, 15 materials used by the GLB and one additional
-road-only material definition. The GLB is **23,724,768 bytes**; photos/HDR total
-**6,443,564 bytes**. Model + photos = **30,168,332 bytes (28.77 MiB)**; the manifest
-is another 58,959 bytes. Source `.blend` is 25,772,082 bytes and is not a browser
+**371,112 unique triangles**, 15 materials used by the GLB and one additional
+road-only material definition. The GLB is **23,675,324 bytes**; photos/HDR total
+**6,443,564 bytes**. Model + photos = **30,118,888 bytes (28.72 MiB)**; the manifest
+is another 58,959 bytes. Source `.blend` is 25,750,744 bytes and is not a browser
 payload. No mesh compression decoder or new game dependency is needed.
 
 ## Physical models
 
 | Prototype | Triangles | Parts | Modelled detail |
 | --- | ---: | ---: | --- |
-| `hotel_deco` | 38,668 | 10 | Three rounded/stepped tiers, 144 recessed windows with continuous rebated/bevelled frames, corner flutes, stepped illuminated blade, awning, balcony slabs/rails, parapets/HVAC/louvres |
-| `hotel_colonnade` | 38,536 | 7 | Genuinely open 4m-deep arcade, nine columns with plinths/capitals/flutes, 137 recessed windows, wrapping balconies, stepped roof pavilion |
-| `condo_terrace` | 69,832 | 9 | Eight progressively set-back floors, 174 recessed windows, eight continuous balcony slabs with 1,286 individual balusters, entrance and roof equipment |
-| `tower_glass` | 74,844 | 8 | Broad curtain glazing above a three-level podium, 21 curtain floors, 546 projecting vertical fins, physical floor nosings, crown/service screen |
-| `tower_setback` | 106,000 | 8 | Distinct 70m stepped silhouette, deep framed apertures, terrace rails at setbacks, podium, roof plant and louvred crown |
+| `hotel_deco` | 38,434 | 10 | Three rounded/stepped tiers, 144 recessed windows with continuous rebated/bevelled frames, corner flutes, stepped illuminated blade, awning, balcony slabs/rails, parapets/HVAC/louvres |
+| `hotel_colonnade` | 38,406 | 7 | Genuinely open 4m-deep arcade, nine columns with plinths/capitals/flutes, 137 recessed windows, wrapping balconies, stepped roof pavilion |
+| `condo_terrace` | 69,624 | 9 | Eight progressively set-back floors, 174 recessed windows, eight continuous balcony slabs with 1,286 individual balusters, entrance and roof equipment |
+| `tower_glass` | 74,766 | 8 | Broad curtain glazing above a three-level podium, 21 curtain floors, 546 projecting vertical fins, physical floor nosings, crown/service screen |
+| `tower_setback` | 105,428 | 8 | Distinct 70m stepped silhouette, deep framed apertures, terrace rails at setbacks, podium, roof plant and louvred crown |
 | `garage_canopy` | 1,852 | 7 | Rounded layered canopy, six bevelled columns/plinths, sunshade louvres, kiosk and emissive diffusers |
 | `palm_coconut` | 12,964 | 2 | Curved tapered trunk/growth rings, 13 curved rachises, **696 individually modelled closed ridged leaflets**, upward spears and coconuts |
 | `palm_royal` | 13,584 | 3 | Bulged/ringed trunk, green crownshaft, 15 rachises, **792 closed leaflets**, different taller crown profile |
@@ -58,6 +58,14 @@ There are no per-window materials, textures or runtime mesh objects. Glazing is
 opaque PBR reflective glazing, intentionally avoiding transparent-window sorting
 and pretending that interiors exist. Geometry has normals and baked physical UV0;
 no shader-generated window grid or palm ribbons, no fabricated baked-AO claim.
+
+Generator 1.0.1 gives each exposed terrace/podium a single finish cap: recessed
+cores are closed by the wider upper spandrel; where a setback balcony supplies
+the finish, that spandrel's hidden top cap is omitted too. This removes 47
+overlapping caps (1,222 triangles), without moving floors, rails, pivots or bounds.
+Actual-GLB downward-ray regressions check fifteen open-surface probes across hotel
+setbacks, both tower podiums and all three tower setbacks, including same-material
+duplicate caps. No runtime depth offset or quality workaround is involved.
 
 ## Exact Task2 extraction / material contract
 
@@ -152,7 +160,7 @@ npm test -- tests/miamiAssets.test.ts
 do not require it. No permanent Blender or package installation occurs. After the
 originals are checked in, rebuilding/validating is completely offline. Repeated
 authoring on Blender 4.5.9 produced byte-identical GLB SHA-256
-`d572be94c0e7d83ce1cdab3f256d69505f40e1521b89df0255b201e8d2412ff5`.
+`a3bede50494f6d62d2adea2c9b43d4dbf2c706a11f639ee34554349795f52cee`.
 
 For a separate inspection of the **actual reimported GLB** rather than the source,
 use the same Blender command with `-- --inspect-glb --preview-dir <scratch>`.
@@ -160,6 +168,12 @@ This mode does not modify the exported assets; it restores only the explicitly
 declared shared PBR maps for previews. The source authoring and reimported-GLB
 previews both include frontage, skyline, palms, yacht/pontoon, props and a close
 window/railing view. Preview lighting/staging is for inspection, not game evidence.
+
+Nonblocking Task3 material follow-up: source/restored preview shaders currently
+feed the photo straight into Roughness, whereas the documented runtime contract
+multiplies it by the scalar roughness factor. The terrace-cap fix deliberately
+does not change that separate item. Do not treat previews as identical to future
+game material output; align authoring multiplication in the Task3 follow-up.
 
 The contract tests inspect parsed buffers, triangle areas, normal lengths, UV
 variation, ground pivots, actual front/bow orientation, real material identity,
