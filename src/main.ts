@@ -56,6 +56,7 @@ import { TouchControls } from './ui/touchControls';
 import { Fullscreen } from './ui/fullscreen';
 import { loadMapSky, mapNavigation, modeNavigation, mountServerPicker, saveMapSky, saveSelectedMap, selectedMap } from './ui/serverPicker';
 import { Chat } from './ui/chat';
+import { isMenuControl } from './ui/menuInput';
 
 const params = new URLSearchParams(location.search);
 /** Test showcases retain their original road/theme; regular play keeps the selected instance. */
@@ -156,12 +157,12 @@ let touchSnapshot = '';
 function syncTouch(): void {
   const paused = state === 'pause' || onlineMenu;
   const driving = touchLayout.matches && state === 'play' && !onlineMenu && !chat.active && !loading.active;
-  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}/${chat.active}`;
+  const snapshot = `${touchLayout.matches}/${state}/${paused}/${driving}/${chat.active}/${loading.active}`;
   if (snapshot === touchSnapshot) return;
   touchSnapshot = snapshot;
-  mixer.setVisible(state === 'menu' || paused);
-  startEl.inert = state !== 'menu';
-  pauseEl.inert = !paused;
+  mixer.setVisible(!loading.active && (state === 'menu' || paused));
+  startEl.inert = loading.active || state !== 'menu';
+  pauseEl.inert = loading.active || !paused;
   document.body.classList.toggle('touch-ui', touchLayout.matches);
   document.body.classList.toggle('driving-touch', driving);
   touch.setActive(driving);
@@ -179,6 +180,8 @@ function syncTouch(): void {
     mobileAudio.remove();
   }
 }
+// Unlock synchronously: a loader must never clear the hidden overlays' lifecycle-owned inertness.
+loading.onLockChange = () => { touchSnapshot = ''; syncTouch(); };
 touchLayout.addEventListener('change', () => { touch.releaseAll(); syncTouch(); });
 
 sim.events.on('runEnd', (e) => {
@@ -336,7 +339,7 @@ const defaultName = loadName();
 const playerName = (): string => nameInput.value.trim().slice(0, 16) || defaultName;
 nameInput.value = defaultName;
 nameInput.addEventListener('keydown', (e) => {
-  if (e.code === 'Enter') start();
+  if (e.code === 'Enter') { e.preventDefault(); nameInput.blur(); }
   e.stopPropagation(); // typing a name must not drive, pause or switch cameras
 });
 nameInput.addEventListener('keyup', (e) => e.stopPropagation());
@@ -510,7 +513,7 @@ input.onPress = (code, event) => {
     else hud.tag('ПЕРЕДАЧИ Z / X — В РУЧНОМ РЕЖИМЕ (G)', 2);
   } else if (code === 'KeyQ' && state === 'play') setBlinker(1);
   else if (code === 'KeyE' && state === 'play') setBlinker(2);
-  else if (state === 'menu' && (code === 'Enter' || code === 'Space')) start();
+  else if (state === 'menu' && (code === 'Enter' || code === 'Space') && !isMenuControl(event?.target ?? null)) start();
   else if (code === 'KeyP' || code === 'Escape') setPaused(ONLINE ? !onlineMenu : state === 'play');
   else if (code === 'KeyR' && state === 'play') {
     mouse.centre();
@@ -557,7 +560,6 @@ function choice<T extends number>(
     b.addEventListener('click', () => {
       show(it.id);
       onPick(it.id);
-      b.blur(); // keep Space/Enter for starting the run
     });
     seg.appendChild(b);
   }
@@ -656,7 +658,7 @@ for (const [name, color] of paints) {
   const button = document.createElement('button');
   button.dataset.color = String(color); button.setAttribute('aria-label', name); button.title = name;
   button.style.setProperty('--paint', `#${color.toString(16).padStart(6, '0')}`);
-  button.onclick = () => { choosePaint(color); button.blur(); };
+  button.onclick = () => choosePaint(color);
   swatches.appendChild(button);
 }
 paintInput.addEventListener('input', () => choosePaint(parseInt(paintInput.value.slice(1),16)));
@@ -689,11 +691,8 @@ fitMenu();
 
 // The key list starts folded (unfolded, the card scales down to keep fitting).
 const keysBox = document.getElementById('keysBox') as HTMLDetailsElement;
-// Space / Enter after a click must start the run, not fold the list again.
-keysBox.addEventListener('toggle', () => keysBox.querySelector('summary')!.blur());
 const pauseKeysBox = document.getElementById('pauseKeysBox')!;
 pauseKeysBox.appendChild(keysBox.querySelector('.keys')!.cloneNode(true));
-pauseKeysBox.addEventListener('toggle', () => pauseKeysBox.querySelector('summary')!.blur());
 
 // Sky: each button shows its gradient; a click repaints the scene behind the menu at once (the preview).
 {
@@ -716,7 +715,6 @@ pauseKeysBox.addEventListener('toggle', () => pauseKeysBox.querySelector('summar
       view.setSky(p.id);
       saveMapSky(MAP_ID, p.id);
       show();
-      b.blur();
     });
     // Hovering previews it too; leaving puts the chosen one back.
     b.addEventListener('pointerenter', () => view.setSky(p.id));

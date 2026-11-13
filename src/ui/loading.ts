@@ -7,15 +7,38 @@ class LoadingScreen {
   private readonly action = document.getElementById('loadingAction') as HTMLButtonElement;
   private progress = 0;
   private revision = 0;
+  private readonly background = new Map<HTMLElement, boolean>();
+  private focusBefore: HTMLElement | null = null;
+  /** Lifecycle owners reapply their current visibility state before focus can escape the loader. */
+  onLockChange: (() => void) | null = null;
   context = 'boot';
   active = true;
 
   private lockUI(locked: boolean): void {
-    for (const element of document.body.children)
-      if (element instanceof HTMLElement && element !== this.root) element.inert = locked;
+    if (locked) {
+      for (const element of document.body.children) {
+        if (!(element instanceof HTMLElement) || element === this.root) continue;
+        if (!this.background.has(element)) this.background.set(element, element.inert);
+        element.inert = true;
+      }
+    } else {
+      for (const [element, inert] of this.background) element.inert = inert;
+      this.background.clear();
+    }
+    this.onLockChange?.();
+    if (!locked) {
+      const focus = this.focusBefore;
+      this.focusBefore = null;
+      // Car preparation temporarily makes the selected choice inert; online join hides it for good.
+      if (focus?.isConnected && !focus.closest('[inert]') &&
+        (document.activeElement === document.body || this.root.contains(document.activeElement))) {
+        focus.focus({ preventScroll: true });
+      }
+    }
   }
 
   begin(context: string, title: string): void {
+    if (!this.active) this.focusBefore = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.context = context; this.active = true; this.progress = 0; this.revision++;
     this.lockUI(true);
     this.root.hidden = false; this.root.classList.remove('leaving', 'failed');
