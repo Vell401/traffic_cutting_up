@@ -88,12 +88,9 @@ try {
     await page.waitForFunction(s => window.__game.sim.player.s > s + .5, s, { timeout: 120000 }); await page.keyboard.up('KeyW');
     const peer = await page.evaluate(async map => {
       const { rulesHash, PROTOCOL_VERSION } = await import('/src/online/rules.ts');
+      const { peerWelcome } = await import('/tests/helpers/peerWelcome.ts');
       const ws = window.__acceptancePeer = new WebSocket(`${location.origin.replace('http', 'ws')}${map === 'miami' ? '/miami' : ''}/ws`);
-      return await new Promise((resolve, reject) => {
-        ws.onopen = () => ws.send(JSON.stringify({ t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(map), map, name: 'Upgrade peer', physics: 2, car: 2, seq: 0 }));
-        ws.onmessage = event => { if (typeof event.data === 'string') { const msg = JSON.parse(event.data); if (msg.t === 'welcome') resolve({ id: msg.id, players: msg.players.length }); else if (msg.t === 'reject') reject(Error(msg.reason)); } };
-        ws.onerror = () => reject(Error('peer connection'));
-      });
+      return await peerWelcome(ws, { t: 'hello', v: PROTOCOL_VERSION, rules: rulesHash(map), map, name: 'Upgrade peer', physics: 2, car: 2, seq: 0 });
     }, map);
     assert.notEqual(peer.id, identity.id); assert.equal(peer.players, 2);
     await page.evaluate(() => window.__acceptanceSockets[0].close());

@@ -17,7 +17,13 @@ const WRITES: Readonly<Record<string, readonly string[]>> = {
 };
 const AUDIO = ['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/flac', 'audio/x-flac'];
 
-interface Options { admin: Admin; url?: string; password: string; timeoutMs?: number }
+interface Options {
+  admin: Admin; url?: string; password: string;
+  /** Control requests and health/login exchanges: default 15s, capped at 120s. */
+  timeoutMs?: number;
+  /** Absolute upload lifetime including setup/delivery: default and maximum 180s. */
+  uploadTimeoutMs?: number;
+}
 interface Session { token: string; until: number }
 interface Reply { status: number; body: Record<string, unknown> }
 class Failure extends Error { constructor(readonly status = 503) { super('Miami admin unavailable'); } }
@@ -48,12 +54,14 @@ function redact(value: unknown, secrets: readonly string[]): unknown {
 export class AdminGateway {
   private readonly base: URL | undefined;
   private readonly timeout: number;
+  private readonly uploadTimeout: number;
   private cached?: Session;
   private refreshing?: Promise<Session>;
 
   constructor(private readonly o: Options) {
     this.base = destination(o.url);
     this.timeout = Number.isFinite(o.timeoutMs) && o.timeoutMs! > 0 ? Math.min(o.timeoutMs!, 120_000) : 15_000;
+    this.uploadTimeout = Number.isFinite(o.uploadTimeoutMs) && o.uploadTimeoutMs! > 0 ? Math.min(o.uploadTimeoutMs!, 180_000) : 180_000;
   }
 
   handle(req: IncomingMessage, res: ServerResponse): boolean {
@@ -106,7 +114,7 @@ export class AdminGateway {
         // Let the aborted operation queue its sanitized 503, but never wait for a slow reader.
         flush = setImmediate(() => { if (!res.writableFinished) res.destroy(); });
       }
-    }, this.timeout);
+    }, upload ? this.uploadTimeout : this.timeout);
     req.once('aborted', cancel);
     res.once('finish', cleanup); res.once('close', closed);
     try {
@@ -137,7 +145,7 @@ export class AdminGateway {
         if (!req.complete) {
           req.pause(); res.setHeader('connection', 'close');
           // Closing a TCP socket with unread in-flight bytes can erase the 413 with a reset.
-          // Discard at most 1MiB, never forward/buffer it; the original deadline still applies.
+          // Discard at most 1MiB under a short drain budget; the absolute deadline still applies.
           await this.discard(req, abort.signal);
         }
         if (res.destroyed) return;
@@ -160,10 +168,12 @@ export class AdminGateway {
     return new Promise(resolve => {
       let bytes = 0;
       const finish = () => {
+        clearTimeout(timer);
         req.pause(); req.removeListener('data', data); req.removeListener('end', finish);
         req.removeListener('error', finish); signal.removeEventListener('abort', finish); resolve();
       };
       const data = (chunk: Buffer) => { bytes += chunk.length; if (bytes > 1024 * 1024) finish(); };
+      const timer = setTimeout(finish, this.timeout);
       req.on('data', data); req.once('end', finish); req.once('error', finish);
       signal.addEventListener('abort', finish, { once: true });
       if (signal.aborted || req.aborted || req.complete) finish(); else req.resume();
@@ -264,7 +274,8 @@ export class AdminGateway {
           } catch { done(new Failure()); }
         });
       });
-      const timer = setTimeout(() => done(new Failure()), this.timeout);
+      // Health/login/ordinary JSON remain short even when setting up a long upload.
+      const timer = setTimeout(() => done(new Failure()), body && !Buffer.isBuffer(body) ? this.uploadTimeout : this.timeout);
       upstream.once('error', () => done(new Failure()));
       if (body && !Buffer.isBuffer(body)) {
         let bytes = 0;

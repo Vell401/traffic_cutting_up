@@ -91,7 +91,7 @@ node dist-server/smoke.js --url wss://<host>/miami/ws --map miami --origin https
 
 Без секрета админские API выключены. В Compose трафик по умолчанию плотный (`TRAFFIC=2`); настройки админки хранятся в БД своего мира и переживают деплой. Чтобы сменить пароль, обновите секрет и перезапустите Deploy; сессии перезапущенных процессов закончатся.
 
-UI использует один 12-часовой bearer (`tcu.admin`), `/api/admin/login|logout` и Miami target `/api/admin/maps/miami/*`; сервисные credentials остаются на сервере. Прямой `/miami/api/admin/*` всё ещё требует собственной авторизации. Отказ Highway/auth делает общую админку недоступной; отказ Miami не должен отзывать центральную сессию. Без `ADMIN_MIAMI_URL` в standalone gateway отвечает 503. Обычные upload limits сохранены, gateway deadline по умолчанию 15 с, JSON reply до 32 MiB: [admin-settings-radio.md](admin-settings-radio.md).
+UI использует один 12-часовой bearer (`tcu.admin`), `/api/admin/login|logout` и Miami target `/api/admin/maps/miami/*`; сервисные credentials остаются на сервере. Прямой `/miami/api/admin/*` всё ещё требует собственной авторизации. Отказ Highway/auth делает общую админку недоступной; отказ Miami не должен отзывать центральную сессию. Без `ADMIN_MIAMI_URL` в standalone gateway отвечает 503. Upload limits сохранены: gateway даёт upload отдельные абсолютные **180 с** вместо прежнего общего 15-секундного обрыва; обычные запросы и health/login остаются под **15 с**. Прогресс не продлевает таймер, отмена закрывает upstream, JSON reply ограничен 32 MiB. Новых обязательных env/Compose-настроек нет: [admin-settings-radio.md](admin-settings-radio.md).
 
 Локально: `ADMIN_PASSWORD=… npm run server`, затем `http://localhost:5173/admin.html`.
 
@@ -157,3 +157,5 @@ journalctl -u 'actions.runner.*' -f      # логи раннера
 ## Статус этого обновления
 
 Production rollout **pending**: текущая приёмка локальная. Перед обновлением координатор read-only увидел **b9c7a06** у сайта/Highway/Miami и успешный **Deploy 43089599677**; это PRE-UPGRADE состояние, не результат выкладки новой ветки. Только после свежего финального review координатор может выполнить условно разрешённую интеграцию main и проверить автодеплой. Этот checkpoint не делал main/push/deploy/Actions dispatch и не утверждает успешную новую выкладку. Детали: [итоговый отчёт](reviews/2026-11-13-miami-upgrade.md).
+
+Локальный final-review fix I1/M2 проверен отдельно: 10 MiB через настоящую Miami UI/gateway-загрузку прошли за **20,875 с**, сохранённые байты совпали; последующая отмена удалила незавершённый файл. Полный browser harness, тесты, типы и обе сборки прошли на синтетических данных. Это не production rollout; M1 (заземление мебели у марины) остаётся отложенной полировкой. Новая внешняя проверка после разрешённой выкладки всё ещё обязательна.

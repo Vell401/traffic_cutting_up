@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer, request, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -25,7 +25,7 @@ async function listen(handler: (req: IncomingMessage, res: ServerResponse) => vo
   return { server, url: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
 }
 
-async function fixture(options: { url?: (url: string) => string | undefined; timeoutMs?: number } = {}) {
+async function fixture(options: { url?: (url: string) => string | undefined; timeoutMs?: number; uploadTimeoutMs?: number } = {}) {
   const seen: Array<{ path: string; headers: IncomingMessage['headers'] }> = [];
   const diagnostics: string[] = [];
   const store = new Store(':memory:'), centralStore = new Store(':memory:');
@@ -45,7 +45,7 @@ async function fixture(options: { url?: (url: string) => string | undefined; tim
     if (req.url === '/health') { send(res, 200, { ok: true, map: 'miami' }); return; }
     if (!service.handle(req, res)) res.writeHead(404).end();
   });
-  const gateway = new AdminGateway({ admin, url: options.url ? options.url(upstream.url) : upstream.url, password, timeoutMs: options.timeoutMs ?? 1000 });
+  const gateway = new AdminGateway({ admin, url: options.url ? options.url(upstream.url) : upstream.url, password, timeoutMs: options.timeoutMs ?? 1000, uploadTimeoutMs: options.uploadTimeoutMs });
   const central = await listen((req, res) => {
     res.setHeader('x-map-id', 'highway');
     if (!gateway.handle(req, res) && !admin.handle(req, res)) res.writeHead(404).end();
@@ -346,15 +346,90 @@ describe('authorized Miami gateway', () => {
     expect(f.radio.state().playlists[0].tracks[0]).toMatchObject({ title: 'Fixture', bytes: 128 * 1024 });
   });
 
-  it('times out a stalled upload and cancels its upstream stream without replay', async () => {
-    const f = await fixture({ timeoutMs: 150 });
+  it('completes a progressing upload beyond the control deadline within its upload budget', async () => {
+    const f = await fixture({ timeoutMs: 200, uploadTimeoutMs: 1500 });
+    await f.call('radio', { action: 'create', name: 'Progress fixture' });
+    const playlist = f.radio.state().playlists[0].id;
+    const upload = request(f.url + prefix + `radio/upload?playlist=${playlist}&title=Progress`, { method: 'POST', headers: { authorization: `Bearer ${f.token}`, origin, 'content-type': 'audio/mpeg' } });
+    const response = new Promise<number>((done, reject) => { upload.once('response', res => { res.resume(); done(res.statusCode!); }); upload.once('error', reject); });
+    const chunk = Buffer.alloc(8192); chunk.write('ID3');
+    const started = Date.now();
+    try {
+      for (let i = 0; i < 8; i++) { upload.write(chunk); await new Promise(done => setTimeout(done, 75)); }
+      upload.end();
+      expect(await response).toBe(200);
+      expect(Date.now() - started).toBeGreaterThan(400);
+      expect(f.radio.state().playlists[0].tracks).toMatchObject([{ title: 'Progress', bytes: 65536 }]);
+      expect(f.seen.filter(x => x.path.startsWith('/api/admin/radio/upload'))).toHaveLength(1);
+    } finally { upload.destroy(); }
+  });
+
+  it.each(['health', 'login', 'state'])('keeps %s on the short control deadline with a longer upload budget', async stage => {
+    const f = await fixture({ timeoutMs: 100, uploadTimeoutMs: 1500 });
+    f.intercept(req => { if (req.url !== (stage === 'health' ? '/health' : `/api/admin/${stage}`)) return false; req.resume(); return true; });
+    const before = Date.now();
+    const response = stage === 'state' ? await f.call('state') : await raw(f.url, prefix + 'radio/upload?playlist=fixture', { method: 'POST', headers: { authorization: `Bearer ${f.token}`, origin, 'content-type': 'audio/mpeg' } }, 'ID3');
+    expect(response.status).toBe(503); expect(Date.now() - before).toBeLessThan(800);
+    expect(f.seen.some(x => x.path.startsWith('/api/admin/radio/upload'))).toBe(false);
+  });
+
+  it.each([undefined, 0, -1, NaN, Infinity, 999_999])('defaults/clamps the absolute upload bound to 180s for option %s', async uploadTimeoutMs => {
+    const f = await fixture({ timeoutMs: 100, uploadTimeoutMs });
+    await f.call('state');
+    let started!: () => void;
+    const received = new Promise<void>(done => { started = done; });
+    f.intercept(req => { if (!req.url?.startsWith('/api/admin/radio/upload')) return false; req.once('data', started); return true; });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const upload = request(f.url + prefix + 'radio/upload?playlist=fixture', { method: 'POST', headers: { authorization: `Bearer ${f.token}`, origin, 'content-type': 'audio/mpeg' } });
+    const response = new Promise<number>((done, reject) => { upload.once('response', res => { res.resume(); done(res.statusCode!); }); upload.once('error', reject); });
+    upload.write('ID3');
+    try {
+      await received;
+      await vi.advanceTimersByTimeAsync(179_999);
+      expect(upload.destroyed).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await response).toBe(503);
+    } finally { upload.destroy(); vi.useRealTimers(); }
+  });
+
+  it.each([200, 400, 'timeout'] as const)('keeps the upload deadline through stalled downstream delivery (upstream %s)', async status => {
+    const f = await fixture({ timeoutMs: 100, uploadTimeoutMs: 350 });
+    f.intercept((req, res) => {
+      if (!req.url?.startsWith('/api/admin/radio/upload')) return false;
+      req.resume(); if (status !== 'timeout') req.once('end', () => send(res, status, { ok: true }));
+      return true;
+    });
+    const blocked = blockDownstream(f.server);
+    const client = request(f.url + prefix + 'radio/upload?playlist=fixture', { method: 'POST', headers: { authorization: `Bearer ${f.token}`, origin, 'content-type': 'audio/mpeg' } });
+    client.on('error', () => {}); client.end('ID3');
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const res = await blocked.queued;
+      expect(res.headersSent).toBe(true); expect(res.writableEnded).toBe(true); expect(res.writableFinished).toBe(false);
+      const closed = once(res, 'close').then(() => 'closed');
+      if (status !== 'timeout') { await new Promise(done => setTimeout(done, 150)); expect(res.destroyed).toBe(false); }
+      expect(await Promise.race([closed, new Promise<string>(done => { watchdog = setTimeout(() => done('delivery escaped upload budget'), 700); })])).toBe('closed');
+      expect(res.writableFinished).toBe(false);
+    } finally { clearTimeout(watchdog); client.destroy(); blocked.release(); }
+  });
+
+  it.each([false, true])('bounds an upload absolutely despite ongoing progress=%s and cancels upstream without replay', async progressing => {
+    const f = await fixture({ timeoutMs: 100, uploadTimeoutMs: 300 });
     let cancelled!: () => void;
     const aborted = new Promise<void>(done => { cancelled = done; });
-    f.intercept(req => { if (!req.url?.startsWith('/api/admin/radio/upload')) return false; req.resume(); req.once('aborted', cancelled); return true; });
+    let bytes = 0;
+    f.intercept(req => { if (!req.url?.startsWith('/api/admin/radio/upload')) return false; req.on('data', chunk => { bytes += chunk.length; }); req.once('aborted', cancelled); return true; });
     const upload = request(f.url + prefix + 'radio/upload?playlist=fixture', { method: 'POST', headers: { authorization: `Bearer ${f.token}`, origin, 'content-type': 'audio/mpeg' } });
+    const response = new Promise<number>((done, reject) => { upload.once('response', res => { res.resume(); done(res.statusCode!); }); upload.once('error', reject); });
     upload.on('error', () => {}); upload.write(Buffer.alloc(64));
-    await aborted; upload.destroy();
-    expect(f.seen.filter(x => x.path.startsWith('/api/admin/radio/upload'))).toHaveLength(1);
+    const started = Date.now(), ticker = progressing ? setInterval(() => upload.write(Buffer.alloc(64)), 25) : undefined;
+    try {
+      expect(await response).toBe(503); await aborted;
+      expect(Date.now() - started).toBeGreaterThanOrEqual(250);
+      expect(Date.now() - started).toBeLessThan(1000);
+      if (progressing) expect(bytes).toBeGreaterThan(128); else expect(bytes).toBe(64);
+      expect(f.seen.filter(x => x.path.startsWith('/api/admin/radio/upload'))).toHaveLength(1);
+    } finally { clearInterval(ticker); upload.destroy(); }
   });
 
   it('streams uploads before their end, keeps query metadata and propagates client cancellation', async () => {
@@ -372,13 +447,16 @@ describe('authorized Miami gateway', () => {
     upload.destroy(); await cancelled;
   });
 
-  it('does not claim upload success if an upstream replies before consuming the upload', async () => {
-    const f = await fixture();
-    f.intercept((req, res) => { if (!req.url?.startsWith('/api/admin/radio/upload')) return false; send(res, 200, { ok: true }); return true; });
+  it.each([200, 400])('bounds incomplete-upload discard after an early upstream %s without claiming success', async status => {
+    const f = await fixture({ timeoutMs: 100, uploadTimeoutMs: 1500 });
+    f.intercept((req, res) => { if (!req.url?.startsWith('/api/admin/radio/upload')) return false; send(res, status, { ok: true }); return true; });
     const upload = request(f.url + prefix + 'radio/upload?playlist=fixture', { method: 'POST', headers: { authorization: `Bearer ${f.token}`, origin, 'content-type': 'audio/mpeg' } });
     const response = new Promise<number>((done, reject) => { upload.once('response', res => { res.resume(); done(res.statusCode!); }); upload.once('error', reject); });
     upload.write(Buffer.alloc(64));
-    expect(await response).toBe(503); upload.destroy();
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+      expect(await Promise.race([response, new Promise<string>(done => { watchdog = setTimeout(() => done('discard outlived control budget'), 700); })])).toBe(status === 200 ? 503 : 400);
+    } finally { clearTimeout(watchdog); upload.destroy(); }
   });
 
   it('enforces 40MiB declared/chunked upload limits without forwarding excessive bytes', async () => {

@@ -12,7 +12,7 @@ Runtime: Windows, Node **24.13.0**, external Playwright, installed Edge/ANGLE **
 
 | Gate | Current result / evidence |
 | --- | --- |
-| `npm test` | **116 files, 1273 passed, 1 existing skipped**, 53.15s; baseline SQLite ExperimentalWarnings retained; Linux-only native systemd skip retained |
+| `npm test` | Final-fix refresh: **117 files, 1294 passed, 1 existing skipped**, 53.62s (prior Task8:116/1273/1); baseline SQLite ExperimentalWarnings and Linux-only native systemd skip retained |
 | `npm run typecheck` | Client and server pass |
 | `npm run build`, `npm run build:server` | Pass, 422 client / 50 server modules |
 | `npm run perfcheck`, `npm run perfcheck:r34` | Pass; CPU-only figures in [performance.md](../performance.md), not GPU/network/VPS capacity |
@@ -50,7 +50,7 @@ Adversarial admin details are reused from the accepted **Task6 real-server Edge 
 
 One browser session is rooted in Highway. `ADMIN_MIAMI_URL` is a fixed server-configured Miami upstream; `ADMIN_MIAMI_PASSWORD` defaults to `ADMIN_PASSWORD` and must match Miami's own `ADMIN_PASSWORD`. Compose wires `http://game-miami:8787`, separate volumes, and no Miami self-proxy. Browser service credentials are never copied; direct `/miami/api/admin/*` is still authenticated. Highway/auth outage makes the unified admin unavailable; Miami-only outage permits Highway recovery without losing central auth. Full route/deadline/config details: [admin-settings-radio.md](../admin-settings-radio.md).
 
-Original radio limits remain **40MiB/track, 200 tracks/playlist, 30 playlists, 1GiB/library**. Gateway adds default overall **15s** deadline, **16KiB** ordinary JSON body and **32MiB** JSON reply bound, not a throughput guarantee. Uploads stream with backpressure/cancellation; no ambiguous-write replay. Admin now receives the same trusted-proxy resolver as API/WS, while safe default/direct socket-only behavior remains. No broad XFF trust; upstream Miami audits see the gateway connection, not an impersonated browser address.
+Original radio limits remain **40MiB/track, 200 tracks/playlist, 30 playlists, 1GiB/library**. After final-review I1, the gateway uses **15s control/health/login** deadlines and a separate **180s absolute upload** deadline at both dispatch and streaming exchange, including setup/downstream delivery. Progress never resets the deadline. Rejected incomplete input retains a short, at-most-1MiB discard; **16KiB** ordinary JSON body and **32MiB** JSON reply bounds remain. Constructor budgets are finite/defaulted/capped; production needs no new env setting. Uploads stream with backpressure/cancellation; no ambiguous-write replay. Admin now receives the same trusted-proxy resolver as API/WS, while safe default/direct socket-only behavior remains. No broad XFF trust; upstream Miami audits see the gateway connection, not an impersonated browser address.
 
 | Audit area | Disposition |
 | --- | --- |
@@ -120,6 +120,16 @@ node dist-server/smoke.js --url ws://127.0.0.1:15174/miami/ws --map miami --orig
 ```
 
 Run timing/captures sequentially without concurrent full suites/CPU benchmarks. AdminClient's empty-client-log race assertion needs a fresh fixture: if running it after game/reconnect tests, stop only your backends and relaunch the two commands with new GUID directories first; do not delete log rows or weaken its assertion. This acceptance used a separate fresh pair for admin/mobile. The new harness writes `result.json` (commit + complete src/server/scripts/tests content SHA256), PNGs and failure diagnostics. Inspect actual clean PNGs, not only counters. It rejects non-loopback targets. `UPGRADE_BROWSER_EXECUTABLE` optionally overrides installed Edge; `PLAYWRIGHT_MODULE` accepts a local module path. Other suites' tooling contracts remain as documented in their headers. Finally Ctrl+C **only the two backends/optional Vite you started**; retain evidence and synthetic directories for diagnosis, never delete user records. The automated Task8 scratch supervisor tracks and stops only its own children.
+
+## Final-review fix-wave evidence (I1 / M2)
+
+On base `aedfe4cde115c6839fd1154b5e180345151bc402` plus the owned fix, fresh gates passed: **117 files /1294 tests passed /1 baseline skip**, typecheck and both builds. Gateway/auth/deploy/handshake selection: **153 passed /1 skip**. Short-budget regressions distinguish a progressing upload from control timeouts, absolute stalls/overruns, cancellation, early-response drain and downstream delivery; fake-clock tests enforce the180s default/cap without long unit sleeps. The browser's real peer helper now has a15s welcome timer, early-close rejection and once-only cleanup; regression tests exercise that same helper, not a copied implementation.
+
+A fresh Edge UI upload through existing Vite15174 and newly built isolated Highway18971/Miami18972 completed **10MiB in20875ms**, beyond the old15s cutoff. CDP limited the synthetic uplink to512KiB/s;77 target-file observations establish progressive writes, including after15s. Miami's stored track has exactly10485760 bytes and SHA256 `bc2eb79b018bf78881203965aea38dbe233d8b62c2048deab653c6c689700c59`, matching the input. A second native UI transfer was cancelled after540672 bytes reached Miami: `net::ERR_ABORTED`, no `.part` or extra track, Highway's radio remained empty. This is not a production-bandwidth/audio-listening guarantee.
+
+Evidence: `C:/Users/sosi/AppData/Local/Temp/opencode/miami-upgrade-final-fix/browser-1794544966363/progressive-upload.json` and companion logs. Source identity:297 src/server/scripts/tests files, sorted path+NUL+bytes+NUL SHA256 `ad85e5f614b9e54dff64cecff707607eec862ba12a71e2c1d40361d441de0437`, checked unchanged before/after upload acceptance. Old Task8 artifacts are preserved. **M1 quay/furniture grounding is explicitly accepted deferred polish; all other deferrals above remain. Production rollout stays pending**, subject to the controller's scoped final re-review and later authorized integration/verification.
+
+The complete updated `upgrade.browser.mjs` also passed (198003ms), with the same before/after source fingerprint: `browser-1794544966363/upgrade/result.json`, screenshots and `upgrade.log` in that fresh root. Both actual second peers welcomed as distinctid2 with two players; same-slot reconnect and the existing menu/touch/admin switching/upload/cancel assertions remain intact. No new visual/quality audit is claimed. Supervisor exit0 stopped its two owned backends; only the pre-existing Vite15174/PID41452 remained listening.
 
 ## Prioritized next steps
 
