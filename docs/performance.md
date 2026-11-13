@@ -58,6 +58,13 @@
 
 ## Renderer и границы оптимизации
 
+Miami now uses an authored instanced environment rather than its legacy procedural
+buildings/palms/boats. Its separate fixed-quality whole-frame budget, car-batching
+scope, transparent-ghost exception and actual-game evidence are documented in
+[the visual rebuild report](reviews/2026-11-13-miami-asset-rebuild.md). Those
+measurements do not replace the historical CPU results below or establish hardware
+FPS. Highway, quality presets and adaptive-resolution policy are unchanged.
+
 Task7 убирает повторный обход RoadView при неизменных road/version/chunk bounds/origin, пустые/неизменные uploads шинных эффектов, объединяет transform attribute трёх частей traffic batch. Private shadow plane и исходные RoomEnvironment/PMREM-ресурсы освобождаются; shared/imported geometry не удаляется. Размеры пулов, draws занятых batches, LOD и качество не урезаны. Bumper-headlights (R01) и затухание additive pools/sparks в тумане (R02) — **исправления отображения**, не обещание эквивалентной старой картинки.
 
 Alternating CPU microprobe Task7 (9 trials, Medium, одинаковый output digest) дал median steady RoadView update Highway **0.000203800→0.000025070 мс**, Miami **0.000206795→0.000020960 мс**. Абсолютная экономия мала; version reconciliation стала дороже, rebuild paths не доказали ускорения. Это структурное устранение лишней работы, не whole-frame/FPS/GPU-результат. Полные readiness/cache/decoder доказательства и оставшиеся ~68 с software remote preparation: [performance-loading.md](performance-loading.md).

@@ -28,7 +28,7 @@ The delivered kit has 15 prototypes, **74 prototype/material mesh parts**,
 **371,112 unique triangles**, 15 materials used by the GLB and one additional
 road-only material definition. The GLB is **23,675,324 bytes**; photos/HDR total
 **6,443,564 bytes**. Model + photos = **30,118,888 bytes (28.72 MiB)**; the manifest
-is another 58,959 bytes. Source `.blend` is 25,750,744 bytes and is not a browser
+is another 58,958 bytes. Source `.blend` is 25,773,628 bytes and is not a browser
 payload. No mesh compression decoder or new game dependency is needed.
 
 ## Physical models
@@ -59,7 +59,7 @@ opaque PBR reflective glazing, intentionally avoiding transparent-window sorting
 and pretending that interiors exist. Geometry has normals and baked physical UV0;
 no shader-generated window grid or palm ribbons, no fabricated baked-AO claim.
 
-Generator 1.0.1 gives each exposed terrace/podium a single finish cap: recessed
+Generator 1.0.1 (retained in 1.0.2) gives each exposed terrace/podium a single finish cap: recessed
 cores are closed by the wider upper spandrel; where a setback balcony supplies
 the finish, that spandrel's hidden top cap is omitted too. This removes 47
 overlapping caps (1,222 triangles), without moving floors, rails, pivots or bounds.
@@ -169,11 +169,25 @@ declared shared PBR maps for previews. The source authoring and reimported-GLB
 previews both include frontage, skyline, palms, yacht/pontoon, props and a close
 window/railing view. Preview lighting/staging is for inspection, not game evidence.
 
-Nonblocking Task3 material follow-up: source/restored preview shaders currently
-feed the photo straight into Roughness, whereas the documented runtime contract
-multiplies it by the scalar roughness factor. The terrace-cap fix deliberately
-does not change that separate item. Do not treat previews as identical to future
-game material output; align authoring multiplication in the Task3 follow-up.
+Generator 1.0.2 resolves the deferred authoring discrepancy: source and restored
+preview shaders explicitly separate the **green** roughness channel and multiply
+it by the scalar factor, matching Three's runtime sampling (not RGB luminance).
+`scripts/blender/test_miami_materials.py` checks the actual Blender node links,
+non-colour image and a deliberately unequal-channel sample for all five photo
+materials. Run with `--python-exit-code 1` so a failed assertion fails the command.
+The asphalt now has a cooler/darker factor, roughness .98 and normal strength .28;
+photo originals, 2m UV scale and all geometry remain unchanged. The GLB SHA above
+therefore remains unchanged; the editable `.blend` and manifest factors are updated.
+
+Task3 composes parcel-scale height/setback/paint/glazing variation without separate
+materials; near upper-promenade palms/furniture/planting, masonry coping and shore
+rocks replace the bare coastal foreground. Marina shoreline is 48m from the route,
+with a level upper path to 24m, planted descent to 32m, lower boardwalk at -2.4m,
+and visual bay water at -3m. The former -8m basin hid the real decks behind the
+unchanged protected road barrier. The opt-in water, island and far-disc elevations
+now agree; legacy/Highway stay untouched. Larger 1.6×/1.3× yacht instances keep the manifest's scaled draft.
+These are visual placements only, not collision/route changes. Source preview
+staging is not gameplay evidence; see the [actual-game report](../reviews/2026-11-13-miami-asset-rebuild.md).
 
 The contract tests inspect parsed buffers, triangle areas, normal lengths, UV
 variation, ground pivots, actual front/bow orientation, real material identity,
