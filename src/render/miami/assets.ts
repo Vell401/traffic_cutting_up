@@ -118,28 +118,68 @@ export function createMiamiAssetLoader(io: MiamiIO): () => Promise<MiamiAssets> 
   let pending: Promise<MiamiAssets> | undefined, cached: MiamiAssets | undefined;
   return () => {
     if (cached?.disposed) { cached = undefined; pending = undefined; }
-    return pending ??= (async () => {
+    if (pending) return pending;
+    const task: Promise<MiamiAssets> = (async () => {
       const manifest = await io.manifest(); validate(manifest);
-      // AllSettled is intentional: a late texture success after another failure must be freed too.
-      const results = await Promise.allSettled([io.model(local(manifest.model.path)), ...manifest.textures.map(t => io.texture(t))]);
-      const failure = results.find(r => r.status === 'rejected');
-      if (failure?.status === 'rejected') {
-        const resources = new Set<THREE.Texture | THREE.BufferGeometry | THREE.Material>();
-        for (const r of results) if (r.status === 'fulfilled') {
-          if (r.value instanceof THREE.Texture) resources.add(r.value);
-          else r.value.traverse(o => { const m = o as THREE.Mesh; if (!m.isMesh) return;
-            resources.add(m.geometry); (Array.isArray(m.material) ? m.material : [m.material]).forEach(mat => resources.add(mat)); });
+      type Resource = THREE.Texture | THREE.BufferGeometry | THREE.Material;
+      const resources = new Set<Resource>();
+      const disposed = new WeakSet<Resource>();
+      const values: (THREE.Object3D | THREE.Texture)[] = [];
+      let failed = false;
+      let consumed = false;
+      const cleanup = () => {
+        for (const resource of resources) if (!disposed.has(resource)) {
+          disposed.add(resource);
+          resource.dispose();
         }
-        resources.forEach(r => r.dispose()); throw failure.reason;
+        resources.clear();
+        values.length = 0;
+      };
+      // Every request keeps its own completion handler after Promise.all rejects. Failed jobs
+      // release late resources locally, without waiting to offer Retry or touching a newer job.
+      const receive = (index: number, work: () => Promise<THREE.Object3D | THREE.Texture>): Promise<void> =>
+        Promise.resolve().then(work).then(value => {
+          if (value instanceof THREE.Texture) resources.add(value);
+          else value.traverse(o => {
+            const mesh = o as THREE.Mesh; if (!mesh.isMesh) return;
+            resources.add(mesh.geometry);
+            (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach(mat => resources.add(mat));
+          });
+          if (failed) cleanup();
+          else values[index] = value;
+        }, error => {
+          failed = true;
+          cleanup();
+          throw error;
+        });
+      try {
+        await Promise.all([
+          receive(0, () => io.model(local(manifest.model.path))),
+          ...manifest.textures.map((t, i) => receive(i + 1, () => io.texture(t))),
+        ]);
+        // Extraction consumes source geometry/materials/maps even on failure. Do not free them
+        // a second time in the request-job catch; no sibling remains pending at this point.
+        consumed = true;
+        resources.clear();
+        let result: MiamiAssets | undefined;
+        result = extractMiamiAssets(manifest, values[0] as THREE.Object3D, new Map(manifest.textures.map((t, i) => [t.id, values[i + 1] as THREE.Texture])), () => {
+          if (result && cached === result) { cached = undefined; pending = undefined; }
+        });
+        cached = result;
+        return result;
+      } catch (error) {
+        failed = true;
+        if (!consumed) cleanup();
+        throw error;
+      } finally {
+        values.length = 0;
       }
-      const values = results.map(r => (r as PromiseFulfilledResult<THREE.Object3D | THREE.Texture>).value);
-      let result: MiamiAssets | undefined;
-      result = extractMiamiAssets(manifest, values[0] as THREE.Object3D, new Map(manifest.textures.map((t, i) => [t.id, values[i + 1] as THREE.Texture])), () => {
-        if (result && cached === result) { cached = undefined; pending = undefined; }
-      });
-      cached = result;
-      return cached;
-    })().catch(error => { pending = undefined; throw error; });
+    })().catch(error => {
+      if (pending === task) pending = undefined;
+      throw error;
+    });
+    pending = task;
+    return task;
   };
 }
 
