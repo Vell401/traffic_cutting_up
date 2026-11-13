@@ -18,6 +18,14 @@ describe('admin actions are tied to an explicit built-in online instance', () =>
     expect(next.pathname).toBe('/admin.html'); expect(next.origin).toBe('https://game.test');
     expect(next.search).toBe('?map=miami');
   });
+  it.each([
+    ['highway', 'miami', '/api/admin/maps/miami'],
+    ['miami', 'highway', '/api/admin'],
+  ] as const)('keeps the replaced %s → %s deep link aligned with its allowlisted API', (from, to, api) => {
+    const next = adminMapNavigation(new URL(`https://game.test/admin.html?map=${from}&server=https://untrusted.test&token=secret&password=secret`), to);
+    expect(next.href).toBe(`https://game.test/admin.html?map=${to}`);
+    expect(adminInstance(next.searchParams)).toMatchObject({ map: to, api, tokenKey: 'tcu.admin' });
+  });
   it('requires authoritative map identity before actions can be enabled', () => {
     expect(matchesAdminInstance('miami', 'miami')).toBe(true);
     expect(matchesAdminInstance({ id: 'miami' }, 'miami')).toBe(true);

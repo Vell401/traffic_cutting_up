@@ -31,7 +31,9 @@ function bindInstancePicker(): void {
     }
     const next = adminMapNavigation(new URL(location.href), map);
     INSTANCE = adminInstance(next.searchParams);
-    history.pushState(null, '', next);
+    // Keep the deep link current without leaving obsolete same-document map entries.
+    // Back/Forward navigate documents, not unguarded target changes in this dashboard.
+    history.replaceState(null, '', next);
     if (token) showDashboard();
     else showLogin();
   });

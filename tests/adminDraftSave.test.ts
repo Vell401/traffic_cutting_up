@@ -52,6 +52,9 @@ class Node {
       stack.at(-1)!.appendChild(node);
       if (!['input', 'img', 'br', 'hr', 'meta', 'link'].includes(tag)) stack.push(node);
     }
+    for (const select of this.querySelectorAll('select')) {
+      select.value = (select.children.find(option => 'selected' in option.attributes) ?? select.children[0])?.value ?? '';
+    }
   }
   appendChild(node: Node) { node.parent = this; this.children.push(node); return node; }
   matches(selector: string): boolean {
@@ -106,7 +109,20 @@ async function setup(options: { map?: string; loggedIn?: boolean; legacy?: boole
   vi.stubGlobal('window', globalThis);
   const location = new URL(`http://localhost/admin.html?map=${options.map ?? 'highway'}&server=https://untrusted.test&token=secret&password=secret`);
   vi.stubGlobal('location', location);
-  const history = { pushState: vi.fn((_state: unknown, _unused: string, url: string | URL) => { location.href = String(url); }) };
+  // Browser history boundary only: the real entry point still owns every map transition.
+  const entries = [location.href]; let historyIndex = 0;
+  const history = {
+    get length() { return entries.length; },
+    pushState: vi.fn((_state: unknown, _unused: string, url: string | URL) => {
+      location.href = new URL(url, location.href).href;
+      entries.splice(++historyIndex, entries.length, location.href);
+    }),
+    replaceState: vi.fn((_state: unknown, _unused: string, url: string | URL) => {
+      location.href = new URL(url, location.href).href; entries[historyIndex] = location.href;
+    }),
+    back: () => { if (historyIndex > 0) location.href = entries[--historyIndex]; },
+    forward: () => { if (historyIndex + 1 < entries.length) location.href = entries[++historyIndex]; },
+  };
   vi.stubGlobal('history', history);
   vi.stubGlobal('sessionStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) });
   vi.stubGlobal('confirm', () => true);
@@ -303,7 +319,8 @@ describe('production admin shared session and world lifecycle', () => {
     expect(f.get('meta').textContent).toContain('версия test');
     await f.switchMap('miami');
     expect(f.get('meta').textContent).toContain('miami-test');
-    expect(f.history.pushState).toHaveBeenCalledTimes(2);
+    expect(f.history.replaceState).toHaveBeenCalledTimes(2);
+    expect(f.history.pushState).not.toHaveBeenCalled();
     expect(f.location.search).toBe('?map=miami');
     expect(f.fetch.mock.calls.filter(([url]) => url.endsWith('/login'))).toHaveLength(1);
     f.get('logout').fire('click'); await settle();
@@ -334,6 +351,39 @@ describe('production admin shared session and world lifecycle', () => {
     expect(files.files).toHaveLength(kind === 'draft' ? 0 : 1);
     if (kind !== 'draft') expect(f.uploads[0].aborted).toBe(false);
     expect(f.history.pushState).not.toHaveBeenCalled();
+    expect(f.history.replaceState).not.toHaveBeenCalled();
+  });
+
+  it.each(['clean', 'draft', 'upload'])('Back/Forward cannot resurrect an old map in a %s dashboard', async kind => {
+    const f = await setup();
+    await f.switchMap('miami');
+    f.panel('tuning');
+    const input = f.get('carTuneFields').querySelector('[name=powerKW]')!;
+    if (kind === 'draft') f.edit(input, 497);
+    f.panel('radio');
+    const files = f.get('radioFiles');
+    if (kind === 'upload') { files.files = [new File(['fixture'], 'fixture.wav')]; files.fire('change'); }
+    const confirmSwitch = vi.fn(() => false); vi.stubGlobal('confirm', confirmSwitch);
+    const before = f.fetch.mock.calls.length;
+    // Map selection replaces the only entry. With no prior document, traversal is a no-op.
+    // Native traversal to/from a prior document is covered separately in Edge acceptance.
+    f.history.back(); await settle();
+    expect(f.location.search).toBe('?map=miami');
+    expect(f.get('adminInstance').value).toBe('miami');
+    expect(f.get('meta').textContent).toContain('miami-test');
+    f.history.forward(); await settle();
+    expect(f.location.search).toBe('?map=miami');
+    expect(f.history.length).toBe(1);
+    expect(f.storage.get('tcu.admin')).toBe('test-session');
+    expect(f.get('carTuneFields').querySelector('[name=powerKW]')).toBe(input);
+    expect(input.value).toBe(kind === 'draft' ? '497' : '495');
+    expect(f.get('radioFiles')).toBe(files);
+    if (kind === 'upload') { expect(files.files).toHaveLength(1); expect(f.uploads[0].aborted).toBe(false); }
+    expect(confirmSwitch).not.toHaveBeenCalled();
+    expect(f.fetch.mock.calls).toHaveLength(before);
+    f.get('saveMax').fire('click'); await settle();
+    expect(f.fetch.mock.calls.filter(([url]) => url.endsWith('/players')).map(([url]) => url)).toEqual(['/api/admin/maps/miami/players']);
+    expect(f.fetch.mock.calls.some(([url]) => url.endsWith('/login'))).toBe(false);
   });
 
   for (const status of [200, 401]) it(`accepting a switch aborts old requests and ignores their late ${status} and upload reply`, async () => {
