@@ -105,9 +105,16 @@ export class View {
     this.scene.add(this.moon);
 
     const pmrem = new THREE.PMREMGenerator(r);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const room = new RoomEnvironment();
+    try {
+      this.scene.environment = pmrem.fromScene(room, 0.04).texture;
+    } finally {
+      // RoomEnvironment.dispose owns its unique geometries/materials, not instance buffers.
+      room.traverse(o => { if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose(); });
+      room.dispose();
+      pmrem.dispose();
+    }
     this.scene.environmentIntensity = 0.12;
-    pmrem.dispose();
 
     const shadowTex = makeRadialTexture(64, 1.2);
     this.shadowTex = shadowTex;
@@ -347,16 +354,7 @@ export class View {
           if (!current()) return;
         }
       }
-      // Bumper intentionally hides this entire root, including its headlights. Prepare the world
-      // shaders for that lighting configuration as well, without changing the camera/appearance.
-      await prepareObject(this.renderer, this.scene, this.camera, player.root, {
-        current, preserveVisibility: true,
-        variant: () => {
-          const visible = player.root.visible;
-          player.root.visible = false;
-          return () => { player.root.visible = visible; };
-        },
-      });
+      // Bumper now hides only visuals: its world-lighting configuration is the same as chase.
     })().then(() => {
       // A superseded menu choice was not actually compiled; it is still preparable later.
       if (current()) this.preparedCars.add(player);
@@ -443,7 +441,7 @@ export class View {
 
   private applyCameraMode(): void {
     const mode = this.chase.mode;
-    this.playerView.root.visible = mode !== 'bumper';
+    this.playerView.setVisualsVisible(mode !== 'bumper');
     this.playerView.setCockpit(mode === 'cockpit');
   }
 

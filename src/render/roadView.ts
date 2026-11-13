@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { additiveFog } from './additiveFog';
 import { LANES, LANE_W, WALL_D, laneCenter } from '../config';
 import { smoothstep } from '../core/math';
 import { mulberry32, range, type Rng } from '../core/rng';
@@ -1200,7 +1201,13 @@ export class RoadView {
   private readonly mats: RoadMaterials;
   private readonly live = new Map<number, ChunkView>();
   private readonly free: ChunkView[] = [];
+  private readonly sources = new Map<number, RoadChunk>();
   private road: Road | null = null;
+  private version = -1;
+  private iMin = Infinity;
+  private iMax = -Infinity;
+  private ox = NaN;
+  private oz = NaN;
   private disposed = false;
 
   constructor(q: QualityPreset, maxAnisotropy: number, readonly theme: MapTheme = 'highway') {
@@ -1209,14 +1216,14 @@ export class RoadView {
       road: new THREE.MeshStandardMaterial({ map: makeRoadTexture(anisotropy, q.roadTex), vertexColors: true, roughness: 0.8, metalness: 0 }),
       struct: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.05 }),
       glow: new THREE.MeshBasicMaterial({ vertexColors: true }),
-      pools: new THREE.MeshBasicMaterial({
+      pools: additiveFog(new THREE.MeshBasicMaterial({
         map: makeRadialTexture(128, 1.8),
         vertexColors: true,
         transparent: true,
         blending: THREE.AdditiveBlending,
         // Lifted by DECAL_Y instead of polygonOffset: on ANGLE/D3D11 the offset pushed decals under the road.
         depthWrite: false,
-      }),
+      })),
       city: makeCityMaterial(theme),
       // Vertex colour sets the brightness: gantry boards 1, lit tunnel signs ~2 (they bloom a little).
       signs: new THREE.MeshBasicMaterial({ map: makeSignAtlas(anisotropy, q.signScale, theme), color: new THREE.Color(0.8, 0.8, 0.8), vertexColors: true }),
@@ -1229,6 +1236,11 @@ export class RoadView {
   /** Make sure chunks covering [sMin, sMax] are built and placed relative to the floating origin. */
   update(road: Road, sMin: number, sMax: number, ox: number, oz: number): void {
     if (this.disposed) return;
+    const iMin = road.chunks.length ? Math.max(Math.floor(sMin / CHUNK_LEN), road.chunks[0].index) : Infinity;
+    const iMax = Math.floor(sMax / CHUNK_LEN);
+    const reconcile = road !== this.road || road.version !== this.version || iMin !== this.iMin || iMax !== this.iMax;
+    const rebase = ox !== this.ox || oz !== this.oz;
+    if (!reconcile && !rebase) return;
     if (road !== this.road) {
       // A new track (test showcase) restarts chunk indices: drop every view of the old one.
       for (const v of this.live.values()) {
@@ -1236,28 +1248,31 @@ export class RoadView {
         this.free.push(v);
       }
       this.live.clear();
+      this.sources.clear();
       this.road = road;
     }
-    const iMin = Math.max(Math.floor(sMin / CHUNK_LEN), road.chunks[0].index);
-    const iMax = Math.floor(sMax / CHUNK_LEN);
-    for (const [idx, v] of this.live) {
-      if (idx < iMin || idx > iMax) {
+    if (reconcile) {
+      const wanted = new Map<number, RoadChunk>();
+      for (const c of road.chunks) if (c.index >= iMin && c.index <= iMax) wanted.set(c.index, c);
+      for (const [idx, v] of this.live) if (!wanted.has(idx) || this.sources.get(idx) !== wanted.get(idx)) {
         this.live.delete(idx);
+        this.sources.delete(idx);
         this.group.remove(v.group);
         this.free.push(v);
       }
-    }
-    for (const c of road.chunks) {
-      if (c.index < iMin || c.index > iMax) continue;
-      let v = this.live.get(c.index);
-      if (!v) {
-        v = this.free.pop() ?? new ChunkView(this.mats, this.theme);
+      for (const c of wanted.values()) if (!this.live.has(c.index)) {
+        const v = this.free.pop() ?? new ChunkView(this.mats, this.theme);
         v.build(c, road);
         this.live.set(c.index, v);
+        this.sources.set(c.index, c);
         this.group.add(v.group);
+        // Existing chunks need no position write unless the origin also changed.
+        if (!rebase) v.group.position.set(v.x0 - ox, 0, v.z0 - oz);
       }
-      v.group.position.set(v.x0 - ox, 0, v.z0 - oz);
     }
+    if (rebase) for (const v of this.live.values()) v.group.position.set(v.x0 - ox, 0, v.z0 - oz);
+    this.version = road.version; this.iMin = iMin; this.iMax = iMax;
+    this.ox = ox; this.oz = oz;
   }
 
   /** Lamp positions (absolute s) of the built chunks within [sMin, sMax]. */
@@ -1277,6 +1292,7 @@ export class RoadView {
     for (const v of this.live.values()) v.dispose();
     for (const v of this.free) v.dispose();
     this.live.clear();
+    this.sources.clear();
     this.free.length = 0;
     this.group.clear();
     for (const mat of Object.values(this.mats)) {

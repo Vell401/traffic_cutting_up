@@ -10,8 +10,26 @@ import { TRAFFIC_LIGHTING, trafficGlowMaterial, trafficLampLayout, type TrafficL
 
 interface Batch {
   meshes: THREE.InstancedMesh[];
+  matrix: THREE.InstancedBufferAttribute;
   signals: THREE.InstancedBufferAttribute;
   count: number;
+}
+
+/** Three removes object.instanceMatrix on each InstancedMesh disposal. End the renderer
+ * resource lifetime as a batch, after every part has retired. Even an unrendered last part
+ * is safe: the original hooks on ALL previously rendered parts still run at batch teardown. */
+function ownBatchMatrix(meshes: THREE.InstancedMesh[]): void {
+  let owners = meshes.length;
+  const release = meshes.map(mesh => mesh.dispose.bind(mesh));
+  for (const mesh of meshes) {
+    let disposed = false;
+    mesh.dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      mesh.removeFromParent();
+      if (--owners === 0) for (const dispose of release) dispose();
+    };
+  }
 }
 
 function uploadUsed(attribute: THREE.BufferAttribute, count: number): void {
@@ -69,12 +87,15 @@ export class TrafficView {
         if (lod === 0) this.lamps.set(spec.name, trafficLampLayout(model.parts[2]));
         const signals = new THREE.InstancedBufferAttribute(new Float32Array(MAX_TRAFFIC * 3), 3).setUsage(THREE.DynamicDrawUsage);
         model.parts[2].setAttribute('trafficSignal', signals);
+        const matrix = new THREE.InstancedBufferAttribute(new Float32Array(MAX_TRAFFIC * 16), 16).setUsage(THREE.DynamicDrawUsage);
+        for (let i = 0; i < MAX_TRAFFIC; i++) matrix.set(this.m.elements, i * 16);
         const meshes = model.parts.map((geo, i) => {
-          const mesh = this.instanced(geo, materials[i]);
+          const mesh = this.instanced(geo, materials[i], matrix);
           mesh.name = `traffic/${spec.name}/lod${lod}/${['body', 'details', 'lights'][i]}`;
           return mesh;
         });
-        return { meshes, signals, count: 0 };
+        ownBatchMatrix(meshes);
+        return { meshes, matrix, signals, count: 0 };
       });
       this.types.set(spec.name, batches);
     }
@@ -94,12 +115,14 @@ export class TrafficView {
     this.group.add(this.glows);
   }
 
-  private instanced(geo: THREE.BufferGeometry, mat: THREE.Material): THREE.InstancedMesh {
-    const mesh = new THREE.InstancedMesh(geo, mat, MAX_TRAFFIC);
+  private instanced(geo: THREE.BufferGeometry, mat: THREE.Material, matrix?: THREE.InstancedBufferAttribute): THREE.InstancedMesh {
+    // Avoid allocating two throwaway capacity-sized matrix arrays for the sibling parts.
+    const mesh = new THREE.InstancedMesh(geo, mat, matrix ? 0 : MAX_TRAFFIC);
+    if (matrix) mesh.instanceMatrix = matrix;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.frustumCulled = false;
     mesh.count = 0;
-    mesh.setColorAt(0, this.col.setRGB(1, 1, 1));
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_TRAFFIC * 3).fill(1), 3);
     mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
     this.group.add(mesh);
     return mesh;
@@ -131,7 +154,7 @@ export class TrafficView {
       this.p.set(this.pt.x - ox, 0, this.pt.z - oz);
       this.sc.set(1, 1, 1);
       this.m.compose(this.p, this.q, this.sc);
-      for (const mesh of b.meshes) mesh.setMatrixAt(i, this.m);
+      b.matrix.set(this.m.elements, i * 16);
       b.meshes[0].setColorAt(i, this.col.setHex(c.color));
       b.meshes[1].setColorAt(i, this.col.setHex(c.color2));
       b.signals.setXYZ(i, Number(c.braking), Number(blinkOn && (c.blink === -1 || c.blink === 2)), Number(blinkOn && (c.blink === 1 || c.blink === 2)));
@@ -155,12 +178,11 @@ export class TrafficView {
         mesh.count = b.count;
         mesh.visible = b.count > 0;
         if (b.count) {
-          uploadUsed(mesh.instanceMatrix, b.count);
           // Lamp colours come from partRole/trafficSignal, not per-instance paint.
           if (i < 2) uploadUsed(mesh.instanceColor!, b.count);
         }
       }
-      if (b.count) uploadUsed(b.signals, b.count);
+      if (b.count) { uploadUsed(b.matrix, b.count); uploadUsed(b.signals, b.count); }
     }
     this.shadows.count = n;
     if (n) uploadUsed(this.shadows.instanceMatrix, n);

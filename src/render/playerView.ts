@@ -17,9 +17,12 @@ const BLINK_LIT = 0.38;
  */
 export class PlayerView {
   readonly root = new THREE.Group();
+  /** Visibility gate owned by this wrapper; never rewrite authored descendant visibility. */
+  private readonly visuals = new THREE.Group();
   /** Our car's two headlight beams (left, right). */
   readonly headlights: THREE.SpotLight[] = [];
   private readonly parts: CarParts;
+  private readonly shadowGeometry: THREE.PlaneGeometry;
   private disposed = false;
   private readonly readiness: Promise<void>;
   private cancelReady: () => void = () => {};
@@ -72,13 +75,15 @@ export class PlayerView {
     this.readiness = Promise.race([loaded, cancelled]);
     if (p.cockpit instanceof W204Cockpit) p.cockpit.group.visible = false;
 
+    this.shadowGeometry = new THREE.PlaneGeometry(W * 1.45, L * 1.2).rotateX(-Math.PI / 2);
     const shadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(W * 1.45, L * 1.2).rotateX(-Math.PI / 2),
+      this.shadowGeometry,
       new THREE.MeshBasicMaterial({ color: 0x000000, map: shadowTex, transparent: true, opacity: 0.8, depthWrite: false }),
     );
     shadow.position.y = 0.02;
     shadow.renderOrder = 1;
-    this.root.add(shadow);
+    this.visuals.add(shadow);
+    this.root.add(this.visuals);
 
     // One beam from each headlamp, just ahead of its glass (a light inside the bumper lit the grille up
     // like a torch), each aimed a little outward. Physical falloff (decay 2): with 1.4 cars 30-60 m ahead
@@ -94,7 +99,7 @@ export class PlayerView {
       }
     }
 
-    this.root.add(p.body, p.wheelRoot);
+    this.visuals.add(p.body, p.wheelRoot);
     // Keep the generated instruments in the same ghost/material lifecycle as the imported body.
     p.cockpit?.group.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
@@ -164,6 +169,9 @@ export class PlayerView {
   }
 
   setPaint(color: number): void { this.parts.setPaint(color); }
+
+  /** Bumper keeps the transform hierarchy and real beams active, hiding just the car/shadow. */
+  setVisualsVisible(on: boolean): void { this.visuals.visible = on; }
 
   setHighBeam(on: boolean): void {
     if (this.parts.cockpit instanceof W204Cockpit) this.parts.cockpit.setHighBeam(on);
@@ -249,6 +257,7 @@ export class PlayerView {
     this.disposed = true;
     this.cancelReady();
     this.parts.dispose?.();
+    this.shadowGeometry.dispose();
     this.root.removeFromParent();
     for (const m of this.ownMaterials(true)) if (!this.parts.managedMaterials?.has(m)) m.dispose();
   }

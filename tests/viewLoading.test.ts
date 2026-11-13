@@ -9,15 +9,16 @@ vi.mock('../src/render/playerView', async () => {
   const T = await import('three');
   return { PlayerView: class {
     readonly root = new T.Group();
-    readonly body = this.root;
+    readonly body = new T.Group();
     readonly eye = null;
     ready = Promise.resolve();
-    constructor(readonly car: CarId) {}
+    constructor(readonly car: CarId) { this.root.add(this.body); }
     get hasCockpit() { return this.car === 1; }
     ghost = false; cockpit = false;
     setPaint = vi.fn(); setHighBeam = vi.fn();
     setGhost = vi.fn((on: boolean) => { this.ghost = on; });
     setCockpit = vi.fn((on: boolean) => { this.cockpit = on; });
+    setVisualsVisible = vi.fn((on: boolean) => { this.body.visible = on; });
     dispose = vi.fn(() => this.root.removeFromParent());
   } };
 });
@@ -39,7 +40,7 @@ function harness() {
 }
 
 describe('view car residency and preparation', () => {
-  it.each(['none', 'compile', 'draw'])('warms world materials without own headlights before readiness, restoring visibility (failure=%s)', async failure => {
+  it.each(['none', 'compile', 'draw'])('prepares only the corrected two-headlight lighting configuration, restoring visibility (failure=%s)', async failure => {
     const { view, current, scene, renderer } = harness();
     current.root.add(new THREE.SpotLight(), new THREE.SpotLight());
     const world = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial()); scene.add(world, new THREE.HemisphereLight());
@@ -47,21 +48,21 @@ describe('view car residency and preparation', () => {
     const lights = () => { let count = 0; scene.traverseVisible(o => { if ((o as THREE.SpotLight).isSpotLight) count++; }); return count; };
     let fail = failure;
     renderer.compileAsync.mockImplementation(async () => {
-      if (lights() === 0 && fail === 'compile') throw new Error('bumper world compile');
+      if (fail === 'compile') throw new Error('car compile');
       compiled.add(lights());
     });
     renderer.render.mockImplementation(() => {
       const count = lights(); expect(compiled.has(count)).toBe(true);
-      if (count === 0 && fail === 'draw') throw new Error('bumper world draw');
+      if (fail === 'draw') throw new Error('car draw');
       drawn.add(count);
     });
     if (failure !== 'none') {
-      await expect(view.prepareCar()).rejects.toThrow(`bumper world ${failure}`);
+      await expect(view.prepareCar()).rejects.toThrow(`car ${failure}`);
       expect(current.root.visible).toBe(true); expect(lights()).toBe(2);
       fail = 'none';
       await view.prepareCar();
     } else await view.prepareCar();
-    expect(compiled).toEqual(new Set([2, 0])); expect(drawn).toEqual(new Set([2, 0]));
+    expect(compiled).toEqual(new Set([2])); expect(drawn).toEqual(new Set([2]));
     expect(current.root.visible).toBe(true); expect(world.visible).toBe(true); expect(lights()).toBe(2);
     const calls = renderer.compileAsync.mock.calls.length; await view.prepareCar();
     expect(renderer.compileAsync).toHaveBeenCalledTimes(calls);
@@ -101,12 +102,12 @@ describe('view car residency and preparation', () => {
     const task = view.prepareCar(); expect(view.prepareCar()).toBe(task);
     await Promise.resolve(); expect(renderer.compileAsync).not.toHaveBeenCalled();
     attach(); await task;
-    expect(renderer.render).toHaveBeenCalledTimes(3); // Opaque, spawn-ghost, bumper world lighting.
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(3);
+    expect(renderer.render).toHaveBeenCalledTimes(2); // Opaque and spawn-ghost; bumper retains the same lights.
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(2);
     view.setCar(1); await view.prepareCar();
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(8); // Porsche sets + both cars' bumper world lighting.
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(6); // Porsche cockpit/ghost variants.
     view.setCar(3); await view.prepareCar();
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(8);
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(6);
   });
 
   it('does not compile a superseded pending selection and allows preparing it on return', async () => {
@@ -116,20 +117,20 @@ describe('view car residency and preparation', () => {
     const task = view.prepareCar(); view.setCar(2); attach(); await task;
     expect(renderer.compileAsync).not.toHaveBeenCalled();
     view.setCar(3); await view.prepareCar();
-    expect(renderer.compileAsync).toHaveBeenCalledTimes(3);
+    expect(renderer.compileAsync).toHaveBeenCalledTimes(2);
   });
 
   it.each(['compile', 'draw'])('retries a failed %s, restores cockpit/ghost/bumper state, and does not rebuild an attached instance', async failure => {
     const { view, renderer, playerViews } = harness(); view.setCar(1);
     const player = playerViews.get(1)!.view;
-    Object.assign(view, { chase: { mode: 'bumper' } }); player.root.visible = false;
+    Object.assign(view, { chase: { mode: 'bumper' } }); player.setVisualsVisible(false);
     if (failure === 'draw') renderer.render.mockImplementationOnce(() => { throw new Error('upload'); });
     else renderer.compileAsync.mockRejectedValueOnce(new Error('upload'));
     await expect(view.prepareCar()).rejects.toThrow('upload');
-    expect(player.root.visible).toBe(false);
+    expect(player.root.visible).toBe(true); expect(player.body.visible).toBe(false);
     expect(player.setCockpit).toHaveBeenLastCalledWith(false); expect(player.setGhost).toHaveBeenLastCalledWith(false);
     await view.prepareCar(); expect(playerViews.get(1)!.view).toBe(player);
-    expect(renderer.render).toHaveBeenCalledTimes(failure === 'draw' ? 6 : 5);
+    expect(renderer.render).toHaveBeenCalledTimes(failure === 'draw' ? 5 : 4);
   });
 
   it('evicts immutable rejected attachment readiness so same-identity selection reconstructs it', async () => {
@@ -147,8 +148,8 @@ describe('view car residency and preparation', () => {
     view.setCar(2); view.setCar(3);
     const retry = view.prepareCar(); expect(retry).not.toBe(old);
     finish(); await Promise.all([old, retry]);
-    expect(renderer.render).toHaveBeenCalledTimes(3); // Superseded compile never draws.
-    await view.prepareCar(); expect(renderer.render).toHaveBeenCalledTimes(3);
+    expect(renderer.render).toHaveBeenCalledTimes(2); // Superseded compile never draws.
+    await view.prepareCar(); expect(renderer.render).toHaveBeenCalledTimes(2);
   });
 
   it('does not overwrite in-flight variant programs with a live frame before compileAsync settles', async () => {
