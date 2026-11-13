@@ -25,8 +25,9 @@ Tasks 1–7 and both Task 8 checkpoints are implemented and independently review
 | 7 — render correctness/equivalent work elimination | `1556543` |
 | 8A — audited lifecycle/read/telemetry/deploy repairs | `4e24cef` |
 | 8B — integrated browser acceptance and report | `4b27ce0` |
+| Final review repair — upload deadlines and bounded peer welcome | `da719e7` |
 
-Fresh whole-change review and controller-only final main integration/deployment verification remain pending at this planning checkpoint. Local acceptance: 1273 tests passed, 1 baseline platform skip; types, both builds, performance checks, both-map proxy smoke and four browser suites passed. Physical-GPU/phone/VPS performance and actual new rollout are not certified by these local results.
+Fresh whole-change review and its scoped final repair review approve integration. Controller-only main integration/deployment verification is the subsequent release step. Final local acceptance: 1294 tests passed, 1 baseline platform skip; types and both builds passed again after the repair. Performance checks, both-map proxy smoke and four browser suites passed; the updated integration suite and a real 10 MiB/20.875 s Miami upload were rerun after the final repair. Physical-GPU/phone/VPS performance and actual rollout are not certified by these local results. Recorded decisions and retained costs: `docs/reviews/2026-11-13-miami-rulings.md`.
 
 ## Global Constraints
 

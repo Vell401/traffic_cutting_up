@@ -8,6 +8,8 @@ Miami is now **revision2 / `5d573e53`**, Highway stays **revision1 / `766e63c6`*
 
 ## Acceptance evidence and scope
 
+**Final pre-main gate:** the whole-change review and one scoped repair re-review approved integration at `da719e7`. The controller then freshly ran **117 files / 1294 tests passed / 1 baseline skip**, client/server typechecks and both builds successfully. The later upload/peer regression evidence below supersedes only the affected timeout/handshake behavior; the earlier table records the original integrated acceptance checkpoint. Controller-only rollout verification follows the accepted commit and is not certified by this local report. [Decisions and retained costs](2026-11-13-miami-rulings.md) record the execution rulings and explicitly adopted residual findings.
+
 Runtime: Windows, Node **24.13.0**, external Playwright, installed Edge/ANGLE **SwiftShader**. These are local software-renderer and CPU checks, not physical-GPU/phone/VPS/Node22/TLS performance certification. No dependencies were added. All datasets/passwords are synthetic and isolated under `C:/Users/sosi/AppData/Local/Temp/opencode/miami-upgrade-task8`.
 
 | Gate | Current result / evidence |
