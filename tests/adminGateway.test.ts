@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, request, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -159,6 +159,31 @@ describe('authorized Miami gateway', () => {
     // The original deadline precedes this marker; a new per-login timeout would not.
     const first = await Promise.race([pending.then(res => res.status), new Promise<string>(done => setTimeout(() => done('login outlived browser deadline'), 100))]);
     expect(first).toBe(503); await pending;
+  });
+
+  it.each([200, 400, 'timeout'] as const)('destroys stalled downstream delivery after res.end (upstream %s)', async status => {
+    const f = await fixture({ timeoutMs: 250 });
+    f.intercept((req, res) => {
+      if (status === 'timeout') return true;
+      if (req.url !== '/api/admin/state') return false;
+      send(res, status, { map: 'miami', detail: 'x'.repeat(1024 * 1024) }); return true;
+    });
+    const blocked = blockDownstream(f.server);
+    const client = request(f.url + prefix + 'state', { headers: { authorization: `Bearer ${f.token}`, origin } });
+    client.on('response', res => res.resume()); client.on('error', () => {}); client.end();
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const res = await blocked.queued;
+      // Real ServerResponse/Socket writable queues are blocked before OS buffering can hide the stall.
+      expect(res.headersSent).toBe(true); expect(res.writableEnded).toBe(true);
+      expect(res.writableFinished).toBe(false); expect(res.writableLength).toBeGreaterThan(0);
+      const outcome = await Promise.race([
+        once(res, 'close').then(() => 'closed'),
+        new Promise<string>(done => { watchdog = setTimeout(() => done('still queued beyond deadline'), 650); }),
+      ]);
+      expect(outcome).toBe('closed'); expect(res.destroyed).toBe(true);
+      expect(res.writableFinished).toBe(false);
+    } finally { clearTimeout(watchdog); client.destroy(); blocked.release(); }
   });
 
   it('coalesces concurrent refreshes and reauthenticates an expired single service session', async () => {
@@ -370,6 +395,27 @@ describe('authorized Miami gateway', () => {
     upload.end(); expect(await response).toBe(413); expect(bytes).toBeLessThanOrEqual(40 * 1024 * 1024);
   });
 });
+
+/** Inject backpressure only at a real central socket's write-completion boundary. */
+function blockDownstream(server: Server) {
+  let queued!: (res: ServerResponse) => void;
+  const result = { queued: new Promise<ServerResponse>(done => { queued = done; }), release: () => {} };
+  server.prependOnceListener('request', (req, res) => {
+    const socket = req.socket, write = socket._write, writev = socket._writev!;
+    const pending: Array<() => void> = [];
+    socket._write = (chunk, encoding, callback) => {
+      pending.push(() => socket.destroyed ? callback() : write.call(socket, chunk, encoding, callback)); queued(res);
+    };
+    socket._writev = (chunks, callback) => {
+      pending.push(() => socket.destroyed ? callback() : writev.call(socket, chunks, callback)); queued(res);
+    };
+    result.release = () => {
+      socket._write = write; socket._writev = writev;
+      for (const resume of pending.splice(0)) resume();
+    };
+  });
+  return result;
+}
 
 function raw(base: string, path: string, options: Parameters<typeof request>[1], body?: string) {
   return new Promise<{ status: number; body: string }>((done, reject) => {

@@ -91,9 +91,24 @@ export class AdminGateway {
   private async dispatch(req: IncomingMessage, res: ServerResponse, path: string, search: string, upload: boolean): Promise<void> {
     const abort = new AbortController();
     const cancel = () => abort.abort();
-    const timer = setTimeout(cancel, this.timeout);
+    let flush: ReturnType<typeof setImmediate> | undefined;
+    const cleanup = () => {
+      clearTimeout(timer);
+      if (flush) clearImmediate(flush);
+      req.removeListener('aborted', cancel);
+      res.removeListener('finish', cleanup); res.removeListener('close', closed);
+    };
+    const closed = () => { cancel(); cleanup(); };
+    const timer = setTimeout(() => {
+      cancel();
+      if (res.headersSent) res.destroy();
+      else {
+        // Let the aborted operation queue its sanitized 503, but never wait for a slow reader.
+        flush = setImmediate(() => { if (!res.writableFinished) res.destroy(); });
+      }
+    }, this.timeout);
     req.once('aborted', cancel);
-    res.once('close', cancel);
+    res.once('finish', cleanup); res.once('close', closed);
     try {
       const body = req.method === 'POST' && !upload ? await this.jsonBody(req, abort.signal) : undefined;
       await this.checkHealth(abort.signal);
@@ -130,8 +145,8 @@ export class AdminGateway {
         send(res, status, { ok: false, error: status === 503 ? 'Miami admin unavailable' : 'Miami admin request rejected' });
       }
     } finally {
-      clearTimeout(timer);
-      req.removeListener('aborted', cancel); res.removeListener('close', cancel);
+      // res.end() only queues output: the deadline/close guard lives through finish or close.
+      req.removeListener('aborted', cancel);
       abort.abort();
     }
   }
