@@ -5,6 +5,8 @@ import { mulberry32 } from '../src/core/rng';
 import { getMap } from '../src/sim/maps';
 import { CHUNK_LEN, Road } from '../src/sim/road';
 import { makeCityMaterial } from '../src/render/city';
+import { ChaseCamera } from '../src/render/camera';
+import { CAMERA_RIGS } from '../src/render/car';
 import { MeshBuilder } from '../src/render/meshBuilder';
 import { canonicalChunk, MIAMI, miamiChunkSeed, miamiDeco, miamiFacade, miamiLayout, miamiPalm, miamiQuay, PALM_MIN_D } from '../src/render/miami';
 import { RoadView } from '../src/render/roadView';
@@ -66,6 +68,61 @@ function nearRoofs(view: RoadView, heading: number) {
 }
 
 describe('Miami visual identity and road safety', () => {
+  it.each([[6000, 6050, false], [6100, 6250, true]] as const)(
+    'exposes the actual floating pier at %s to the normal on-road chase camera', (cameraS, pierS, inFrame) => {
+      const road = roadFor('miami'); road.ensure(5800, 6600);
+      const v = new RoadView(quality, 4, 'miami'); v.update(road, 5800, 6599, 0, 0);
+      v.group.updateMatrixWorld(true);
+      const camera = new THREE.PerspectiveCamera(60, 1280 / 800, 0.5, 3000);
+      const chase = new ChaseCamera(); chase.setRig(CAMERA_RIGS[2]);
+      const eye = road.toWorld(cameraS, 0, { x: 0, z: 0, th: 0, k: 0 });
+      chase.update(0, camera, new THREE.Vector3(eye.x, 0, eye.z), eye.th, 0, null);
+      camera.updateMatrixWorld(true);
+      expect(camera.position.y).toBe(2.05); // Stock chase, not a raised/orbited visibility workaround.
+      const center = road.toWorld(pierS, 0, { x: 0, z: 0, th: 0, k: 0 });
+      const chunk = v.group.children[(Math.floor(pierS / 100) * 100 - 5800) / 100];
+      const structure = chunk.children[1] as THREE.Mesh;
+      const p = structure.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const n = structure.geometry.getAttribute('normal') as THREE.BufferAttribute;
+      const color = structure.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const corners: { d: number; along: number; y: number }[] = [];
+      for (let i = 0; i < p.updateRanges[0].count / 3; i++) {
+        if (n.getY(i) < 0.99 || Math.abs(p.getY(i) - (MIAMI.waterLevel + 0.93)) > 0.001
+          || Math.abs(color.getX(i) - MIAMI.trunk.r * 0.75) > 0.00001) continue;
+        const world = new THREE.Vector3().fromBufferAttribute(p, i).applyMatrix4(structure.matrixWorld);
+        const dx = world.x - center.x, dz = world.z - center.z;
+        corners.push({ d: dx * Math.cos(center.th) + dz * Math.sin(center.th),
+          along: dx * Math.sin(center.th) - dz * Math.cos(center.th), y: world.y });
+      }
+      expect(corners).toHaveLength(4); // Locate the real generated deck, not imaginary sample points.
+      const occluders = meshes(v).filter(mesh => mesh.visible);
+      const ray = new THREE.Raycaster();
+      const projected: THREE.Vector3[] = [];
+      const blocked: string[] = [];
+      let visible = 0;
+      for (const u of [0.001, 0.25, 0.5, 0.75, 0.999]) {
+        for (const w of [0.01, 0.5, 0.99]) {
+          const d = corners[0].d + (corners[1].d - corners[0].d) * u + (corners[3].d - corners[0].d) * w;
+          const along = corners[0].along + (corners[1].along - corners[0].along) * u + (corners[3].along - corners[0].along) * w;
+          const target = new THREE.Vector3(center.x + Math.cos(center.th) * d + Math.sin(center.th) * along,
+            corners[0].y, center.z + Math.sin(center.th) * d - Math.cos(center.th) * along);
+          const distance = target.distanceTo(camera.position);
+          ray.set(camera.position, target.clone().sub(camera.position).normalize()); ray.far = distance + 0.02;
+          const hit = ray.intersectObjects(occluders, false)[0];
+          if (hit?.object === structure && Math.abs(hit.distance - distance) < 0.02) visible++;
+          else blocked.push(`d=${d.toFixed(2)}, along=${along.toFixed(2)}: first y=${hit?.point.y.toFixed(2)}, distance gap=${hit ? (distance - hit.distance).toFixed(2) : 'no hit'}`);
+          projected.push(target.project(camera));
+        }
+      }
+      expect(visible, `deck samples unobstructed / 15; blocked: ${blocked.join('; ')}`).toBeGreaterThanOrEqual(12);
+      if (inFrame) {
+        expect(projected.every(p => Math.abs(p.x) < 1 && Math.abs(p.y) < 1 && p.z < 1)).toBe(true);
+        expect((Math.max(...projected.map(p => p.x)) - Math.min(...projected.map(p => p.x))) * 640).toBeGreaterThan(80);
+        expect((Math.max(...projected.map(p => p.y)) - Math.min(...projected.map(p => p.y))) * 400).toBeGreaterThan(6);
+      }
+      v.dispose();
+    });
+
   it.each([
     [300, 'ocean-drive', 8, 30],
     [6000, 'marina', 8, 40],
@@ -94,7 +151,7 @@ describe('Miami visual identity and road safety', () => {
     causeway.dispose(); v.dispose();
   });
 
-  it.each([[300, -62], [6000, -42], [8600, -62]])('brings the marina quay closer to the road without filling the bay at %s', (s, shore) => {
+  it.each([[300, -62], [6000, -98], [8600, -62]])('places the marina quay on the lower coastal bank without filling the bay at %s', (s, shore) => {
     const road = roadFor('miami'); road.ensure(s, s + 100);
     const v = new RoadView(quality, 4, 'miami'); v.update(road, s, s + 99, 0, 0);
     const p = meshes(v)[5].geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -146,7 +203,7 @@ describe('Miami visual identity and road safety', () => {
     }
   });
 
-  it('faces the sloped marina gangway upward so it remains visible from the active road', () => {
+  it('faces the sloped marina gangway upward', () => {
     const struct = new MeshBuilder({ maxVerts: 1000, maxIndices: 2000 });
     const glow = new MeshBuilder({ maxVerts: 1000, maxIndices: 2000 });
     miamiQuay(struct, glow, { x: 0, z: 0, th: 0 }, 0, true);

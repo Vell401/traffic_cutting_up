@@ -11,6 +11,7 @@ export type MapTheme = MapId;
 export const MIAMI = {
   water: 0x091d2a,
   waterLevel: -8,
+  marinaShore: 98,
   ground: new THREE.Color(0x293336),
   lamp: new THREE.Color(1, 0.72, 0.4),
   cyan: new THREE.Color(0.12, 1.05, 1.15),
@@ -35,6 +36,13 @@ export function miamiChunkSeed(index: number, ringLen: number): number {
 /** Includes the full frond canopy, not just the trunk. All palms remain outside the barrier. */
 export const PALM_RADIUS = 4.6;
 export const PALM_MIN_D = WALL_D + 2 + PALM_RADIUS;
+
+/** The marina sits below the intact elevated road, on a gently descending coastal bank. */
+export function miamiMarinaGround(d: number): number {
+  const edge = WALL_D + 0.55;
+  const slope = Math.min(1, Math.max(0, (Math.abs(d) - edge) / (MIAMI.marinaShore - edge)));
+  return (MIAMI.waterLevel + 1) * slope;
+}
 
 export interface MiamiFacade {
   s: number; d: number; width: number; depth: number; height: number; variant: number; seed: number;
@@ -196,20 +204,28 @@ export function miamiQuay(struct: MeshBuilder, glow: MeshBuilder, f: Frame, grou
   const shifted = (along: number): Frame => ({ x: f.x + Math.sin(f.th) * along, z: f.z - Math.cos(f.th) * along, th: f.th });
   if (pier) {
     const deck = MIAMI.waterLevel + 0.75;
+    // Angle the pontoon into its berths: its deck reads as an area from the road, not a thin line.
+    const angle = Math.PI / 5;
+    const dock = { x: f.x - Math.cos(f.th) * (shore + 24), z: f.z - Math.sin(f.th) * (shore + 24), th: f.th + angle };
+    const dockAt = (along: number): Frame => ({ x: dock.x + Math.sin(dock.th) * along, z: dock.z - Math.cos(dock.th) * along, th: dock.th });
     struct.color(MIAMI.trunk, 0.75);
-    box(struct, f, -(shore + 22), deck, 16, 0.18, 1.7, 0, FACE_NO_BOTTOM);
-    for (const d of [7, 17, 27, 37].map(offset => -(shore + offset))) {
+    box(struct, dock, 0, deck, 16, 0.18, 4.5, 0, FACE_NO_BOTTOM);
+    for (const d of [-15, -5, 5, 15]) {
       struct.color(MIAMI.trunk, 0.6);
-      for (const along of [-1.4, 1.4]) box(struct, shifted(along), d, deck - 0.5, 0.15, 1.2, 0.15);
+      for (const along of [-4.2, 4.2]) box(struct, dockAt(along), d, deck - 0.5, 0.15, 1.2, 0.15);
       glow.color(MIAMI.lamp, 0.65);
-      box(glow, f, d, deck + 0.3, 0.09, 0.12, 0.09);
+      box(glow, dock, d, deck + 0.3, 0.09, 0.12, 0.09);
     }
     // Sloping gangway joins the high seawall to the floating dock, rather than a detached finger.
     const rx = Math.cos(f.th), rz = Math.sin(f.th), fx = Math.sin(f.th), fz = -Math.cos(f.th);
-    const dy = ground + 0.15 - (deck + 0.2), length = Math.hypot(11, dy);
+    const along = -14 * Math.sin(angle);
+    const start = 1 - shore, end = -(shore + 24) + 14 * Math.cos(angle);
+    const run = start - end;
+    const dy = ground + 0.2 - (deck + 0.2), length = Math.hypot(run, dy);
     struct.color(MIAMI.cream, 0.65);
-    const points = [[3 - shore, -1.2, ground + 0.15], [-8 - shore, -1.2, deck + 0.2], [-8 - shore, 1.2, deck + 0.2], [3 - shore, 1.2, ground + 0.15]];
-    const ids = points.map(([d, a, y]) => struct.v(f.x + rx * d + fx * a, y, f.z + rz * d + fz * a, -rx * dy / length, 11 / length, -rz * dy / length));
+    const points = [[start, along - 1.2, ground + 0.2], [end, along - 1.2, deck + 0.2],
+      [end, along + 1.2, deck + 0.2], [start, along + 1.2, ground + 0.2]];
+    const ids = points.map(([d, a, y]) => struct.v(f.x + rx * d + fx * a, y, f.z + rz * d + fz * a, -rx * dy / length, run / length, -rz * dy / length));
     struct.quad(ids[3], ids[2], ids[1], ids[0]);
     return;
   }

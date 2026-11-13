@@ -4,7 +4,7 @@ import { smoothstep } from '../core/math';
 import { mulberry32, range, type Rng } from '../core/rng';
 import { CHUNK_LEN, GROUND_LEVEL, SAMPLE_DS, type LightKind, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
 import { makeCityMaterial } from './city';
-import { canonicalChunk, MIAMI, miamiChunkSeed, miamiDeco, miamiFacade, miamiLayout, miamiPalm, miamiQuay, type MapTheme } from './miami';
+import { canonicalChunk, MIAMI, miamiChunkSeed, miamiDeco, miamiFacade, miamiLayout, miamiMarinaGround, miamiPalm, miamiQuay, type MapTheme } from './miami';
 import {
   ChunkFrames,
   FACE_NO_BOTTOM,
@@ -517,14 +517,16 @@ class ChunkView {
       // Coastal promenade on the left, land on the right. The water has a real recessed shore,
       // rather than a colour overlay on top of the old terrain. Elevated causeways are over bay.
       const causeway = bridge || this.c.kind === 'viaduct';
-      const shore = causeway ? EDGE : this.coast!.district === 'marina' ? 42 : 62;
+      const marina = this.coast!.district === 'marina';
+      const shore = causeway ? EDGE : marina ? MIAMI.marinaShore : 62;
+      const bank = marina ? miamiMarinaGround(-shore) : gy;
       this.waterY.fill(MIAMI.waterLevel);
       mb.color(MIAMI.ground);
       if (!causeway) {
         strip(mb, this.fr, EDGE, gy, GROUND_OUT, gy);
-        strip(mb, this.fr, -shore, gy, -EDGE, gy);
+        strip(mb, this.fr, -shore, bank, -EDGE, marina ? 0 : gy);
         mb.color(MIAMI.cream, 0.6);
-        strip(mb, this.fr, -shore, this.waterY, -shore, gy);
+        strip(mb, this.fr, -shore, this.waterY, -shore, bank);
       }
       this.water.color(COL.white);
       strip(this.water, this.fr, -GROUND_OUT, this.waterY, -shore, this.waterY);
@@ -905,8 +907,10 @@ class ChunkView {
 
   private buildTrees(): void {
     if (this.theme === 'miami') {
-      for (const { s, d, height, phase } of this.coast!.palms)
-        miamiPalm(this.struct, this.at(s), d, this.roadRef.groundY(this.c.s0 + s), height, phase);
+      for (const { s, d, height, phase } of this.coast!.palms) {
+        const base = this.coast!.district === 'marina' && d < 0 ? miamiMarinaGround(d) : this.roadRef.groundY(this.c.s0 + s);
+        miamiPalm(this.struct, this.at(s), d, base, height, phase);
+      }
       return;
     }
     const rng = this.rng;
@@ -1015,21 +1019,23 @@ class ChunkView {
       if (canonicalChunk(this.c.index, this.roadRef.ringLen) % 3 === 1) this.boat(50, -150, rng);
       return;
     }
-    const shore = district === 'marina' ? 42 : 62;
-    for (const s of [12, 62]) miamiQuay(this.struct, this.glow, this.at(s), this.roadRef.groundY(this.c.s0 + s), false, shore);
+    const shore = district === 'marina' ? MIAMI.marinaShore : 62;
+    const quayGround = (s: number) => district === 'marina' ? miamiMarinaGround(-shore) : this.roadRef.groundY(this.c.s0 + s);
+    for (const s of [12, 62]) miamiQuay(this.struct, this.glow, this.at(s), quayGround(s), false, shore);
     const canonical = canonicalChunk(this.c.index, this.roadRef.ringLen);
     if (pier) {
-      miamiQuay(this.struct, this.glow, this.at(50), this.roadRef.groundY(this.c.s0 + 50), true, shore);
-      this.boat(32, -74, rng);
-      this.boat(72, -67, rng);
+      miamiQuay(this.struct, this.glow, this.at(50), quayGround(50), true, shore);
+      this.boat(20, -(shore + 32), rng);
+      this.boat(82, -(shore + 25), rng);
     }
     if (district === 'marina' && canonical % 6 === 2) {
       // A place marker uses the existing coastal atlas, adding no texture/material/draw call.
       this.struct.color(MIAMI.cream, 0.7);
-      box(this.struct, this.at(30), -36, 2.7, 0.15, 2.7, 0.15);
+      const markerGround = miamiMarinaGround(-36);
+      box(this.struct, this.at(30), -36, markerGround + 2.7, 0.15, 2.7, 0.15);
       const [u0, v0, u1, v1] = cellUV(2);
       this.signs.rgb(1.1, 1.1, 1.1);
-      signQuad(this.signs, this.at(30), -36, 4.5, 3, 1.5, u0, v0, u1, v1);
+      signQuad(this.signs, this.at(30), -36, markerGround + 4.5, 3, 1.5, u0, v0, u1, v1);
     }
   }
 
