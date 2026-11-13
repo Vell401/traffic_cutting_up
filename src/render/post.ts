@@ -13,12 +13,13 @@ import {
 import * as THREE from 'three';
 import { clamp, smoothstep } from '../core/math';
 import type { QualityPreset } from '../settings';
+import type { MapTheme } from './miami';
 
 /**
  * Grading baked into a 3D LUT (applied in sRGB after tone mapping): teal shadows, warm highlights,
  * a gentle S-curve and a little extra saturation — the sodium-and-neon night look.
  */
-function makeGradeLUT(size = 32): LookupTexture {
+function makeGradeLUT(size = 32, coastal = false): LookupTexture {
   const data = new Float32Array(size ** 3 * 4);
   const k = 1 / (size - 1);
   for (let b = 0; b < size; b++) {
@@ -30,17 +31,18 @@ function makeGradeLUT(size = 32): LookupTexture {
         const l = 0.2126 * R + 0.7152 * G + 0.0722 * B;
         const sh = 1 - smoothstep(l / 0.5);
         const hi = smoothstep((l - 0.45) / 0.55);
-        R += sh * -0.018 + hi * 0.03;
+        R += sh * (coastal ? -0.005 : -0.018) + hi * (coastal ? 0.012 : 0.03);
         G += sh * 0.008 + hi * 0.008;
-        B += sh * 0.034 + hi * -0.03;
+        B += sh * (coastal ? 0.012 : 0.034) + hi * (coastal ? -0.012 : -0.03);
         R = R + (smoothstep(R) - R) * 0.22;
         G = G + (smoothstep(G) - G) * 0.22;
         B = B + (smoothstep(B) - B) * 0.22;
         const l2 = 0.2126 * R + 0.7152 * G + 0.0722 * B;
         const i = (r + g * size + b * size * size) * 4;
-        data[i] = clamp(l2 + (R - l2) * 1.12, 0, 1);
-        data[i + 1] = clamp(l2 + (G - l2) * 1.12, 0, 1);
-        data[i + 2] = clamp(l2 + (B - l2) * 1.12, 0, 1);
+        const saturation = coastal ? 1.04 : 1.12;
+        data[i] = clamp(l2 + (R - l2) * saturation, 0, 1);
+        data[i + 1] = clamp(l2 + (G - l2) * saturation, 0, 1);
+        data[i + 2] = clamp(l2 + (B - l2) * saturation, 0, 1);
         data[i + 3] = 1;
       }
     }
@@ -63,7 +65,7 @@ export class Post {
   private scoreKick = 0;
   private scoreDistortion = 0;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: QualityPreset) {
+  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, q: QualityPreset, theme: MapTheme = 'highway') {
     renderer.toneMapping = THREE.NoToneMapping;
     const samples = Math.min(q.msaa, renderer.capabilities.maxSamples);
     this.composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: samples });
@@ -84,13 +86,13 @@ export class Post {
       // gentle (was threshold 1.25, intensity 0.85): close lamps and tail lights used to dazzle.
       luminanceThreshold: 1.45,
       luminanceSmoothing: 0.25,
-      intensity: 0.6,
+      intensity: theme === 'miami' ? 0.32 : 0.6,
       radius: 0.55,
       levels: q.bloomLevels,
     });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
-    const grade = new LUT3DEffect(makeGradeLUT());
-    const vignette = new VignetteEffect({ offset: 0.3, darkness: 0.5 });
+    const grade = new LUT3DEffect(makeGradeLUT(32, theme === 'miami'));
+    const vignette = new VignetteEffect({ offset: 0.3, darkness: theme === 'miami' ? 0.35 : 0.5 });
     this.composer.addPass(new EffectPass(camera, bloom, tone, grade, vignette));
   }
 

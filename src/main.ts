@@ -1006,6 +1006,24 @@ view.renderer.setAnimationLoop((now: number) => {
   if (debugOn) debug?.update();
 });
 
+// The required world owns boot readiness too. Keep the existing overlay locked on error; retry
+// starts the actual rejected asset/compile job again, never reveals the old procedural map.
+await new Promise<void>(resolve => {
+  const prepare = async () => {
+    try {
+      await loading.stage(42, 'Подготовка окружения');
+      await view.prepareEnvironment();
+      resolve();
+    } catch (error) {
+      report('error', 'Required environment preparation failed', String(error));
+      loading.fail('Не удалось загрузить окружение. Проверь соединение и повтори.', () => {
+        loading.begin('boot', 'Подготовка окружения'); void prepare();
+      });
+    }
+  };
+  void prepare();
+});
+
 // Boot readiness: optional models must not prevent a usable selected car from reaching the menu.
 try {
   showSelectedProgress = true;

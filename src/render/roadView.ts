@@ -5,6 +5,8 @@ import { smoothstep } from '../core/math';
 import { mulberry32, range, type Rng } from '../core/rng';
 import { CHUNK_LEN, GROUND_LEVEL, SAMPLE_DS, type LightKind, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
 import { makeCityMaterial } from './city';
+import { makeMiamiMaterials } from './miami/materials';
+import type { MiamiAssets } from './miami/assets';
 import { canonicalChunk, MIAMI, miamiChunkSeed, miamiDeco, miamiFacade, miamiLayout, miamiMarinaGround, miamiPalm, miamiQuay, type MapTheme } from './miami';
 import {
   ChunkFrames,
@@ -309,12 +311,12 @@ class ChunkView {
   /** Per-row ambient shade of road and barriers: 1 outside, darker inside tunnels, ramped across portals. */
   private readonly shadeRows = new Float64Array(ROWS);
   private readonly road = new MeshBuilder({ maxVerts: ROWS * 2, maxIndices: (ROWS - 1) * 6, uv: true });
-  private readonly struct = new MeshBuilder({ maxVerts: 9000, maxIndices: 16000 });
+  private readonly struct: MeshBuilder;
   private readonly glow = new MeshBuilder({ maxVerts: 6000, maxIndices: 9000 });
   private readonly pools = new MeshBuilder({ maxVerts: 400, maxIndices: 600, uv: true });
   private readonly city = new MeshBuilder({ maxVerts: 3000, maxIndices: 4500, win: true });
   private readonly signs = new MeshBuilder({ maxVerts: 160, maxIndices: 240, uv: true });
-  private readonly water = new MeshBuilder({ maxVerts: ROWS * 6, maxIndices: (ROWS - 1) * 18 });
+  private readonly water: MeshBuilder;
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly pairs: [MeshBuilder, THREE.Mesh][];
   private c!: RoadChunk;
@@ -322,10 +324,13 @@ class ChunkView {
   private rng: Rng = Math.random;
   private coast: ReturnType<typeof miamiLayout> | null = null;
 
-  constructor(m: RoadMaterials, private readonly theme: MapTheme = 'highway') {
+  constructor(m: RoadMaterials, private readonly theme: MapTheme = 'highway', private readonly mode: 'legacy' | 'assets' = 'legacy') {
+    this.struct = new MeshBuilder({ maxVerts: 9000, maxIndices: 16000, uv: mode === 'assets' });
+    this.water = new MeshBuilder({ maxVerts: ROWS * 6, maxIndices: (ROWS - 1) * 18, uv: mode === 'assets' });
     const mk = (b: MeshBuilder, mat: THREE.Material, order = 0): [MeshBuilder, THREE.Mesh] => {
       const mesh = new THREE.Mesh(b.geometry, mat);
       mesh.renderOrder = order;
+      if (mode === 'assets' && (b === this.road || b === this.struct)) mesh.receiveShadow = true;
       this.group.add(mesh);
       return [b, mesh];
     };
@@ -396,6 +401,18 @@ class ChunkView {
 
     for (const [b, mesh] of this.pairs) {
       b.finish();
+      if (this.mode === 'assets' && (b === this.struct || b === this.water)) {
+        // Metric planar projections for generated scaffolding. GLB UVs are left untouched.
+        const pos = b.geometry.getAttribute('position') as THREE.BufferAttribute, normal = b.geometry.getAttribute('normal'), uv = b.geometry.getAttribute('uv');
+        const count = pos.updateRanges[0]?.count / 3 || 0;
+        for (let i = 0; i < count; i++) {
+          const ny = Math.abs(normal.getY(i)), nx = Math.abs(normal.getX(i));
+          const tile = b === this.water ? 12 : 2;
+          uv.setXY(i, (ny > 0.7 || nx < 0.7 ? pos.getX(i) : pos.getZ(i)) / tile,
+            (ny > 0.7 ? pos.getZ(i) : pos.getY(i)) / tile);
+        }
+        uv.needsUpdate = true;
+      }
       mesh.visible = !b.empty;
     }
   }
@@ -472,16 +489,21 @@ class ChunkView {
     let pa = -1;
     let pb = -1;
     for (let i = 0; i < ROWS; i++) {
-      const v = (i * SAMPLE_DS) / ROAD_TEX_PERIOD;
+      const v = (i * SAMPLE_DS) / (this.mode === 'assets' ? 2 : ROAD_TEX_PERIOD);
       const cs = fr.cs[i];
       const sn = fr.sn[i];
       const k = this.shadeRows[i];
       mb.rgb(k, k, k);
-      const a = mb.v(fr.bx[i] - cs * EDGE, 0, fr.bz[i] - sn * EDGE, 0, 1, 0, u0, v);
-      const b = mb.v(fr.bx[i] + cs * EDGE, 0, fr.bz[i] + sn * EDGE, 0, 1, 0, u1, v);
+      const a = mb.v(fr.bx[i] - cs * EDGE, 0, fr.bz[i] - sn * EDGE, 0, 1, 0, this.mode === 'assets' ? -EDGE / 2 : u0, v);
+      const b = mb.v(fr.bx[i] + cs * EDGE, 0, fr.bz[i] + sn * EDGE, 0, 1, 0, this.mode === 'assets' ? EDGE / 2 : u1, v);
       if (i > 0) mb.quad(pa, pb, b, a);
       pa = a;
       pb = b;
+    }
+    if (this.mode === 'assets') {
+      this.glow.rgb(0.63, 0.62, 0.55);
+      for (const d of [-8, 8]) strip(this.glow, fr, d - 0.07, 0.018, d + 0.07, 0.018);
+      for (const [s] of this.every(12)) for (const d of [-4, 0, 4]) flatQuad(this.glow, this.at(s + 2), d, 0.018, 0.065, 2);
     }
   }
 
@@ -513,6 +535,13 @@ class ChunkView {
       strip(mb, this.fr, EDGE, 0, EDGE, this.faceY);
       strip(mb, this.fr, -EDGE, this.faceY, -EDGE, 0);
     }
+    if (this.mode === 'assets' && this.c.kind !== 'tunnel') {
+      // The kit's light poles live outside the protected shoulder. Give their bases a real
+      // continuous maintenance walkway, including the elevated spans; never float them over bay.
+      mb.rgb(0.52, 0.49, 0.43);
+      strip(mb, this.fr, EDGE, 0, 15.5, 0);
+      strip(mb, this.fr, -15.5, 0, -EDGE, 0);
+    }
     // Under a bridge the "ground" is open water with its own glossy material.
     if (this.theme === 'miami' && this.c.kind !== 'tunnel') {
       // Coastal promenade on the left, land on the right. The water has a real recessed shore,
@@ -521,13 +550,28 @@ class ChunkView {
       const marina = this.coast!.district === 'marina';
       const shore = causeway ? EDGE : marina ? MIAMI.marinaShore : 62;
       const bank = marina ? miamiMarinaGround(-shore) : gy;
+      const landEdge = this.mode === 'assets' ? 15.5 : EDGE;
       this.waterY.fill(MIAMI.waterLevel);
-      mb.color(MIAMI.ground);
+      mb.color(this.mode === 'assets' ? new THREE.Color(0xb3ada1) : MIAMI.ground);
       if (!causeway) {
-        strip(mb, this.fr, EDGE, gy, GROUND_OUT, gy);
-        strip(mb, this.fr, -shore, bank, -EDGE, marina ? 0 : gy);
+        strip(mb, this.fr, landEdge, gy, GROUND_OUT, gy);
+        if (marina && this.mode === 'assets') {
+          const terrace = this.waterY.slice(); terrace.fill(-7);
+          strip(mb, this.fr, -shore, terrace, -68, terrace);
+          strip(mb, this.fr, -68, terrace, -landEdge, gy);
+        } else strip(mb, this.fr, -shore, bank, -landEdge, marina ? 0 : gy);
         mb.color(MIAMI.cream, 0.6);
         strip(mb, this.fr, -shore, this.waterY, -shore, bank);
+        if (marina && this.mode === 'assets') {
+          // A narrow sloped gangway joins the authored pontoon's landward end to the boardwalk.
+          // This is scaffolding, not a second procedural pier/boat layered over the authored kit.
+          const f = this.at(50), rx = Math.cos(f.th), rz = Math.sin(f.th), fx = Math.sin(f.th), fz = -Math.cos(f.th);
+          const slope = 0.58 / 2.3, norm = Math.hypot(slope, 1);
+          mb.rgb(0.55, 0.52, 0.45);
+          const vertex = (d: number, along: number, y: number) => mb.v(f.x + rx * d + fx * along, y, f.z + rz * d + fz * along,
+            -rx * slope / norm, 1 / norm, -rz * slope / norm);
+          mb.quad(vertex(-97.2, -0.8, -6.98), vertex(-97.2, 0.8, -6.98), vertex(-99.5, 0.8, -7.56), vertex(-99.5, -0.8, -7.56));
+        }
       }
       this.water.color(COL.white);
       strip(this.water, this.fr, -GROUND_OUT, this.waterY, -shore, this.waterY);
@@ -547,12 +591,12 @@ class ChunkView {
       // on both banks; the promenade already supplies the near land in the coastal district.
       const elevated = bridge || this.c.kind === 'viaduct';
       this.waterY.fill(MIAMI.waterLevel + 0.6);
-      mb.color(MIAMI.ground);
+      mb.color(this.mode === 'assets' ? new THREE.Color(0xa39d90) : MIAMI.ground);
       strip(mb, this.fr, -GROUND_OUT, this.waterY, -250, this.waterY);
       if (elevated) strip(mb, this.fr, 250, this.waterY, GROUND_OUT, this.waterY);
       const bayRng = mulberry32(miamiChunkSeed(this.c.index, this.roadRef.ringLen) ^ 0x424159);
       this.glow.rgb(0.018, 0.037, 0.05);
-      for (const side of elevated ? [-1, 1] : [-1]) {
+      for (const side of this.mode === 'assets' ? [] : elevated ? [-1, 1] : [-1]) {
         for (let n = 0; n < 5; n++) {
           const s = range(bayRng, 4, 96);
           const y = MIAMI.waterLevel + 0.04;
@@ -649,6 +693,13 @@ class ChunkView {
     for (const [s, k] of this.every(LAMP_STEP)) {
       const side = k % 2 === 0 ? 1 : -1;
       const f = this.at(s);
+      if (this.mode === 'assets') {
+        // Preserve the lighting/collision scaffolding contract, but model the pole in the kit layer.
+        this.pools.color(light, POOL_K[this.c.light] * 0.4);
+        flatQuad(this.pools, f, side * HEAD_D, DECAL_Y, POOL_R, POOL_R);
+        this.anchor(this.c.s0 + s, side * HEAD_D, POLE_H - 0.5, LAMP_STEP, light);
+        continue;
+      }
       this.struct.color(COL.steel);
       box(this.struct, f, side * POLE_D, POLE_H / 2, 0.11, POLE_H / 2, 0.11);
       box(this.struct, f, side * (POLE_D - ARM_LEN / 2), POLE_H - 0.1, ARM_LEN / 2, 0.06, 0.07);
@@ -907,6 +958,7 @@ class ChunkView {
   }
 
   private buildTrees(): void {
+    if (this.mode === 'assets') return;
     if (this.theme === 'miami') {
       for (const { s, d, height, phase } of this.coast!.palms) {
         const base = this.coast!.district === 'marina' && d < 0 ? miamiMarinaGround(d) : this.roadRef.groundY(this.c.s0 + s);
@@ -975,6 +1027,7 @@ class ChunkView {
   }
 
   private buildCity(): void {
+    if (this.mode === 'assets') return;
     const rng = this.rng;
     if (this.theme === 'miami') {
       this.buildMiamiCity();
@@ -1209,8 +1262,10 @@ export class RoadView {
   private ox = NaN;
   private oz = NaN;
   private disposed = false;
+  private readonly ownedTextures = new Set<THREE.Texture>();
+  private releaseMiamiMaps: (() => void) | null = null;
 
-  constructor(q: QualityPreset, maxAnisotropy: number, readonly theme: MapTheme = 'highway') {
+  constructor(q: QualityPreset, maxAnisotropy: number, readonly theme: MapTheme = 'highway', private readonly mode: 'legacy' | 'assets' = 'legacy') {
     const anisotropy = Math.min(q.anisotropy, maxAnisotropy);
     this.mats = {
       road: new THREE.MeshStandardMaterial({ map: makeRoadTexture(anisotropy, q.roadTex), vertexColors: true, roughness: 0.8, metalness: 0 }),
@@ -1231,6 +1286,26 @@ export class RoadView {
       water: new THREE.MeshStandardMaterial({ color: theme === 'miami' ? MIAMI.water : 0x060c16, vertexColors: true,
         roughness: theme === 'miami' ? 0.32 : 0.16, metalness: theme === 'miami' ? 0.2 : 0.6 }),
     };
+    for (const mat of Object.values(this.mats)) { const map = (mat as THREE.MeshBasicMaterial).map; if (map) this.ownedTextures.add(map); }
+  }
+
+  /** Borrow maps, own only derived materials. Safe before or after scaffolding chunks exist. */
+  applyMiamiMaterials(assets: MiamiAssets): THREE.MeshStandardMaterial {
+    if (this.theme !== 'miami' || this.mode !== 'assets') throw Error('Miami materials require the Miami asset mode');
+    const next = makeMiamiMaterials(assets);
+    const release = assets.retain();
+    for (const key of ['road', 'struct', 'water'] as const) {
+      const previous = this.mats[key];
+      for (const view of [...this.live.values(), ...this.free]) for (const o of view.group.children) {
+        const mesh = o as THREE.Mesh; if (mesh.material === previous) mesh.material = next[key];
+      }
+      this.mats[key] = next[key];
+      const map = (previous as THREE.MeshStandardMaterial).map;
+      if (map && this.ownedTextures.delete(map)) map.dispose();
+      previous.dispose();
+    }
+    this.releaseMiamiMaps?.(); this.releaseMiamiMaps = release;
+    return next.water;
   }
 
   /** Make sure chunks covering [sMin, sMax] are built and placed relative to the floating origin. */
@@ -1261,7 +1336,7 @@ export class RoadView {
         this.free.push(v);
       }
       for (const c of wanted.values()) if (!this.live.has(c.index)) {
-        const v = this.free.pop() ?? new ChunkView(this.mats, this.theme);
+        const v = this.free.pop() ?? new ChunkView(this.mats, this.theme, this.mode);
         v.build(c, road);
         this.live.set(c.index, v);
         this.sources.set(c.index, c);
@@ -1295,11 +1370,9 @@ export class RoadView {
     this.sources.clear();
     this.free.length = 0;
     this.group.clear();
-    for (const mat of Object.values(this.mats)) {
-      const map = (mat as THREE.MeshBasicMaterial).map;
-      map?.dispose();
-      mat.dispose();
-    }
+    this.ownedTextures.forEach(t => t.dispose()); this.ownedTextures.clear();
+    for (const mat of Object.values(this.mats)) mat.dispose();
+    this.releaseMiamiMaps?.(); this.releaseMiamiMaps = null;
     this.road = null;
   }
 }
