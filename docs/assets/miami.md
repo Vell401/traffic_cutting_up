@@ -80,8 +80,9 @@ duplicate caps. No runtime depth offset or quality workaround is involved.
    horizontal centre of its complete crown/arm bounds. Use the supplied full bounds
    for corridor clearance, not an assumed point radius.
 3. Each direct child is one identity mesh named `<prototype>__<material>`, with
-   one material, finite indexed geometry, normals and UV0. Share one material
-   object per semantic name. Extract by root name and manifest part name, not array
+    one material, finite indexed geometry, normals and UV0. Extraction shares one
+    material per semantic name; the bounded skyline variants below borrow its maps.
+    Extract by root name and manifest part name, not array
    order. If using generic extraction, bake
    `inverse(root.matrixWorld) * mesh.matrixWorld` into copied geometry exactly once.
    Do not copy the `.blend` inspection layout, normalize/rescale bounds, or recenter
@@ -189,9 +190,31 @@ now agree; legacy/Highway stay untouched. Larger 1.6×/1.3× yacht instances kee
 These are visual placements only, not collision/route changes. Source preview
 staging is not gameplay evidence; see the [actual-game report](../reviews/2026-11-13-miami-asset-rebuild.md).
 
+### Bounded island-skyline transition (Task3 fix round 1)
+
+The close-detail window remains **100m behind / 600m ahead**, with every original
+placement, geometry, PBR factor/map, tint and shadow-caster flag retained. Only
+island towers (`tower_*`, |d|≥250m) have separate floor-rounded **300/1000m**
+residency. Their opaque screen-space coverage is full over along-distance
+[-200,700]m (including the complete rounded close window), smoothly reaches zero
+at -300/+1000m, before both residency removal and production's 300m road pruning. No far LOD,
+fog change, range/detail/DPR cut or global window increase is used.
+
+`skyline.ts` owns two 12×1 RG32F metadata textures (192 data bytes total), tower
+material clones and matching custom depth materials. It borrows unchanged source
+geometry/maps and preserves opaque depth/transparent-ghost ordering. Both shader
+paths are warmed under the existing initial loader, even for towers absent at
+spawn. Movement changes only player-S uniforms; metadata/matrices/tints update
+only on the existing chunk/road invalidations, not steady frames or origin rebases.
+World disposal frees variants/textures once, never another world's borrowed kit.
+Only tower capacities increase from 8 to 12; the measured world maximum is 266
+placements / 67 active parts, with the same 74 allocated parts and ten source maps.
+
 The contract tests inspect parsed buffers, triangle areas, normal lengths, UV
 variation, ground pivots, actual front/bow orientation, real material identity,
 part/whole bounds, source headers and payload/checksums. Offline validator also
-reads actual image dimensions and binary geometry. No frozen/security/physics
-tests or old Miami-art caps were weakened. Route/collision/network, vehicle
+reads actual image dimensions and binary geometry. Frozen/security/physics tests
+remain unchanged. The explicit world-only shadow reserve and actual four-car
+whole-frame measurements are documented in the report, not substituted for the
+500-call/5M-triangle acceptance bounds. Route/collision/network, vehicle
 models/builders/presets, menu/admin/storage and game quality remain untouched.

@@ -3,19 +3,22 @@ import { WALL_D } from '../../config';
 import { CHUNK_LEN, type Road, type RoadPoint } from '../../sim/road';
 import type { MiamiAssets } from './assets';
 import { MIAMI_WATER, miamiGround, miamiPlacements } from './layout';
+import { MIAMI_SKYLINE, MiamiSkyline, isMiamiSkyline } from './skyline';
 
 export const MIAMI_WINDOW = { behind: 100, ahead: 600 } as const;
-/** Eight chunks maximum including both ends. Capacities are per prototype, shared by every part. */
+/** Eight close chunks; only island towers use the separate bounded skyline range.
+ * Capacities are per prototype, shared by every part. */
 export const MIAMI_CAPACITIES = {
-  hotel_deco: 24, hotel_colonnade: 24, condo_terrace: 8, tower_glass: 8, tower_setback: 8,
+  hotel_deco: 24, hotel_colonnade: 24, condo_terrace: 8, tower_glass: 12, tower_setback: 12,
   garage_canopy: 8, palm_coconut: 48, palm_royal: 24, yacht: 24, streetlight: 32,
   bench: 48, bollard: 32, planter: 48, hedge: 32, marina_pontoon: 8,
 } as const;
 
-/** Batches borrow immutable extracted geometry/material/maps. Only instance buffers belong here. */
+/** Batches borrow immutable geometry/maps; tower coverage variants and instance buffers are owned. */
 export class MiamiWorld {
   readonly group = new THREE.Group();
   private readonly batches = new Map<string, THREE.InstancedMesh[]>();
+  private readonly skyline = new Map<string, MiamiSkyline>();
   private readonly release: () => void;
   private road: Road | null = null;
   private version = -1;
@@ -31,8 +34,11 @@ export class MiamiWorld {
     for (const [name, prototype] of assets.prototypes) {
       const capacity = MIAMI_CAPACITIES[name as keyof typeof MIAMI_CAPACITIES];
       if (!capacity) throw Error(`Unbudgeted Miami prototype ${name}`);
+      const skyline = name.startsWith('tower_') ? new MiamiSkyline(capacity) : undefined;
+      if (skyline) this.skyline.set(name, skyline);
       const meshes = prototype.parts.map((part, i) => {
-        const mesh = new THREE.InstancedMesh(part.geometry, part.material, capacity);
+        const mesh = new THREE.InstancedMesh(part.geometry, skyline?.material(part.material) ?? part.material, capacity);
+        if (skyline) mesh.customDepthMaterial = skyline.depth;
         mesh.name = part.name; mesh.count = 0; mesh.visible = false;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         // Warm exactly the eventual shader/buffer variant even for prototypes absent at spawn.
@@ -52,13 +58,17 @@ export class MiamiWorld {
   update(road: Road, s: number, ox: number, oz: number, _time: number): void {
     if (this.disposed) return;
     const min = Math.floor((s - MIAMI_WINDOW.behind) / CHUNK_LEN), max = Math.floor((s + MIAMI_WINDOW.ahead) / CHUNK_LEN);
+    const farMin = Math.floor((s - MIAMI_SKYLINE.behind) / CHUNK_LEN), farMax = Math.floor((s + MIAMI_SKYLINE.ahead) / CHUNK_LEN);
+    this.skyline.forEach(transition => { transition.player.value = s; });
     this.group.position.set(-ox, 0, -oz);
     if (road === this.road && road.version === this.version && min === this.min && max === this.max) return;
     for (const meshes of this.batches.values()) for (const m of meshes) m.count = 0;
     for (const chunk of road.chunks) {
-      if (chunk.index < min || chunk.index > max || chunk.void || chunk.kind === 'tunnel') continue;
+      if (chunk.index < farMin || chunk.index > farMax || chunk.void || chunk.kind === 'tunnel') continue;
       const elevated = chunk.kind === 'bridge' || chunk.kind === 'viaduct';
       for (const p of miamiPlacements(chunk.index)) {
+        const far = isMiamiSkyline(p);
+        if (!far && (chunk.index < min || chunk.index > max)) continue;
         if (elevated && Math.abs(p.d) < 100 && p.prototype !== 'streetlight') continue;
         const prototype = this.assets.prototypes.get(p.prototype)!, meshes = this.batches.get(p.prototype)!;
         // Use the full AABB (including overhangs/leaflets), never a guessed trunk or building radius.
@@ -73,6 +83,7 @@ export class MiamiWorld {
         this.transform.position.set(this.point.x, y + p.y, this.point.z);
         // Road th grows clockwise; Three's positive Y rotation sends front -Z toward -X.
         this.transform.rotation.set(0, -this.point.th + p.heading, 0); this.transform.scale.setScalar(p.scale); this.transform.updateMatrix();
+        this.skyline.get(p.prototype)?.set(meshes[0].count, along, far);
         for (const m of meshes) {
           m.setMatrixAt(m.count, this.transform.matrix);
           // Shared PBR remains shared; parcel-scale paint/glazing variation costs no new draws.
@@ -87,6 +98,7 @@ export class MiamiWorld {
         }
       }
     }
+    this.skyline.forEach(transition => { transition.slots.needsUpdate = true; });
     for (const meshes of this.batches.values()) for (const m of meshes) {
       m.visible = m.count > 0; m.instanceMatrix.needsUpdate = true; m.computeBoundingBox(); m.computeBoundingSphere();
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
@@ -97,6 +109,7 @@ export class MiamiWorld {
   dispose(): void {
     if (this.disposed) return; this.disposed = true;
     this.group.removeFromParent(); this.group.children.forEach(o => (o as THREE.InstancedMesh).dispose());
+    this.skyline.forEach(transition => transition.dispose()); this.skyline.clear();
     this.group.clear(); this.batches.clear(); this.release(); this.road = null;
   }
 }

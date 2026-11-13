@@ -82,6 +82,30 @@ describe('required environment readiness', () => {
     await expect(retry.view.prepareEnvironment()).rejects.toThrow('required');
     await retry.view.prepareEnvironment(); expect(retry.renderer.render).toHaveBeenCalled(); retry.view.disposeEnvironment();
   });
+  it('warms island colour/depth variants and metadata even when towers are absent at spawn, then releases only owned variants', async () => {
+    const { view, renderer } = harness('miami'), a = assets();
+    vi.mocked(loadMiamiAssets).mockResolvedValueOnce(a);
+    const warmed = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
+    renderer.render.mockImplementation((scene: THREE.Scene) => scene.traverse(o => {
+      const mesh = o as THREE.InstancedMesh;
+      if (!mesh.userData.prototype?.startsWith('tower_') || !mesh.visible) return;
+      expect(mesh.count).toBeGreaterThan(0); expect(mesh.frustumCulled).toBe(false);
+      expect(mesh.customDepthMaterial).toBeDefined();
+      for (const material of [mesh.material as THREE.Material, mesh.customDepthMaterial!]) {
+        const shader = { ...THREE.ShaderLib.standard, uniforms: {} as Record<string, THREE.IUniform> };
+        material.onBeforeCompile(shader as Parameters<THREE.Material['onBeforeCompile']>[0], {} as THREE.WebGLRenderer);
+        expect(shader.vertexShader).toContain('gl_InstanceID');
+        textures.add(shader.uniforms.miamiSkylineSlots.value); warmed.add(material);
+      }
+    }));
+    await view.prepareEnvironment();
+    expect(textures.size).toBe(2); expect(warmed.size).toBeGreaterThan(2);
+    const owned = [...textures, ...warmed].map(o => vi.spyOn(o, 'dispose'));
+    // Hold another lease so disposal of the last world cannot mask source ownership.
+    const release = a.retain(), borrowed = [...a.materials.values(), ...a.textures.values()].map(o => vi.spyOn(o, 'dispose'));
+    view.disposeEnvironment(); view.disposeEnvironment();
+    owned.forEach(s => expect(s).toHaveBeenCalledOnce()); borrowed.forEach(s => expect(s).not.toHaveBeenCalled()); release();
+  });
   it('rejects late completion after cancellation without attaching resources or reporting success', async () => {
     const { view, renderer } = harness('miami'); const a = assets(), disposed = vi.spyOn(a, 'dispose');
     let complete!: () => void;

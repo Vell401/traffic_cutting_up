@@ -116,13 +116,14 @@ has no external links. No new third-party request or font/menu redesign was adde
 
 ## Evidence and measurements
 
-Captured source: `063fd364f8c929fc8599054b9d3d02248ddb8a48`, 314 source/test/asset
+Original Task3 captures, **before skyline repair**: `063fd364f8c929fc8599054b9d3d02248ddb8a48`, 314 source/test/asset
 paths (src/scripts/tests/public Miami model/maps), SHA256
 `073632fb40b233b67e246763938d8686379df25afb751a0b1f240b50cb9b9402`.
-The later documentation-only commit does not change this rendered code/assets.
+The later documentation-only commit does not change that rendered code/assets.
+Fix-round evidence below supersedes these runtime counters and the rejected pop.
 Software WebGL is not hardware acceptance.
 
-Normal opaque, 1280×800, Medium, DPR1; scene + selected car + shadows + post:
+Historical pre-repair normal opaque, 1280×800, Medium, DPR1; scene + selected car + shadows + post:
 
 | Selected car | Maximum calls over 9 reference poses | Maximum submitted triangles |
 | --- | ---: | ---: |
@@ -204,6 +205,74 @@ were 0 uncaught page errors/unhandled external runtime requests in the new harne
 used only fresh synthetic local data. The owned19071/19072 backends were stopped;
 the original15273/15274 Vite listeners remain. No production acceptance is implied.
 
+## Task3 fix round 1 — bounded skyline transitions
+
+The rejected complete-tower admission at2199→2201 is replaced by island-only
+**300m-behind/1000m-ahead residency**, with smooth opaque coverage outside the
+unchanged **100/600m close-detail window**. Full coverage spans[-200,700]m;
+zero coverage is reached at-300/+1000m before either residency removal or the
+simulation's actual300m rear pruning. Every original close placement, complete
+geometry, PBR factor/map, tint and caster flag is retained. No far LOD, road,
+camera, fog, detail, DPR or global-window change is involved.
+
+Two small metadata textures and colour/custom-depth variants are owned locally,
+borrow unchanged geometry/maps, and are warmed under the initial loader even for
+towers absent at spawn. Steady movement updates uniforms only; origin rebases do
+not rebuild/upload instances or metadata. Transparent-ghost ordering is unchanged.
+
+Real-GLB RED/GREEN tests cover the missing2199 tower and production-pruned exit
+(the first400m-rear candidate exposed a0.134366→0 prune jump and was corrected,
+not accepted). All islands are checked across neighbouring boundaries, negative/
+positive laps and rebases; every original close placement remains fully covered.
+Loader/material tests check actual warm-draw traversal, matching depth coverage,
+borrowed resources and exactly-once owned disposal. Focused7 files/85 tests pass;
+fresh full123 files/1356 pass/1 baseline skip, client/server typechecks and both
+builds pass. The untouched five-suite admin/network campaign is not repeated.
+
+World bounds are now266 placements,67 active parts/74 allocated,ten source maps
+plus two tiny generated metadata textures. Exhaustive120-pose CPU counts reach
+4,369,704 doubled geometry /3,590,628 geometry+full-caster-shadow triangles. The
+old conservative world-only3.5M reserve is explicitly revised to3.6M for the extra
+full-detail island tower during exit; the4.4M doubled bound and independent
+**500-call/5M whole-frame acceptance limits are not raised**.
+
+Final focused artifact root:
+`C:/Users/sosi/AppData/Local/Temp/opencode/miami-rebuild-task3/skyline-fix-round1-verified/`.
+Captured FIX_BASE plus owned repair,317 source/test/asset paths, before/after SHA256
+`8aca2389d7f4efe1f1b72c9ae929dcfd39222da89bde7c45c48a9877c951d8f7`.
+All four normal11-pose sets (the original9 plus8500/8700) include shadows/post,
+1280×800/Medium/DPR1 and production road-retention cadence:
+
+| Selected car | Maximum calls | Maximum submitted triangles |
+| --- | ---: | ---: |
+| A45 | 499 | 4,980,229 |
+| Porsche | 360 | 3,915,988 |
+| R34 | 316 | 4,486,105 |
+| W204 | 498 | 4,135,269 |
+
+The additional **normal chase** R34 120-pose sweep reaches317 calls/4,486,105
+triangles. Only **one call /19,771 triangles** remain at the worst references;
+this is tighter than before repair, not an FPS improvement. Ghost samples at12010
+remain separately labelled: A45694/Porsche416/R34298/W204672 calls, not maxima.
+Twelve identical frames preserve286 geometries/54 whole-renderer textures and
+all world matrix/tint versions; no resource-reduction claim against the broader
+old campaign. The two extra textures are metadata, not lower-resolution photo maps.
+
+78 real canvas PNGs and `evidence.json` were saved with zero page/shader-console
+errors. The repaired `car2-transition-{2199,2201}.png` and centred exit half/zero
+views `car2-exit-look-{3094,3146}.png` were opened in that final root. Neighbouring
+entry/exit/prune pairs,100m rear fade,11990/12010 and23990/24010 seam/rebase images
+were also inspected in sibling `skyline-fix-round1/`, using **identical renderer/
+assets**. Only its supplemental sweep camera reset was subsequently corrected;
+its rear-look sweep is not labelled normal evidence. The original400m-rear
+candidate in `skyline-fix-final/` is superseded, not production-prune acceptance.
+
+Focused reproduction uses the same external Playwright/Edge and existing Vite
+environment variables shown above, with a separate output directory:
+`node tests/miamiSkyline.browser.mjs`. This fixture mocks read-only API responses
+and blocks the old Google font CSS; actual game/assets/WebGL/shadows/post run
+normally. It is art/budget evidence, **not** new network/admin integration proof.
+
 ## Hardware / remaining priorities
 
 Windows/Node24/installed Edge ANGLE SwiftShader; no physical GPU, phone GPU, VRAM,
@@ -220,11 +289,12 @@ transparency rewrite or hidden DPR/range/detail reduction was used.
 The architecture is still modular, not a photogrammetric city; facade/window-family
 repetition is reduced by parcel composition, not eliminated. Small leaflets alias
 at distance and the lower deck remains harder to see over the protected barrier
-than yacht superstructure. A **distant island-tower entry pop is visible** in the
-2199/2201 transition pair; the 100m-behind/600m-ahead asset window is unchanged, not
-hidden with stronger fog or reduced range. Portal-bank occlusion also leaves tiny
-trim slivers around10599/10601. These and moving shadow shimmer are remaining art/
-hardware-review priorities, not declared solved by the budget counters. Hardware/
+than yacht superstructure. The original **2199/2201 island-tower pop was rejected**;
+fix round 1 replaces that admission with bounded opaque coverage outside the
+unchanged close window (fix-round evidence above). Coverage grain during the far-only fade
+is intentional, not alpha-blended glazing or reduced mesh detail. Portal-bank
+occlusion still leaves tiny trim slivers around10599/10601. Those and moving shadow
+shimmer remain art/hardware-review priorities, not solved by counters. Hardware/
 profile-driven next work must not silently trade away close detail. Task2's
 deferred readability Minor in `src/render/miami/carBatching.ts:81–142` and
 `tests/miamiCarBatching.test.ts:165–239` is carried to final review unchanged.

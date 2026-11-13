@@ -25,6 +25,11 @@ prototype/material parts, with fixed explicit placement capacities. The GLB
 intentionally contains no images: runtime restores manifest maps with sRGB diffuse,
 linear normal/roughness, `flipY=false`, metric UVs and scalar × roughness-map G.
 Blender source and restored previews use the same scalar/G sampling contract.
+Only distant island towers additionally own two tiny metadata textures and opaque
+colour/depth coverage variants, warmed by the same loader. The 100/600m close-detail
+window is unchanged; the separate bounded 300/1000m skyline range transitions only
+outside its full-coverage interval. Steady movement/rebase does not rebuild or
+upload instance/metadata buffers. See the asset contract for ownership/bounds.
 
 Miami opts into lossless static car batching by material/motion domain; original
 vehicle assets/builders, animation and Highway stay untouched. Transparent spawn

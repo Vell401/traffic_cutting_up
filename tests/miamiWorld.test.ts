@@ -9,6 +9,7 @@ import { Road } from '../src/sim/road';
 import { extractMiamiAssets, type MiamiAssets, type MiamiManifest } from '../src/render/miami/assets';
 import { miamiPlacements, miamiGround, MIAMI_WATER, MIAMI_QUAY } from '../src/render/miami/layout';
 import { MiamiWorld, MIAMI_WINDOW, MIAMI_CAPACITIES } from '../src/render/miami/world';
+import { isMiamiSkyline, miamiSkylineCoverage } from '../src/render/miami/skyline';
 import { RoadView } from '../src/render/roadView';
 import { ChaseCamera } from '../src/render/camera';
 import { CAMERA_RIGS } from '../src/render/car';
@@ -28,8 +29,86 @@ afterAll(() => releaseFixture());
 const road = () => new Road(mulberry32(7), getMap('miami').script);
 const batches = (w: MiamiWorld) => w.group.children as THREE.InstancedMesh[];
 const output = (w: MiamiWorld) => batches(w).map(m => ({ name: m.name, count: m.count, matrices: [...m.instanceMatrix.array.slice(0, m.count * 16)] }));
+const skylineState = (m: THREE.InstancedMesh) => {
+  const shader = { ...THREE.ShaderLib.standard, uniforms: {} as Record<string, THREE.IUniform> };
+  (m.material as THREE.Material).onBeforeCompile(shader as Parameters<THREE.Material['onBeforeCompile']>[0], {} as THREE.WebGLRenderer);
+  return { texture: shader.uniforms.miamiSkylineSlots.value as THREE.DataTexture, player: shader.uniforms.miamiPlayerS };
+};
 
 describe('actual authored Miami world', () => {
+  it('keeps the complete island tower resident on both sides of the rejected 2199/2201 admission boundary', () => {
+    const r = road(); r.ensure(1000, 4500); const w = new MiamiWorld(a);
+    const target = r.toWorld(2845, -290, { x: 0, z: 0, th: 0, k: 0 });
+    try { for (const s of [2199, 2201]) {
+      w.update(r, s, 0, 0, 0);
+      for (const m of batches(w).filter(m => m.userData.prototype === 'tower_glass')) {
+        const matrices = Array.from({ length: m.count }, (_, i) => { const matrix = new THREE.Matrix4(); m.getMatrixAt(i, matrix); return matrix; });
+        expect(matrices.some(matrix => Math.hypot(matrix.elements[12] - target.x, matrix.elements[14] - target.z) < .001),
+          `${m.name} at s=${s}: a visible 90px tower cannot enter with the floor window`).toBe(true);
+      }
+    } } finally { w.dispose(); }
+  });
+  it('makes every island entry/exit continuous, including neighbouring floor boundaries, negative laps and seam/rebase', () => {
+    const r = road(); r.ensure(-14000, 26000); const w = new MiamiWorld(a);
+    try {
+      for (const lap of [-12000, 0, 12000]) for (let index = 0; index < 120; index++) {
+        const p = miamiPlacements(index).find(isMiamiSkyline); if (!p) continue;
+        const start = lap + index * 100, along = start + p.s;
+        const mesh = batches(w).find(m => m.userData.prototype === p.prototype)!;
+        const state = skylineState(mesh);
+        const coverage = (s: number) => {
+          // The actual simulation retains only 300m behind, not the art harness's
+          // generous teleport range. Coverage must be zero before its prune too.
+          r.ensure(s - 300, s + 1700);
+          w.update(r, s, 1600, -2000, 0);
+          const data = state.texture.image.data as Float32Array;
+          const slot = Array.from({ length: mesh.count }, (_, i) => i).find(i => data[i * 2] === along && data[i * 2 + 1] === 1);
+          return slot === undefined ? 0 : miamiSkylineCoverage(data[slot * 2] - state.player.value);
+        };
+        // Admission, original near-window entry, original exit, final retirement.
+        for (const boundary of [start - 1000, start - 600, start + 200, start + 400, start + 500]) {
+          const before = coverage(boundary - 1), after = coverage(boundary + 1);
+          expect(Math.abs(after - before), `${along} at ${boundary}`).toBeLessThan(.016);
+          if (boundary === start - 600) expect([before, after]).toEqual([1, 1]);
+          if (boundary === start - 1000 || boundary === start + 500) expect([before, after]).toEqual([0, 0]);
+        }
+        expect(coverage(along - 850)).toBe(.5); expect(coverage(along + 250)).toBe(.5);
+      }
+      expect(w.group.position.toArray()).toEqual([-1600, 0, 2000]);
+    } finally { w.dispose(); }
+  });
+  it('retains every original close-window placement at full detail and updates only a uniform between chunk boundaries', () => {
+    const r = road(); r.ensure(-1000, 14000); const w = new MiamiWorld(a);
+    try {
+      for (let s = 0; s < 12000; s += 100) {
+        w.update(r, s, 0, 0, 0);
+        for (const chunk of r.chunks) {
+          if (chunk.index < Math.floor((s - 100) / 100) || chunk.index > Math.floor((s + 600) / 100) || chunk.void || chunk.kind === 'tunnel') continue;
+          for (const p of miamiPlacements(chunk.index)) {
+            if ((chunk.kind === 'bridge' || chunk.kind === 'viaduct') && Math.abs(p.d) < 100 && p.prototype !== 'streetlight') continue;
+            const mesh = batches(w).find(m => m.userData.prototype === p.prototype)!;
+            const target = r.toWorld(chunk.s0 + p.s, p.d, { x: 0, z: 0, th: 0, k: 0 });
+            const slot = Array.from({ length: mesh.count }, (_, i) => i).find(i => {
+              const matrix = new THREE.Matrix4(); mesh.getMatrixAt(i, matrix);
+              return Math.hypot(matrix.elements[12] - target.x, matrix.elements[14] - target.z) < .01;
+            });
+            expect(slot, `${chunk.index}/${p.prototype}`).toBeDefined();
+            if (p.prototype.startsWith('tower_')) {
+              const state = skylineState(mesh), data = state.texture.image.data as Float32Array;
+              expect(data[slot! * 2 + 1]).toBe(isMiamiSkyline(p) ? 1 : 0);
+              expect(data[slot! * 2 + 1] ? miamiSkylineCoverage(data[slot! * 2] - s) : 1).toBe(1);
+            }
+          }
+        }
+      }
+      w.update(r, 2199, 0, 0, 0); w.update(r, 2201, 0, 0, 0);
+      const mesh = batches(w).find(m => m.userData.prototype === 'tower_glass')!, state = skylineState(mesh);
+      const matrixVersion = mesh.instanceMatrix.version, tintVersion = mesh.instanceColor!.version, textureVersion = state.texture.version;
+      const before = output(w); w.update(r, 2202, 1000, 2000, 0);
+      expect(state.player.value).toBe(2202); expect(state.texture.version).toBe(textureVersion);
+      expect(mesh.instanceMatrix.version).toBe(matrixVersion); expect(mesh.instanceColor!.version).toBe(tintVersion); expect(output(w)).toEqual(before);
+    } finally { w.dispose(); }
+  });
   it('allocates every prototype tint attribute before loader warm-up, including models absent at spawn', () => {
     const w = new MiamiWorld(a);
     for (const m of batches(w)) {
@@ -83,7 +162,10 @@ describe('actual authored Miami world', () => {
         if (m.userData.firstPart) instances += m.count;
       }
       expect(instances).toBeLessThanOrEqual(1800); expect(triangles * 2).toBeLessThan(4_400_000);
-      expect(triangles + shadowTriangles).toBeLessThan(3_500_000); // Reserve real headroom for selected car/traffic/road/post.
+      // One additional fully detailed island tower during exit can cost 173316
+      // submitted triangles. Retain the 4.4M doubled bound and a 3.6M full-shadow
+      // ceiling; the actual four-car 5M whole-frame gate is tested in the browser.
+      expect(triangles + shadowTriangles).toBeLessThan(3_600_000);
     }
     expect(MIAMI_WINDOW.ahead).toBeGreaterThanOrEqual(600); w.dispose();
   });
