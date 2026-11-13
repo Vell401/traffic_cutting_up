@@ -78,7 +78,7 @@ Task3 acceptance through `1e4c15b`: 1356 passed/1 baseline platform skip; five b
 
 ## Controller release
 
-- [ ] Review complete result, rerun fresh tests/types/builds on accepted tree; preserve any original user work.
+- [x] Review complete result, rerun fresh tests/types/builds on accepted tree; preserve any original user work. Whole-change review of815a188..66b5c95 approved with three nonblocking Minors; controller fresh1356/1skip, types/bothbuilds/assets/diffcheck/netcheck/bothprefixedsmokes passed. Normal main integration/deployment remain pending.
 - [ ] Normal main integration/commit/push per explicit user mandate; verify hosted CI, actual deployjob, exactnewSHA on site/Highway/Miami and public API/assets/admin boundary, both external map-aware WSSsmokes.
 - [ ] Report actual outcome and remaining visual/hardware limitations, not just functional unit counts. Preserve authored sources/assets/evidence and all recorded executor decisions.
 

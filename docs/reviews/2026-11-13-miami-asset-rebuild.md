@@ -329,3 +329,21 @@ The immutable release being visually replaced already delivered:
 
 Historical detail/remaining unrelated issues remain in the
 [previous release report](2026-11-13-miami-upgrade.md), not silently claimed fixed.
+# Controller final acceptance and release boundary
+
+The independent whole-change review of `815a188..66b5c95` approved normal integration with no Critical or Important finding. Remaining nonblocking concerns: dense batching lifecycle/equivalence code, tiny portal-bank trim slivers, and visible far-only screen-door fade grain. No additional repair wave was required.
+
+Controller fresh acceptance on `66b5c95`: 123 test files, 1356 passed / one existing Linux-only platform skip; client/server types, both production builds, actual asset validation, complete-range diff check and nine-case netcheck passed. Both freshly built maps passed prefixed three-client/10-second smokes with exact `66b5c95` identity and isolated temporary data. Node experimental SQLite notices remain baseline. The controller additionally opened the actual district/seam, close-frontage, repaired skyline and clear phone captures.
+
+**Release is not certified by these local results.** Normal main integration, hosted Node22 tests/deploy and exact-SHA public site/both-world/asset/auth-boundary/external-WSS verification are still required after this documentation checkpoint. No production credentials or data were used for local acceptance.
+
+## Executor decisions and tradeoffs
+
+1. Proceed without approval questions, as explicitly requested: artistic choices may still require later user-directed rework.
+2. Rebuild rendered Miami but retain the valid 12km collision route/revision2: the existing road profile and record semantics stay, not a second physics/map revision.
+3. Replace obsolete procedural-art caps with explicit asset-layer bounds: larger bounded loading/render cost; not a hidden quality or DPR reduction.
+4. Use original Blender geometry and self-hosted CC0 photography, not Assetto Corsa asset extraction or another engine: lawful reproducible assets, without literal AAA-parity or hardware-FPS certification.
+5. Inherit the harness model for workers because no particular model was requested: no lower-cost model-selection claim.
+6. Permit Miami-only lossless static car batching in unfrozen wrappers: added lifecycle/ownership code and real-model equivalence testing; protected geometry/materials/animation/builders remain unchanged.
+7. Apply500calls/5Mtriangles to all-four fixed normal opaque references, disclose correctly ordered spawn-ghost draws separately: historical A45/W204 ghost examples716/697calls are not passing500-call claims or universal performance guarantees.
+8. Trade the internal world-shadow reserve3.5M for3.6M to remove skyline popping while retaining the unchanged whole-frame gate: final worst reference499calls/4,980,229triangles leaves only1call/19,771triangles headroom.
