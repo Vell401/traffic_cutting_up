@@ -1,0 +1,13 @@
+{
+  "note": "Section-01 environment features absent from OSM. Each entry is traced from the cited reference; coordinates are game metres (east +X, north -Z), accuracy about 1-2 m.",
+  "pipelines": [
+    {
+      "id": "trace:ramp-pipes",
+      "line": [[-56.1, -18.1], [-65.9, -28.3], [-76.1, -37.2], [-85.3, -45.7]],
+      "count": 3,
+      "overhead": false,
+      "rationale": "Insulated pipes on low supports to the left of the entry ramp in Yandex road frame 2918419731 (31.05.2026, about 88 m); the run is visible as a double line with a shadow parallel to the ramp on the z19 satellite frame. Not mapped in OSM. Pipe count and diameter are read from the frame, not measured; the raised crossing portal in the frame is not modelled.",
+      "sourceUrl": "https://yandex.ru/maps/?ll=37.6152%2C55.5773&z=19&l=sat"
+    }
+  ]
+}

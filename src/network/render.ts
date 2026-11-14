@@ -1,16 +1,20 @@
 import * as THREE from 'three';
 import { edgeById, roadSampleDistances, sampleEdge, type RoadNetwork, type Vec3 } from './geometry';
 import { BRIDGE_DECK_THICKNESS, bridgePierClearance, bridgePierGeometry } from './structures';
-import { msdCorridor } from './msdCorridor';
+import { msdPresentationCorridor } from './msdCorridor';
 import { createRoadMaterials } from './roadMaterials';
 import { planRoadMarkings } from './roadMarkings';
 import { emitRoadInfrastructure } from './roadInfrastructure';
-import { planPilotJunctionSurface, pilotMergeEdges, pilotMarkingPoint } from './pilotJunctionSurface';
+import { emitMsdEnvironment, ENV_FACADES, ENV_FOLIAGE } from './msdEnvironment';
+import { planPilotDivergeSurface, planPilotJunctionSurface, pilotMergeEdges, pilotMarkingPoint } from './pilotJunctionSurface';
 
 export interface RenderCar extends Vec3 { id: string; edgeId: string; s: number; d: number; heading: number; grade: number; player: boolean; tunnel: boolean }
-type Batch = { x: number; z: number; radius: number; group: THREE.Group; vertices: Map<string, number[]>; uvs: Map<string, number[]> };
-const CHUNK = 256;
-export const ROAD_VIEW_DISTANCE = 3000;
+type Batch = { x: number; z: number; radius: number; group: THREE.Group; vertices: Map<string, number[]>; uvs: Map<string, number[]>; colors: number[] };
+/** 512 m batches: with merged vertex-coloured solids this keeps draw calls to a few hundred. */
+const CHUNK = 512;
+/** Draw distance (m): chunks beyond it are hidden; linear sky fog hides the cut. */
+export const ROAD_VIEW_DISTANCE = 1500;
+export const FOG_START = 650;
 export const ASPHALT_DEPTH_BUCKETS = 8;
 export function asphaltMaterialKey(kind: string, index: number): string {
   return `asphalt:${kind === 'parking' ? 'parking' : 'road'}:${index % ASPHALT_DEPTH_BUCKETS}`;
@@ -29,6 +33,8 @@ export class NetworkRenderer {
   private readonly cube = new THREE.BoxGeometry(1, 1, 1);
   private readonly materials = new Map<string, THREE.MeshStandardMaterial>();
   private readonly asphaltKeys = new Map<string, string>();
+  /** Opaque single-colour keys drawn through one vertex-coloured material per chunk. */
+  private readonly solidColors = new Map<string, [number, number, number]>();
   private readonly cameraWorld = new THREE.Vector3();
   private readonly interiorLight = new THREE.PointLight(0xd6eaff, 90, 45, 1.4);
   private initialized = false;
@@ -45,6 +51,13 @@ export class NetworkRenderer {
       this.flightPitch = Math.asin(Math.max(-1, Math.min(1, direction.y)));
     }
     return this.freeCamera;
+  }
+
+  /** Development inspection only: place the free camera at a world pose. */
+  inspect(position: Vec3, yaw: number, pitch: number): void {
+    this.freeCamera = true;
+    this.cameraWorld.set(position.x, position.y, position.z);
+    this.flightYaw = yaw; this.flightPitch = Math.max(-1.55, Math.min(1.55, pitch));
   }
 
   look(dx: number, dy: number): void {
@@ -73,8 +86,9 @@ export class NetworkRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     this.scene.background = new THREE.Color('#a9c6d6');
-    this.scene.fog = null;
-    this.camera.far = ROAD_VIEW_DISTANCE + CHUNK * 2;
+    // Fog reaches the sky colour before the chunk cull distance, so no pop-in edge.
+    this.scene.fog = new THREE.Fog('#a9c6d6', FOG_START, ROAD_VIEW_DISTANCE - 50);
+    this.camera.far = ROAD_VIEW_DISTANCE + CHUNK;
     this.camera.updateProjectionMatrix();
     this.scene.add(new THREE.HemisphereLight(0xd9efff, 0x576050, 2.4));
     this.scene.add(this.interiorLight);
@@ -86,13 +100,36 @@ export class NetworkRenderer {
         ...(key === 'line' ? { emissive: color, emissiveIntensity: .3 } : {}),
         ...(key === 'tunnel' ? { emissive: '#35414d', emissiveIntensity: .25 } : {}) }));
     }
-    const corridor = msdCorridor(network);
+    const corridor = msdPresentationCorridor(network);
     for (const [key, material] of createRoadMaterials(this.renderer.capabilities.getMaxAnisotropy())) this.materials.set(key, material);
     for (const [key, color] of Object.entries({ infrastructureMetal: '#9da5a9', infrastructureConcrete: '#a6a7a3',
       infrastructureWhite: '#f4f4ef', infrastructureRed: '#ba2828', infrastructureBlue: '#2466a0', infrastructureDark: '#25292b' })) {
       this.materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: key === 'infrastructureMetal' ? .5 : .85,
         metalness: key === 'infrastructureMetal' ? .5 : 0, side: THREE.DoubleSide }));
     }
+    // Section-01 environment palette: plain authored colours, no imagery-derived textures.
+    const environment: Record<string, string> = { 'env:grass': '#6f8150', 'env:paved': '#8d8c86', 'env:ballast': '#7b7268',
+      'env:rail': '#55504b', 'env:roof': '#5e6162', 'env:pipe': '#c9cdd0', 'env:steel': '#7c8488', 'env:truss': '#c9832e', 'env:trunk': '#4e3e2f',
+      'env:fence': '#3e4448', 'env:wall': '#b8b5ab', 'env:noise': '#b9d4dc', 'env:lamp': '#efeadb', 'env:tank': '#d8d8d4',
+      'env:water': '#4a6f7c', 'env:pylon': '#8e979b', 'env:wire': '#2e3236', 'env:turf': '#6f8150' };
+    ENV_FACADES.forEach((color, i) => { environment[`env:facade:${i}`] = color; });
+    ENV_FOLIAGE.forEach((color, i) => { environment[`env:foliage:${i}`] = color; });
+    for (const [key, color] of Object.entries(environment)) this.materials.set(key, new THREE.MeshStandardMaterial({ color,
+      roughness: key === 'env:rail' || key === 'env:steel' ? .55 : .95, metalness: key === 'env:rail' || key === 'env:steel' ? .45 : 0,
+      side: THREE.DoubleSide, ...(key === 'env:lamp' ? { emissive: '#fff2c8', emissiveIntensity: .35 } : {}),
+      // Ground layers sit a few centimetres below roads; push them back in depth so
+      // distant asphalt (itself offset by up to 8 units) never loses to grass.
+      ...(key === 'env:grass' || key === 'env:paved' ? { polygonOffset: true, polygonOffsetFactor: 1.5, polygonOffsetUnits: key === 'env:grass' ? 12 : 10 } : {}),
+      // Transparent acrylic noise screens (frames at ≈5100–5390 m); water slightly glossy.
+      ...(key === 'env:noise' ? { transparent: true, opacity: .38, depthWrite: false } : {}),
+      ...(key === 'env:water' ? { roughness: .25, metalness: .1 } : {}) }));
+    // Merge opaque plain-colour environment/furniture keys into one draw per chunk.
+    for (const [key, material] of this.materials) {
+      const merge = key.startsWith('infrastructure') || key === 'support'
+        || key.startsWith('env:') && !['env:grass', 'env:paved', 'env:noise', 'env:water'].includes(key);
+      if (merge) this.solidColors.set(key, [material.color.r, material.color.g, material.color.b]);
+    }
+    this.materials.set('solid', new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .88, side: THREE.DoubleSide }));
     // Keep the original renderer outside the selected corridor; selected asphalt shares one material.
     network.edges.forEach((edge, index) => {
       if (corridor.has(edge.id)) return;
@@ -111,23 +148,26 @@ export class NetworkRenderer {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         const uvs = batch.uvs.get(key);
         if (uvs) geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        if (key === 'solid') geometry.setAttribute('color', new THREE.Float32BufferAttribute(batch.colors, 3));
         geometry.computeVertexNormals(); geometry.computeBoundingSphere();
         batch.group.add(new THREE.Mesh(geometry, this.materials.get(key)!));
       }
-      batch.vertices.clear(); batch.uvs.clear(); this.scene.add(batch.group);
+      batch.vertices.clear(); batch.uvs.clear(); batch.colors = []; this.scene.add(batch.group);
     }
     window.addEventListener('resize', this.resize); this.resize();
   }
 
-  private quad(key: string, a: Vec3, b: Vec3, c: Vec3, d: Vec3): void {
+  private quad(original: string, a: Vec3, b: Vec3, c: Vec3, d: Vec3): void {
+    const color = this.solidColors.get(original), key = color ? 'solid' : original;
     const x = Math.floor((a.x + b.x + c.x + d.x) / 4 / CHUNK) * CHUNK;
     const z = Math.floor((a.z + b.z + c.z + d.z) / 4 / CHUNK) * CHUNK;
     const id = `${x}:${z}`;
     let batch = this.chunks.get(id);
-    if (!batch) { batch = { x, z, radius: 0, group: new THREE.Group(), vertices: new Map(), uvs: new Map() }; this.chunks.set(id, batch); }
+    if (!batch) { batch = { x, z, radius: 0, group: new THREE.Group(), vertices: new Map(), uvs: new Map(), colors: [] }; this.chunks.set(id, batch); }
     for (const p of [a, b, c, d]) batch.radius = Math.max(batch.radius, Math.hypot(p.x - x, p.z - z));
     const vertices = batch.vertices.get(key) ?? []; batch.vertices.set(key, vertices);
     for (const p of [a, b, c, a, c, d]) vertices.push(p.x - x, p.y, p.z - z);
+    if (color) for (let i = 0; i < 6; i++) batch.colors.push(color[0], color[1], color[2]);
     if (key === 'msd:asphalt') {
       const uvs = batch.uvs.get(key) ?? []; batch.uvs.set(key, uvs);
       // Global metric UVs remain identical across chunk and source-edge seams (2 m aggregate tile).
@@ -145,9 +185,11 @@ export class NetworkRenderer {
   }
 
   private build(network: RoadNetwork): void {
-    const corridor = msdCorridor(network);
+    const corridor = msdPresentationCorridor(network);
     const markings = planRoadMarkings(network, corridor);
-    const pilot = planPilotJunctionSurface(network), pilotArms = pilotMergeEdges(network);
+    const merge = planPilotJunctionSurface(network), pilotArms = pilotMergeEdges(network);
+    // Two explicit, disjoint pilot junctions; their arm sets never share an edge.
+    const pilot = { surfaces: new Map([...merge.surfaces, ...planPilotDivergeSurface(network).surfaces]) };
     const pierClear = bridgePierClearance(network);
     const degree = new Map<string, number>();
     for (const e of network.edges) for (const id of [e.from, e.to]) degree.set(id, (degree.get(id) ?? 0) + 1);
@@ -201,9 +243,14 @@ export class NetworkRenderer {
               this.box('support', pier.center, pier.width, pier.height, pier.length, pier.heading);
             }
           }
-          strip('support', s, end, -1, 1, -BRIDGE_DECK_THICKNESS);
-          for (const side of [-1, 1]) this.quad('support', point(s, side), point(end, side),
-            point(end, side, -BRIDGE_DECK_THICKNESS), point(s, side, -BRIDGE_DECK_THICKNESS));
+          // The deck carries a 1.5 m cornice beyond the carriageway: roadside rails
+          // (1.1 m out) and lamp columns stand on structure, not in the air.
+          const edgePoint = (at: number, side: number, y = 0) => { const q = sampleEdge(edge, at, side * (sampleEdge(edge, at).halfWidth + (polished ? 1.5 : 0))); return { x: q.x, y: q.y + y, z: q.z }; };
+          this.quad('support', edgePoint(s, -1, -BRIDGE_DECK_THICKNESS), edgePoint(end, -1, -BRIDGE_DECK_THICKNESS), edgePoint(end, 1, -BRIDGE_DECK_THICKNESS), edgePoint(s, 1, -BRIDGE_DECK_THICKNESS));
+          for (const side of [-1, 1]) {
+            this.quad('support', edgePoint(s, side), edgePoint(end, side), edgePoint(end, side, -BRIDGE_DECK_THICKNESS), edgePoint(s, side, -BRIDGE_DECK_THICKNESS));
+            if (polished) this.quad('infrastructureConcrete', point(s, side, -.01), point(end, side, -.01), edgePoint(end, side, -.01), edgePoint(s, side, -.01));
+          }
         }
         if (!throat && edge.kind === 'parking' && Math.floor(s / 5) % 2 === 0) strip('line', s, Math.min(end, s + .15), .5, .88, .045);
         if (!network.id.startsWith('moscow-osm') && edge.kind === 'road' && p.y > 5 && Math.floor(s / 5) % 24 === 0) {
@@ -224,6 +271,9 @@ export class NetworkRenderer {
     }
     emitRoadInfrastructure(network, corridor, (key, a, b, c, d) => this.quad(key, a, b, c, d),
       (key, p, w, h, l, heading) => this.box(key, p, w, h, l, heading));
+    // Dev diagnostics only: ?msdEnv=0 skips the environment layer for A/B profiling.
+    const environmentEnabled = typeof location === 'undefined' || new URLSearchParams(location.search).get('msdEnv') !== '0';
+    if (environmentEnabled) emitMsdEnvironment(network, (key, a, b, c) => this.quad(key, a, b, c, c), (key, p, w, h, l, heading) => this.box(key, p, w, h, l, heading));
     if (network.id.startsWith('moscow-osm')) {
       // Neutral plan-view ground: do not reuse the fictional bay as Moscow geography.
       const xs = network.nodes.map(n => n.position.x), zs = network.nodes.map(n => n.position.z);

@@ -30,13 +30,23 @@ export function msdPilotScope(network: RoadNetwork): { edgeIds: Set<string>; thr
 const smooth = (t: number) => { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); };
 /** Both parallel decks use the same local alignment, rather than interpreting
  * overlapping shoulder envelopes as evidence of two different bridge levels.
- * 8.2m leaves 7.6m under a 0.4m deck above the 0.2m loop at the bridge crossing.
+ * The 8.2m crest descends across the loop crossing (≈north 1398): about 7.6m road
+ * height there leaves ≈7.0m under a 0.4m deck above the 0.2m loop.
  * Flat tails preserve the untouched section boundaries exactly.
  */
 export function msdPilotMainlineHeight(z: number): number {
   const north = -z;
-  return .2 + 8 * smooth((north - 950) / 330) * (1 - smooth((north - 1450) / (1833.7737 - 1450)));
+  return .2 + 8 * smooth((north - MSD_PILOT_RISE.start) / (MSD_PILOT_RISE.end - MSD_PILOT_RISE.start))
+    * (1 - smooth((north - MSD_PILOT_DESCENT.start) / (MSD_PILOT_DESCENT.end - MSD_PILOT_DESCENT.start)));
 }
+/** North-metre bounds of the engineering profile (not survey). The descent starts
+ * just after the deck crest: Yandex road frames 3187293267 (≈1430 m), 3187293399
+ * and 3187293509 (≈1590 m, 29.10.2026) show the crest, then a descent to near grade
+ * at the 1576 m exit. That exit's OSM chord stays inside the mainline envelope for
+ * ~89 m and its far end is at grade, so a deck still at 7.5 m there was impossible.
+ */
+export const MSD_PILOT_RISE = { start: 950, end: 1280 } as const;
+export const MSD_PILOT_DESCENT = { start: 1340, end: 1700 } as const;
 
 /** Construction-time only: before width/frame/sample caches. Keeps XY/topology.
  * All changed endpoint representations, including graph nodes, must agree.
@@ -69,24 +79,39 @@ export function applyMsdPilotVerticalAlignment(network: RoadNetwork): void {
   for (const e of edges) if (wayId(e) === 809185783) set(e, () => .2);
   // These are connected ramps, not independent decks. Interpolate along the
   // complete way, not separately at each artificial runtime edge boundary.
-  for (const id of [809185786, 809185782]) {
+  // The 1576 m exit is a deceleration lane inside the mainline envelope along its
+  // whole first OSM chord: keep it exactly on the mainline plane there (heights are
+  // a function of z only), then ease to the immutable outside handoff height.
+  {
+    const chain = edges.filter(e => wayId(e) === 809185786);
+    const [lane, ...rest] = chain;
+    set(lane, (_, z) => msdPilotMainlineHeight(z));
+    const end = lane.points.at(-1)!, before = lane.points.at(-2)!;
+    const h0 = end.y, g0 = (end.y - before.y) / Math.hypot(end.x - before.x, end.z - before.z);
+    const last = rest.at(-1)!, b = nodeHeights.get(last.to) ?? last.points.at(-1)!.y;
+    const length = rest.reduce((sum, e) => sum + e.length, 0);
+    let offset = 0;
+    for (const e of rest) {
+      set(e, s => { const t = (offset + s) / length;
+        return h0 + (b - h0) * smooth(t) + length * g0 * t * (1 - t) ** 2; });
+      offset += e.length;
+    }
+  }
+  for (const id of [809185782]) {
     const chain = edges.filter(e => wayId(e) === id);
     const first = chain[0], last = chain.at(-1)!;
     const a = nodeHeights.get(first.from) ?? first.points[0].y;
     const b = nodeHeights.get(last.to) ?? last.points.at(-1)!.y;
     const length = chain.reduce((sum, e) => sum + e.length, 0);
     let offset = 0;
-    // Follow the through-road grade at the attachment; zero at the lower handoff.
-    const z = id === 809185786 ? first.points[0].z : last.points.at(-1)!.z;
+    // Follow the through-road grade at the upper attachment; zero at the lower handoff.
+    const z = last.points.at(-1)!.z;
     const derivative = (msdPilotMainlineHeight(z + .01) - msdPilotMainlineHeight(z - .01)) / .02;
-    const attachment = id === 809185786 ? first : last;
-    const p = id === 809185786 ? attachment.points[0] : attachment.points.at(-2)!;
-    const q = id === 809185786 ? attachment.points[1] : attachment.points.at(-1)!;
-    const grade = derivative * (q.z - p.z) / Math.hypot(q.x - p.x, q.z - p.z);
-    const g0 = id === 809185786 ? grade : 0, g1 = id === 809185782 ? grade : 0;
+    const p = last.points.at(-2)!, q = last.points.at(-1)!;
+    const g1 = derivative * (q.z - p.z) / Math.hypot(q.x - p.x, q.z - p.z);
     for (const e of chain) {
       set(e, s => { const t = (offset + s) / length;
-        return a + (b - a) * smooth(t) + length * (g0 * t * (1 - t) ** 2 - g1 * t * t * (1 - t)); });
+        return a + (b - a) * smooth(t) - length * g1 * t * t * (1 - t); });
       offset += e.length;
     }
   }
@@ -118,4 +143,23 @@ export function applyMsdPilotVerticalAlignment(network: RoadNetwork): void {
     if (nodeHeights.has(id) && Math.abs(nodeHeights.get(id)! - p.y) > 1e-7) throw new Error(`MSD pilot outside handoff changed: ${e.id} ${id}`);
   }
   for (const node of network.nodes) if (nodeHeights.has(node.id)) node.position.y = nodeHeights.get(node.id)!;
+}
+
+/** Entry-ramp roadside observed in Yandex road frames (31.05.2026): 2918419731 (≈88 m),
+ * 2918419753 (≈136 m), 2918419746 (≈170 m) show one unmarked lane between raised
+ * concrete curbs with a footway on the right and no guardrail; 3110736728 (≈202 m)
+ * already has a guardrail and a broken edge line. The 195 m switch is interpolated
+ * between those frames, not surveyed.
+ */
+export const MSD_RAMP_CURB_END = 195;
+const RAMP_PREFIX = 'osm:1207836341:1:';
+/** s-range of this edge inside the curbed ramp section, if any. */
+export function msdRampCurbRange(network: RoadNetwork, edge: NetworkEdge): [number, number] | undefined {
+  if (!network.id.startsWith('moscow-osm') || !edge.id.startsWith(RAMP_PREFIX)) return undefined;
+  let offset = 0;
+  for (const e of network.edges.filter(e => e.id.startsWith(RAMP_PREFIX)).sort((a, b) => Number(a.id.split(':')[3]) - Number(b.id.split(':')[3]))) {
+    if (e === edge) return offset >= MSD_RAMP_CURB_END ? undefined : [0, Math.min(edge.length, MSD_RAMP_CURB_END - offset)];
+    offset += e.length;
+  }
+  return undefined;
 }

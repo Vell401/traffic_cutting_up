@@ -5,6 +5,7 @@ import { edgeById, networkLength, sampleEdge, type NetworkEdge, type RoadNetwork
 import { angle, orderedExits, pose, type NetworkAddress, type NetworkInput } from './driving';
 import { NetworkSession, type NetworkSnapshot } from './session';
 import { NetworkRenderer, type RenderCar } from './render';
+import { msdSection02Route } from './msdSection02';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#world')!;
 const telemetry = document.querySelector<HTMLElement>('#telemetry')!;
@@ -237,6 +238,39 @@ function cleanup(): void {
 window.addEventListener('pagehide', cleanup, { signal: lifetime.signal });
 window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); }, { once: true });
 if (import.meta.hot) import.meta.hot.dispose(cleanup);
+
+if (import.meta.env.DEV) {
+  // Reproducible reference views; never shipped in production builds.
+  // Sections 01–02 chainage: 1207836341 → … → 7566321589 (1942.3 m) → … → 5849.8 m.
+  const route = () => {
+    const ways = ['1207836341', '809185810', '809185809', '809185806'], chain: NetworkEdge[] = [];
+    let edge = network.edges.find(e => e.id === 'osm:1207836341:1:0');
+    while (edge && chain.length < 64) {
+      chain.push(edge); if (edge.to === 'osm-node:7566321589') break;
+      const from = edge.to; edge = network.edges.find(e => e.from === from && ways.includes(e.id.split(':')[1]) && e.id.split(':')[2] === '1');
+    }
+    return [...chain, ...msdSection02Route(network).edges];
+  };
+  const at = (chainage: number, d = 0) => {
+    let s = chainage; const chain = route();
+    for (const e of chain) { if (s <= e.length) return sampleEdge(e, s, d); s -= e.length; }
+    return sampleEdge(chain.at(-1)!, chain.at(-1)!.length, d);
+  };
+  const inspect = (x: number, y: number, z: number, yaw: number, pitch: number) => renderer?.inspect({ x, y, z }, yaw, pitch);
+  (window as unknown as { __network: unknown }).__network = {
+    get network() { return network; },
+    inspect, at, route: () => route().map(e => ({ id: e.id, length: e.length })),
+    sample: (edgeId: string, s: number, d = 0) => sampleEdge(edgeById(network, edgeId), s, d),
+    /** Driver eye 1.4 m above the lane at a route chainage, looking along the road. */
+    drive: (chainage: number, d = 0, h = 1.4, pitch = -.03) => { const p = at(chainage, d); inspect(p.x, p.y + h, p.z, p.heading, pitch); return p; },
+    over: (chainage: number, h = 160) => { const p = at(chainage); inspect(p.x, p.y + h, p.z, 0, -1.55); },
+    oblique: (chainage: number, back = 120, h = 60, side = 0) => {
+      const p = at(chainage), yaw = p.heading;
+      inspect(p.x - Math.sin(yaw) * back + Math.cos(yaw) * side, p.y + h, p.z + Math.cos(yaw) * back + Math.sin(yaw) * side, yaw, -Math.atan2(h, back));
+    },
+    clean: () => { for (const el of document.querySelectorAll<HTMLElement>('body > *:not(canvas)')) el.style.display = 'none'; },
+  };
+}
 
 try { load(layout); connect(); frameId = requestAnimationFrame(frame); }
 catch (error) { status.textContent = `Cannot start sandbox: ${error instanceof Error ? error.message : 'unknown error'}`; cleanup(); }

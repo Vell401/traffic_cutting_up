@@ -74,12 +74,38 @@ export function pilotMergeEdges(network: RoadNetwork): NetworkEdge[] {
   return edges as NetworkEdge[];
 }
 export function planPilotJunctionSurface(network: RoadNetwork): PilotJunctionSurface {
+  return ownedSurface(pilotMergeEdges(network), edge => edge.id !== PILOT_MAIN_OUT);
+}
+
+/** Second explicit pilot junction: the 1576 m exit diverge. Mainline arms own the
+ * throat; the exit keeps only asphalt outside them. Not a generic interchange pass.
+ */
+export const PILOT_DIVERGE_NODE = 'osm-node:7566321594';
+export const PILOT_DIVERGE_IN = 'osm:809185806:1:0';
+export const PILOT_DIVERGE_OUT = 'osm:809185806:1:1';
+export const PILOT_EXIT = 'osm:809185786:1:0';
+export function pilotDivergeEdges(network: RoadNetwork): NetworkEdge[] {
+  if (!network.id.startsWith('moscow-osm')) return [];
+  const edges = [PILOT_DIVERGE_IN, PILOT_DIVERGE_OUT, PILOT_EXIT].map(id => network.edges.find(e => e.id === id));
+  if (edges.some(e => !e)) return [];
+  const [incoming, out, exit] = edges as NetworkEdge[];
+  if (incoming.to !== PILOT_DIVERGE_NODE || out.from !== PILOT_DIVERGE_NODE || exit.from !== PILOT_DIVERGE_NODE) return [];
+  return edges as NetworkEdge[];
+}
+export function planPilotDivergeSurface(network: RoadNetwork): PilotJunctionSurface {
+  return ownedSurface(pilotDivergeEdges(network), edge => edge.id === PILOT_DIVERGE_IN);
+}
+
+/** Earlier arms own overlapping asphalt; `endsAtNode` arms use their final 100 m. */
+function ownedSurface(arms: NetworkEdge[], endsAtNode: (edge: NetworkEdge) => boolean): PilotJunctionSurface {
   const plan: PilotJunctionSurface = { surfaces: new Map(), original: [], windows: new Map(), localSurfaces: new Map() };
   const claimed: SurfaceTriangle[] = [];
-  for (const edge of pilotMergeEdges(network)) {
+  for (const edge of arms) {
     const ds = roadSampleDistances(edge);
-    const start = edge.id === PILOT_MAIN_OUT ? 0 : ds.filter(s => s <= Math.max(0, edge.length - 100)).at(-1)!;
-    const end = edge.id === PILOT_MAIN_OUT ? ds.find(s => s >= Math.min(100, edge.length))! : edge.length;
+    const start = !endsAtNode(edge) ? 0 : ds.filter(s => s <= Math.max(0, edge.length - 100)).at(-1)!;
+    // Short arms (<100 m) end on their last station, which may differ from the
+    // published length by rounding: never leave the window open-ended.
+    const end = !endsAtNode(edge) ? ds.find(s => s >= Math.min(100, edge.length) - 1e-9) ?? ds.at(-1)! : edge.length;
     plan.windows.set(edge.id, { start, end });
     const stations = ds;
     const output: SurfaceTriangle[] = []; plan.surfaces.set(edge.id, output);

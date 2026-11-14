@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import source from '../data/moscow/network.json';
 import { createMoscowNetwork } from '../src/network/moscow';
-import { msdPilotMainlineHeight, msdPilotScope } from '../src/network/msdPilot';
+import { MSD_PILOT_DESCENT, MSD_PILOT_RISE, msdPilotMainlineHeight, msdPilotScope } from '../src/network/msdPilot';
 import { roadSampleDistances, sampleEdge, validateNetwork, type NetworkEdge, type Vec3 } from '../src/network/geometry';
 
 const way = (e: NetworkEdge) => Number(e.id.split(':')[1]);
@@ -40,7 +40,8 @@ function triangles(e: NetworkEdge): Vec3[][] {
 
 describe('section 01 construction-time vertical pilot', () => {
   const before = createMoscowNetwork(undefined, { pilotVerticalAlignment: false, pilotWidths: false });
-  const after = createMoscowNetwork(undefined, { pilotWidths: false });
+  // Section 02 is a separate height pass (tests/msdSection02.test.ts); isolate section 01 here.
+  const after = createMoscowNetwork(undefined, { pilotWidths: false, section02VerticalAlignment: false });
   const scope = msdPilotScope(after);
   it('has explicit bounded scope and preserves every outside edge and handoff', () => {
     expect(scope.edgeIds.has('osm:809185806:1:3')).toBe(true);
@@ -86,8 +87,10 @@ describe('section 01 construction-time vertical pilot', () => {
     }
     expect(peak).toBeLessThan(.06); expect(jump).toBeLessThan(.002);
     // One rise, plateau, one descent. Same world alignment on both decks.
-    for (let z = -951; z > -1280; z--) expect(msdPilotMainlineHeight(z)).toBeGreaterThanOrEqual(msdPilotMainlineHeight(z + 1));
-    for (let z = -1451; z > -1834; z--) expect(msdPilotMainlineHeight(z)).toBeLessThanOrEqual(msdPilotMainlineHeight(z + 1));
+    for (let z = -MSD_PILOT_RISE.start - 1; z > -MSD_PILOT_RISE.end; z--) expect(msdPilotMainlineHeight(z)).toBeGreaterThanOrEqual(msdPilotMainlineHeight(z + 1));
+    for (let z = -MSD_PILOT_DESCENT.start - 1; z > -1834; z--) expect(msdPilotMainlineHeight(z)).toBeLessThanOrEqual(msdPilotMainlineHeight(z + 1));
+    // Flat at grade from the descent end to the pilot boundary (immutable buffer handoff).
+    for (let z = -MSD_PILOT_DESCENT.end; z > -1834; z--) expect(msdPilotMainlineHeight(z)).toBeCloseTo(.2, 9);
     console.info('MSD pilot mainline metrics', { peakGrade: peak, maxSampleGradeJump: jump, editedContextEdges: scope.edgeIds.size });
   });
   it('removes loop hump and clears both actual bridge deck meshes above its ribbon', () => {

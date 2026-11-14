@@ -1,0 +1,25 @@
+{
+  "base": "http://127.0.0.1:5175",
+  "readyMs": 15462,
+  "views": [
+    "top-ramp-merge",
+    "top-bridge",
+    "top-exit",
+    "top-end",
+    "oblique-start",
+    "oblique-bridge",
+    "oblique-exit",
+    "driver-0060",
+    "driver-0226",
+    "driver-0300",
+    "driver-0640",
+    "driver-1150",
+    "driver-1400",
+    "driver-1540",
+    "driver-1900",
+    "branch-exit-40m",
+    "branch-loop-under-bridge"
+  ],
+  "errors": [],
+  "note": "SwiftShader software rendering; readyMs includes dev-server transforms."
+}

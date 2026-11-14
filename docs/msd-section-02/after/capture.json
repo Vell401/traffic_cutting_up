@@ -1,0 +1,21 @@
+{
+  "base": "http://127.0.0.1:5174",
+  "readyMs": 21397,
+  "views": [
+    "s02-driver-2100",
+    "s02-driver-2450",
+    "s02-oblique-railway-bridge",
+    "s02-driver-3330",
+    "s02-driver-3800",
+    "s02-driver-4200",
+    "s02-oblique-tunnel",
+    "s02-driver-4420",
+    "s02-driver-4640",
+    "s02-driver-5200",
+    "s02-driver-5500",
+    "s02-top-5300",
+    "s02-oblique-overview"
+  ],
+  "errors": [],
+  "note": "SwiftShader software rendering; readyMs includes dev-server transforms."
+}

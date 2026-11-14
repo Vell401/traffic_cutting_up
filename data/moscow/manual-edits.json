@@ -2,9 +2,18 @@
   "nodes": {},
   "ways": {
     "1207836341": {
-      "tags": { "lanes": "1" },
+      "tags": {
+        "lanes": "1"
+      },
       "rationale": "Section 01 entry ramp: Yandex route frame segmentIndex=20 shows one unmarked travel lane between curbs. Satellite at 37.619,55.582 confirms the east-to-north ramp alignment; OSM has no lanes tag and the runtime previously guessed two. Visual estimate, not surveyed width; do not apply to the three-lane mainline.",
       "sourceUrl": "https://yandex.com/maps/213/moscow/?ll=37.616692%2C55.576894&mode=routes&mrc%5Bid%5D=2918419731&mrc%5BsegmentIndex%5D=20&rtext=55.576894%2C37.616692~55.746178%2C37.738748~55.710893%2C37.836291~55.576888%2C37.617271&rtt=auto&ruri=~~~&z=17"
+    },
+    "809185786": {
+      "tags": {
+        "lanes": "1"
+      },
+      "rationale": "Section 01 exit at 1575.7 m: Yandex satellite z18/z19 frames centred on 37.6186,55.5910 show one exiting roadway about 6.5-7 m wide (one lane plus shoulders) along its eastward curve; OSM has no lanes tag and the runtime guessed two. Visual estimate, not a surveyed width.",
+      "sourceUrl": "https://yandex.ru/maps/?ll=37.6186%2C55.5910&z=18&l=sat"
     }
   }
 }

@@ -1,5 +1,6 @@
 import source from '../../data/moscow/network.json';
 import { roadSampleDistances, sampleEdge, type NetworkEdge, type RoadNetwork, type Vec3 } from './geometry';
+import { msdRampCurbRange } from './msdPilot';
 
 export type InfrastructureMaterial = 'infrastructureMetal' | 'infrastructureConcrete' | 'infrastructureWhite'
   | 'infrastructureRed' | 'infrastructureBlue' | 'infrastructureDark';
@@ -12,7 +13,7 @@ export interface InfrastructureRun { edgeId: string; start: number; end: number;
 export interface InfrastructureSign { edgeId: string; s: number; kind: 'speed90' | 'direction' }
 export interface RoadInfrastructurePlan { runs: InfrastructureRun[]; signs: InfrastructureSign[];
   coverage: { requestedRoadsideMeters: number; emittedRoadsideMeters: number; clearanceSkippedMeters: number;
-    budgetSkippedMeters: number; duplicateSuppressedMeters: number; runStep: number; coveredEdges: number } }
+    budgetSkippedMeters: number; duplicateSuppressedMeters: number; curbReplacedMeters: number; runStep: number; coveredEdges: number } }
 
 const tagsByWay = new Map(source.ways.map(way => [String(way.id), way.tags as Record<string, string | undefined>]));
 const tagsFor = (network: RoadNetwork, edge: NetworkEdge) => network.id.startsWith('moscow-osm')
@@ -53,7 +54,7 @@ export function planRoadInfrastructure(network: RoadNetwork, corridor: Set<strin
   // Reserve two partial runs per edge, so short edge remainders cannot consume the budget.
   const runStep = Math.max(8, requestedRoadsideMeters / Math.max(1, 12000 - eligible.length * 2));
   const coverage = { requestedRoadsideMeters, emittedRoadsideMeters: 0, clearanceSkippedMeters: 0,
-    budgetSkippedMeters: 0, duplicateSuppressedMeters: 0, runStep, coveredEdges: 0 };
+    budgetSkippedMeters: 0, duplicateSuppressedMeters: 0, curbReplacedMeters: 0, runStep, coveredEdges: 0 };
   if (!corridor.size) return { runs, signs, coverage };
   // Index only cells reachable by requested furniture/pair queries. All roads in
   // those cells still participate; distant unrelated dense profiles need no ribbons.
@@ -229,6 +230,8 @@ export function planRoadInfrastructure(network: RoadNetwork, corridor: Set<strin
     const before = runs.length;
     const tags = tagsFor(network, edge);
     const clearanceKnots = roadSampleDistances(edge, 2);
+    // Observed curbed ramp section: curbs/footway (msdEnvironment) replace guardrails.
+    const curbs = msdRampCurbRange(network, edge);
     for (const side of [-1, 1] as const) {
       const railClear = new Map<number, boolean>();
       const medianClear = new Map<number, Map<number, boolean>>();
@@ -251,6 +254,10 @@ export function planRoadInfrastructure(network: RoadNetwork, corridor: Set<strin
         coverage.emittedRoadsideMeters += run.end - run.start;
       };
       const visit = (s: number, finish: number): void => {
+        if (curbs && s < curbs[1] - 1e-9) {
+          if (finish > curbs[1] + 1e-9) { visit(curbs[1], finish); finish = curbs[1]; }
+          coverage.curbReplacedMeters += finish - s; return;
+        }
         const middle = side === -1 ? paired(edge, (s + finish) / 2) : undefined;
         const median = !!middle;
         const first = median ? paired(edge, s) : undefined, last = median ? paired(edge, finish) : undefined;

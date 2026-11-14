@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MSD reference overlay</title>
+    <style>
+      body { margin: 0; background: #111; color: #eee; font: 12px sans-serif; }
+      #frame { position: relative; width: 650px; height: 450px; }
+      #frame img, #frame svg { position: absolute; inset: 0; width: 650px; height: 450px; }
+      #info { padding: 4px 6px; }
+    </style>
+  </head>
+  <body>
+    <div id="frame"><img id="sat" alt="Yandex satellite reference (not stored)" /><svg id="roads" viewBox="0 0 650 450"></svg></div>
+    <div id="info"></div>
+    <script type="module" src="/src/network/overlay.ts"></script>
+  </body>
+</html>

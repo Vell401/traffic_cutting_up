@@ -9,6 +9,7 @@ import { correctDividedCarriagewayEnvelopes } from './dividedCarriageways';
 import { smoothRoadCenterlines } from './roadSmoothing';
 import { applyMsdPilotVerticalAlignment } from './msdPilot';
 import { applyMsdPilotWidths } from './msdPilotWidths';
+import { applyMsdSection02VerticalAlignment } from './msdSection02';
 
 /** Local tangent-plane projection in metres: east +X, north -Z. No map rescaling. */
 export function projectMoscow(latitude: number, longitude: number): Vec3 {
@@ -25,7 +26,7 @@ const mix = (a: Vec3, b: Vec3, t: number): Vec3 => t === 0 ? { ...a } : t === 1 
 /** Real directed OSM topology, including opposite carriageways and interchange arms.
  * Vertical profiles are inferred from relative OSM layers, not surveyed elevations.
  */
-export function createMoscowNetwork(source?: MoscowSource, options: { smoothCenterlines?: boolean; pilotVerticalAlignment?: boolean; pilotWidths?: boolean } = {}): RoadNetwork {
+export function createMoscowNetwork(source?: MoscowSource, options: { smoothCenterlines?: boolean; pilotVerticalAlignment?: boolean; pilotWidths?: boolean; section02VerticalAlignment?: boolean } = {}): RoadNetwork {
   const correctInferredEnvelopes = source === undefined || source === data;
   source ??= applyMoscowEdits(data, manualEdits);
   const network: RoadNetwork = { id: 'moscow-osm-network', nodes: [], edges: [], parkings: [], openBoundaries: true };
@@ -209,6 +210,9 @@ export function createMoscowNetwork(source?: MoscowSource, options: { smoothCent
     for (let i = 0; i < network.edges.length; i++) if (inference.edges[i].width !== undefined) network.edges[i].width = inference.edges[i].width;
   }
   if (correctInferredEnvelopes && options.pilotVerticalAlignment !== false) applyMsdPilotVerticalAlignment(network);
+  if (correctInferredEnvelopes && options.pilotVerticalAlignment !== false && options.section02VerticalAlignment !== false) {
+    applyMsdSection02VerticalAlignment(network, new Map(source.ways.map(w => [String(w.id), (w.tags as Tags).name ?? ''])));
+  }
   const finishPilotWidths = correctInferredEnvelopes && options.pilotWidths !== false
     ? applyMsdPilotWidths(network, inferredEdgeIds) : () => {};
   prepareRoadFrames(network, corridor);

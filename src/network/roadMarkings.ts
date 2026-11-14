@@ -1,5 +1,6 @@
 import { roadSampleDistances, sampleEdge, type NetworkEdge, type RoadNetwork, type Vec3 } from './geometry';
-import { PILOT_MAIN_IN, PILOT_MAIN_OUT, PILOT_RAMP, pilotMergeEdges, pilotMarkingPoint, intersectionArea, type SurfaceTriangle } from './pilotJunctionSurface';
+import { msdRampCurbRange } from './msdPilot';
+import { PILOT_DIVERGE_IN, PILOT_DIVERGE_OUT, PILOT_EXIT, PILOT_MAIN_IN, PILOT_MAIN_OUT, PILOT_RAMP, pilotDivergeEdges, pilotMergeEdges, pilotMarkingPoint, intersectionArea, type SurfaceTriangle } from './pilotJunctionSurface';
 
 export const LANE_WIDTH = 3.6;
 export const EDGE_LINE_WIDTH = .2;
@@ -68,15 +69,20 @@ export function planRoadMarkings(network: RoadNetwork, selected: ReadonlySet<str
   const pilotArms = pilotMergeEdges(network);
   const pilotMainIn = pilotArms.find(e => e.id === PILOT_MAIN_IN), pilotMainOut = pilotArms.find(e => e.id === PILOT_MAIN_OUT);
   const pilotMainTriangles: SurfaceTriangle[] = [];
-  for (const main of pilotArms.filter(e => e.id !== PILOT_RAMP)) {
+  // Second explicit junction: the 1576 m exit. Its arms are disjoint from the merge.
+  const divergeArms = pilotDivergeEdges(network);
+  const divergeIn = divergeArms.find(e => e.id === PILOT_DIVERGE_IN), divergeOut = divergeArms.find(e => e.id === PILOT_DIVERGE_OUT);
+  const divergeMainTriangles: SurfaceTriangle[] = [];
+  for (const main of [...pilotArms.filter(e => e.id !== PILOT_RAMP), ...divergeArms.filter(e => e.id !== PILOT_EXIT)]) {
     const stations = roadSampleDistances(main);
+    const target = main.id === PILOT_DIVERGE_IN || main.id === PILOT_DIVERGE_OUT ? divergeMainTriangles : pilotMainTriangles;
     for (let i = 1; i < stations.length; i++) {
       const s = stations[i - 1], t = stations[i];
-      if (main.id === PILOT_MAIN_IN ? main.length - t > 100 : s > 100) continue;
+      if (main.id === PILOT_MAIN_IN || main.id === PILOT_DIVERGE_IN ? main.length - t > 100 : s > 100) continue;
       const w = sampleEdge(main, s).halfWidth, v = sampleEdge(main, t).halfWidth;
       const a = sampleEdge(main, s, -w), b = sampleEdge(main, t, -v);
       const c = sampleEdge(main, t, v), d = sampleEdge(main, s, w);
-      pilotMainTriangles.push([a, b, c], [a, c, d]);
+      target.push([a, b, c], [a, c, d]);
     }
   }
   const ordinary = (node: string) => incoming.get(node)?.length === 1 && outgoing.get(node)?.length === 1;
@@ -133,10 +139,12 @@ export function planRoadMarkings(network: RoadNetwork, selected: ReadonlySet<str
     }
   }
   const segments = new Map<string, MarkingSegment[]>();
-  if (pilotMainIn && pilotMainOut) {
-    // Keep the through movement's existing incoming chain phase across this one merge.
-    let next: NetworkEdge | undefined = pilotMainOut;
-    let offset = (phase.get(pilotMainIn.id) ?? 0) + pilotMainIn.length;
+  // Keep the through movement's existing incoming chain phase across both explicit
+  // pilot junctions, in route order (the merge chain reaches the diverge first).
+  for (const [into, onward] of [[pilotMainIn, pilotMainOut], [divergeIn, divergeOut]]) {
+    if (!into || !onward) continue;
+    let next: NetworkEdge | undefined = onward;
+    let offset = (phase.get(into.id) ?? 0) + into.length;
     const visited = new Set<string>();
     while (next && selected.has(next.id) && !visited.has(next.id)) {
       visited.add(next.id); phase.set(next.id, offset % DASH_PERIOD); offset += next.length;
@@ -163,21 +171,27 @@ export function planRoadMarkings(network: RoadNetwork, selected: ReadonlySet<str
       };
       const overlap = [covered(start), covered((start + end) / 2), covered(end)];
       const pilotMain = pilotMainIn && (edge.id === PILOT_MAIN_IN && edge.length - start <= 100
-        || edge.id === PILOT_MAIN_OUT && end <= 100);
+        || edge.id === PILOT_MAIN_OUT && end <= 100)
+        || divergeIn && (edge.id === PILOT_DIVERGE_IN && edge.length - start <= 100
+        || edge.id === PILOT_DIVERGE_OUT && end <= 100);
       if (pilotMain) {
         // The mainline owns the throat paint; its ramp may not erase through lanes.
         paint.push({ kind, start, end, d0, d1, width }); return;
       }
-      if (pilotMainIn && edge.id === PILOT_RAMP && edge.length - start <= 100) {
+      const branchTriangles = pilotMainIn && edge.id === PILOT_RAMP && edge.length - start <= 100 ? pilotMainTriangles
+        : divergeIn && edge.id === PILOT_EXIT && start <= 100 ? divergeMainTriangles : undefined;
+      if (branchTriangles) {
         // Test full paint polygons, not only their centres. Suppress a leaf if any
-        // positive area touches either mainline ribbon, retaining ramp paint outside.
+        // positive area touches either mainline ribbon, retaining branch paint outside.
         const p = (s: number, d: number) => pilotMarkingPoint(edge, s, d, pilotArms);
         const a = p(start, d0 - width / 2), b = p(end, d1 - width / 2);
         const c = p(end, d1 + width / 2), d = p(start, d0 + width / 2);
         const paintTriangles: SurfaceTriangle[] = [[a, b, c], [a, c, d]];
-        const touches = pilotMainTriangles.some(t => paintTriangles.some(p => intersectionArea(p, t) > 1e-10));
+        const touches = branchTriangles.some(t => paintTriangles.some(p => intersectionArea(p, t) > 1e-10));
         if (touches) {
-          if (end - start > .125) { const mid = (start + end) / 2; add(kind, start, mid, lateral, width); add(kind, mid, end, lateral, width); }
+          // The exit lane runs almost parallel to the mainline edge: fine refinement
+          // there leaves isolated paint crumbs, so stop at whole-metre pieces.
+          if (end - start > (edge.id === PILOT_EXIT ? 1 : .125)) { const mid = (start + end) / 2; add(kind, start, mid, lateral, width); add(kind, mid, end, lateral, width); }
           return;
         }
         paint.push({ kind, start, end, d0, d1, width }); return;
@@ -194,6 +208,8 @@ export function planRoadMarkings(network: RoadNetwork, selected: ReadonlySet<str
       paint.push({ kind, start, end, d0, d1, width });
     };
     const distances = roadSampleDistances(edge, 2);
+    // The curbed ramp section carries no paint in the road frames.
+    const unpainted = msdRampCurbRange(network, edge);
     let vertex = 1;
     for (let start = 0; start < edge.length - 1e-7;) {
       while (vertex < distances.length - 1 && distances[vertex] <= start + 1e-7) vertex++;
@@ -203,6 +219,7 @@ export function planRoadMarkings(network: RoadNetwork, selected: ReadonlySet<str
       const nextBoundary = on ? DASH_LENGTH - cycle : DASH_PERIOD - cycle;
       const candidate = Math.min(edge.length, distances[vertex] ?? edge.length, start + Math.max(1e-6, nextBoundary));
       const end = edge.length - candidate < 1e-7 ? edge.length : candidate;
+      if (unpainted && end <= unpainted[1] + 1e-7) { start = end; continue; }
       for (const side of [-1, 1]) add('edge', start, end, s => side * paintHalfWidth(edge, s), EDGE_LINE_WIDTH);
       if (on) for (let lane = 1; lane < Math.max(edge.lanes, edge.endLanes ?? edge.lanes); lane++) {
         const lateral = (s: number) => -paintHalfWidth(edge, s) + lane * LANE_WIDTH;

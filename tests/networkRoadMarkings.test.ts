@@ -3,6 +3,7 @@ import { type DataTexture } from 'three';
 import { sampleEdge, type NetworkEdge, type RoadNetwork } from '../src/network/geometry';
 import { createMoscowNetwork } from '../src/network/moscow';
 import { msdCorridor } from '../src/network/msdCorridor';
+import { msdRampCurbRange } from '../src/network/msdPilot';
 import { asphaltMaterialKey, ASPHALT_DEPTH_BUCKETS, roadChunkVisible } from '../src/network/render';
 import { DASH_LENGTH, DASH_PERIOD, EDGE_LINE_WIDTH, LANE_LINE_WIDTH, planRoadMarkings } from '../src/network/roadMarkings';
 import { createRoadMaterials } from '../src/network/roadMaterials';
@@ -21,10 +22,12 @@ describe('metric road marking planner', () => {
     expect(paint.length).toBeLessThan(100);
     expect(paint.filter(p => p.kind === 'edge' && p.d0 > 0).at(-1)!.end).toBe(road.length);
   });
-  function expectCoverage(paint: ReturnType<typeof plan>['segments'], road: NetworkEdge) {
+  function expectCoverage(paint: ReturnType<typeof plan>['segments'], road: NetworkEdge, from = 0) {
     for (const side of [-1, 1]) {
       const runs = paint.get(road.id)!.filter(s => s.kind === 'edge' && Math.sign(s.d0) === side);
-      expect(runs[0]?.start, `${road.id} side ${side} start`).toBe(0);
+      if (from >= road.length - 1e-7) { expect(runs, `${road.id} is an unpainted curbed section`).toEqual([]); continue; }
+      expect(runs[0]?.start, `${road.id} side ${side} start`).toBeLessThanOrEqual(from + 1e-7);
+      expect(runs[0]?.end, `${road.id} side ${side} first run`).toBeGreaterThan(from);
       for (let i = 1; i < runs.length; i++) expect(runs[i].start, `${road.id} side ${side} gap`).toBeCloseTo(runs[i - 1].end, 7);
       expect(runs.at(-1)?.end, `${road.id} side ${side} end`).toBeCloseTo(road.length, 7);
     }
@@ -36,7 +39,8 @@ describe('metric road marking planner', () => {
     for (const road of net.edges) for (const node of [road.from, road.to]) degree.set(node, (degree.get(node) ?? 0) + 1);
     let checked = 0;
     for (const road of net.edges) if (selected.has(road.id) && degree.get(road.from) === 2 && degree.get(road.to) === 2) {
-      expectCoverage(paint, road); checked++;
+      // The observed curbed entry-ramp section is deliberately unpainted (road frames).
+      expectCoverage(paint, road, msdRampCurbRange(net, road)?.[1] ?? 0); checked++;
     }
     expect(checked).toBeGreaterThan(100);
   });

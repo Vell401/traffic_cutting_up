@@ -43,3 +43,24 @@ export function msdCorridor(network: RoadNetwork): Set<string> {
   }
   cache.set(network, result); return result;
 }
+
+/** Explicit pilot exit chain (tertiary, so not reached by the _link rule above).
+ * Presentation only: markings, furniture and asphalt material. It must not join
+ * the geometry corridor, which would smooth/reframe its published centreline.
+ */
+export const MSD_PILOT_PRESENTATION_EXTRAS = ['osm:809185786:1:0', 'osm:809185786:1:1'] as const;
+/** Whole pilot context ways rendered with the polished pipeline (lower loop and its link). */
+const PRESENTATION_WAYS = new Set([809185783, 809185782]);
+const presentation = new WeakMap<RoadNetwork, Set<string>>();
+export function msdPresentationCorridor(network: RoadNetwork): Set<string> {
+  let result = presentation.get(network);
+  if (!result) {
+    result = new Set(msdCorridor(network));
+    if (result.size) {
+      for (const id of MSD_PILOT_PRESENTATION_EXTRAS) if (network.edges.some(e => e.id === id)) result.add(id);
+      for (const e of network.edges) if (PRESENTATION_WAYS.has(osmWayId(e.id))) result.add(e.id);
+    }
+    presentation.set(network, result);
+  }
+  return result;
+}

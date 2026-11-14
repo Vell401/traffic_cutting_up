@@ -125,19 +125,29 @@ describe('bounded continuous Moscow vertical profiles', () => {
     expect(maxSharedSeam).toBeLessThan(.00001);
     expect(sharedSeams).toBeGreaterThan(seams);
     expect(seams).toBeGreaterThan(5000);
-    // Only the declared section-01 pilot replaces inferred source heights.
+    // Only the declared section-01 pilot and section-02 pass replace inferred source heights.
     // Outside nodes remain exact constraints; inside nodes must agree with all
     // incident representations and the explicit engineering alignment.
     const raw = data.nodes as Record<string, number[]>;
     const scope = msdPilotScope(network).edgeIds;
-    const incident = new Map<string, Array<{ way: number; scoped: boolean; point: Vec3 }>>();
+    // Section 02 (1942.3–5849.8 m) is the second declared height pass: its edges are
+    // exactly those whose published points differ from a build without it.
+    const without = createMoscowNetwork(undefined, { section02VerticalAlignment: false });
+    const section02 = new Set(network.edges.filter((e, i) => e.points.length !== without.edges[i].points.length
+      || e.points.some((p, j) => p.y !== without.edges[i].points[j].y)).map(e => e.id));
+    expect(section02.size).toBeGreaterThan(20);
+    const incident = new Map<string, Array<{ way: number; scoped: boolean; section02: boolean; point: Vec3 }>>();
     for (const e of network.edges) for (const [id, point] of [[e.from, e.points[0]], [e.to, e.points.at(-1)!]] as const) {
-      incident.set(id, [...(incident.get(id) ?? []), { way: Number(e.id.split(':')[1]), scoped: scope.has(e.id), point }]);
+      incident.set(id, [...(incident.get(id) ?? []), { way: Number(e.id.split(':')[1]), scoped: scope.has(e.id), section02: section02.has(e.id), point }]);
     }
     const main = new Set([809185810, 809185809, 809185806, 809185807, 809185812, 809185811]);
     let changedNodes = 0, mainNodes = 0, loopNodes = 0;
     for (const node of network.nodes) {
       const records = incident.get(node.id) ?? [], baseline = raw[node.id.split(':')[1]][1];
+      if (records.some(r => r.section02) && !records.some(r => r.scoped)) {
+        for (const record of records) expect(record.point.y).toBeCloseTo(node.position.y, 6);
+        continue;
+      }
       if (!records.some(r => r.scoped)) { expect(node.position.y).toBe(baseline); continue; }
       for (const record of records) expect(record.point.y).toBeCloseTo(node.position.y, 7);
       if (records.some(r => !r.scoped)) expect(node.position.y).toBe(baseline);
