@@ -106,10 +106,11 @@ try {
     }
     await g.page.evaluate(() => window.__game.view.renderer.setAnimationLoop(null));
     const rows = [];
-    for (const s of [300, 850, 3800, 6100, 8600, 8800, 10050, 11990, 12010]) {
+    // South Beach, MacArthur port, Watson, Downtown, Port tunnel, Wynwood, Grove marina, Rickenbacker, Key Biscayne, Gables, Bayfront, lap seam.
+    for (const s of [300, 850, 4100, 5400, 8250, 10050, 11800, 15100, 18300, 21000, 24600, 28500, 29990, 30010]) {
       const row = await capture(g.page, car === 2 ? `miami-${s}` : `miami-car${car}-${s}`, { s, mode: 'chase' });
       assert.equal(row.dpr, 1); assert.equal(row.width, 1280); assert.equal(row.height, 800);
-      assert(row.batches <= 120 && row.instances <= 1800); rows.push(row);
+      assert(row.batches <= 130 && row.instances <= 1800); rows.push(row);
     }
     const ghost = await g.page.evaluate(() => { const { sim, view } = window.__game; sim.player.ghost = true; view.render(1, 0); sim.player.ghost = false; return { calls: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles }; });
     result.cars.push({ car, rows: rows.map(({ file, ...r }) => r), ghost, requests: g.requests }); save();
@@ -118,11 +119,14 @@ try {
       for (const [name, pose] of [
         ['miami-frontage-onroad-look', { s: 850, d: 6, mode: 'hood', yaw: .9 }],
         ['miami-palms-shore-onroad-look', { s: 850, d: -6, mode: 'hood', yaw: -1 }],
-        ['miami-yachts-onroad-look', { s: 6115, d: -6, mode: 'hood', yaw: -1, pitch: -.08 }],
-        ['miami-yachts-far-camera-look', { s: 6115, d: -6, mode: 'far', yaw: -1, pitch: .12 }],
-        ['miami-marina-left-lane', { s: 6100, d: -6, mode: 'chase' }],
-        ['miami-cockpit', { s: 850, mode: 'cockpit' }], ['miami-bumper', { s: 6100, mode: 'bumper' }],
-        ...[599, 601, 1799, 1801, 2199, 2201, 4999, 5001, 9599, 9601, 10599, 10601].map(s => [`miami-transition-${s}`, { s, mode: 'chase' }]),
+        ['miami-yachts-onroad-look', { s: 15115, d: -6, mode: 'hood', yaw: -1, pitch: -.08 }],
+        ['miami-yachts-far-camera-look', { s: 15115, d: -6, mode: 'far', yaw: -1, pitch: .12 }],
+        ['miami-marina-left-lane', { s: 15100, d: -6, mode: 'chase' }],
+        ['miami-port-onroad-look', { s: 4100, d: 6, mode: 'hood', yaw: 1 }],
+        ['miami-beach-onroad-look', { s: 850, d: -6, mode: 'far', yaw: -1, pitch: .12 }],
+        ['miami-cockpit', { s: 850, mode: 'cockpit' }], ['miami-bumper', { s: 15100, mode: 'bumper' }],
+        // District and section boundaries: beach to causeway, causeway to downtown, both tunnel portals, city to marina, marina to causeway.
+        ...[2999, 3001, 7299, 7301, 9899, 9901, 11099, 11101, 14099, 14101, 16899, 16901, 26899, 26901].map(s => [`miami-transition-${s}`, { s, mode: 'chase' }]),
       ]) await capture(g.page, name, pose);
       for (const id of ['night', 'dusk', 'midnight', 'neon', 'violet', 'miami-night']) {
         await g.page.evaluate(id => window.__game.view.setSky(id), id);
@@ -130,7 +134,7 @@ try {
       }
       result.sweep = await g.page.evaluate(async () => {
         const { sim, view } = window.__game, rows = [];
-        for (let s = 0; s < 12000; s += 100) {
+        for (let s = 0; s < 30000; s += 100) {
           sim.player.reset(s, 0, 0); sim.player.ghost = false; sim.road.ensure(s - 1000, s + 2000); view.snapCamera(); view.render(1, 0);
           rows.push({ s, calls: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles }); await new Promise(requestAnimationFrame);
         }

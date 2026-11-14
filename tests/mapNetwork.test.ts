@@ -33,11 +33,11 @@ describe('per-map handshake fencing', () => {
     expect(PROTOCOL_VERSION).toBe(13);
   });
 
-  it('advertises Miami revision 2 while keeping Highway at revision 1', () => {
+  it('advertises Miami revision 3 on its 30 km lap while keeping Highway at revision 1', () => {
     const miami = new GameServer({ seed: 3, map: 'miami' });
     const highway = new GameServer({ seed: 3, map: 'highway' });
-    expect(connect(miami).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'miami', mapRevision: 2 });
-    expect(miami.health(false)).toMatchObject({ map: 'miami', mapRevision: 2, protocol: 13, ringLen: 12000 });
+    expect(connect(miami).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'miami', mapRevision: 3 });
+    expect(miami.health(false)).toMatchObject({ map: 'miami', mapRevision: 3, protocol: 13, ringLen: 30000 });
     expect(connect(highway).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'highway', mapRevision: 1, rulesHash: '766e63c6' });
   });
 
@@ -56,7 +56,7 @@ describe('per-map handshake fencing', () => {
     const game = new GameServer({ seed: 3, map, token: () => 'secret' });
     const first = connect(game);
     const welcome = first.messages.find((m): m is Extract<ServerMsg, { t: 'welcome' }> => m.t === 'welcome')!;
-    expect(welcome).toMatchObject({ map, mapRevision: getMap(map).revision, v: PROTOCOL_VERSION, ringLen: 12000, rulesHash: rulesHash(map) });
+    expect(welcome).toMatchObject({ map, mapRevision: getMap(map).revision, v: PROTOCOL_VERSION, ringLen: map === 'miami' ? 30000 : 12000, rulesHash: rulesHash(map) });
     for (const over of [{ map: map === 'miami' ? 'highway' : 'miami' }, { map: 'bogus' }, { map: null }, { rules: rulesHash(map === 'miami' ? 'highway' : 'miami') }, { v: PROTOCOL_VERSION - 1 }]) {
       const bad = connect(game, { token: welcome.token, ...over });
       expect(bad.messages.some(m => m.t === 'welcome')).toBe(false);
@@ -124,7 +124,7 @@ describe('map-aware prediction and authoritative lifecycle', () => {
     const live = net.server.world;
     expect(replay(43, {}, net.journal, live.tick, undefined, map).hash()).toBe(live.hash());
     expect(live.drivers.find(d => d.physics === 2)!.car.stateSize).toBe(58);
-    expect(net.server.health(false)).toMatchObject({ map, protocol: PROTOCOL_VERSION, ringLen: 12000 });
+    expect(net.server.health(false)).toMatchObject({ map, protocol: PROTOCOL_VERSION, ringLen: map === 'miami' ? 30000 : 12000 });
   });
 
   it.each([-1, 1])('Miami crosses the seam on lap %s without a correction', lap => {
@@ -132,9 +132,9 @@ describe('map-aware prediction and authoritative lifecycle', () => {
     const a = net.add({ name: 'A', physics: 2, up: link(30, 10), down: link(30, 10), fps: 30, bot: { kmh: 200, weave: false } });
     net.run(1);
     const dr = net.server.world.byId(a.core.id)!;
-    dr.car.reset(lap * 12000 - 80, laneCenter(1), 200 / 3.6); dr.epoch++;
+    dr.car.reset(lap * 30000 - 80, laneCenter(1), 200 / 3.6); dr.epoch++;
     net.run(4);
-    expect(dr.car.s).toBeGreaterThan(lap * 12000);
+    expect(dr.car.s).toBeGreaterThan(lap * 30000);
     expect(a.core.stats.maxCorrection).toBeLessThan(1e-6);
   });
 });

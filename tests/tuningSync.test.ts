@@ -18,7 +18,7 @@ describe('HTTP tuning ownership', () => {
     const core = new ClientCore(sim, { send() {} });
     const tuning = defaultTuning(); tuning.cars['5'].powerKW = 400;
     core.receive(JSON.stringify({ t: 'welcome', v: PROTOCOL_VERSION, map, mapRevision: getMap(map).revision,
-      rulesHash: rulesHash(map), ringLen: 12000, id: 1, token: 'token', players: [], tuning }), 0);
+      rulesHash: rulesHash(map), ringLen: map === 'miami' ? 30000 : 12000, id: 1, token: 'token', players: [], tuning }), 0);
     tuning.cars['5'].powerKW = 450;
     core.receive(JSON.stringify({ t: 'tuning', tuning }), 1);
     await task;

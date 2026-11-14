@@ -5,7 +5,7 @@ const MAP_KEY = 'tcu.map';
 
 export const SERVER_OPTIONS: readonly { map: MapId; name: string; description: string }[] = [
   { map: 'highway', name: 'Night Highway', description: 'Ночной хайвей · город, тоннели и мосты' },
-  { map: 'miami', name: 'Miami Night', description: 'Прибрежная трасса · пальмы, Art Deco и залив' },
+  { map: 'miami', name: 'Miami Night', description: 'Кольцо 30 км · пляжи, дамбы через залив, даунтаун и марина' },
 ];
 
 function browserStore(): PreferenceStore | undefined {

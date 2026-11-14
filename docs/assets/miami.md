@@ -180,41 +180,47 @@ The asphalt now has a cooler/darker factor, roughness .98 and normal strength .2
 photo originals, 2m UV scale and all geometry remain unchanged. The GLB SHA above
 therefore remains unchanged; the editable `.blend` and manifest factors are updated.
 
-Task3 composes parcel-scale height/setback/paint/glazing variation without separate
-materials; near upper-promenade palms/furniture/planting, masonry coping and shore
-rocks replace the bare coastal foreground. Marina shoreline is 48m from the route,
-with a level upper path to 24m, planted descent to 32m, lower boardwalk at -2.4m,
-and visual bay water at -3m. The former -8m basin hid the real decks behind the
-unchanged protected road barrier. The opt-in water, island and far-disc elevations
-now agree; legacy/Highway stay untouched. Larger 1.6×/1.3× yacht instances keep the manifest's scaled draft.
-These are visual placements only, not collision/route changes. Source preview
-staging is not gameplay evidence; see the [actual-game report](../reviews/2026-11-13-miami-asset-rebuild.md).
+## Revision 3: the 30 km lap (map rework)
 
-### Bounded island-skyline transition (Task3 fix round 1)
+The kit above is unchanged, byte for byte. What changed is everything around it:
 
-The close-detail window remains **100m behind / 600m ahead**, with every original
-placement, geometry, PBR factor/map, tint and shadow-caster flag retained. Only
-island towers (`tower_*`, |d|≥250m) have separate floor-rounded **300/1000m**
-residency. Their opaque screen-space coverage is full over along-distance
-[-200,700]m (including the complete rounded close window), smoothly reaches zero
-at -300/+1000m, before both residency removal and production's 300m road pruning. No far LOD,
-fog change, range/detail/DPR cut or global window increase is used.
+- **Route** (`src/sim/miami.ts`): a 30 km ring, two identical 15 km halves each turning π (closes by
+  central symmetry), with sweepers both ways, S-bends and long straights; minimum radius 1331 m.
+  Eleven districts in driving order: South Beach, MacArthur Causeway with Watson Island, Downtown,
+  Port tunnel, Wynwood, Coconut Grove marina, Rickenbacker Causeway, Key Biscayne, Bear Cut,
+  Coral Gables, Brickell tunnel, Bayfront. Map revision 3; the rules hash changes with the script,
+  so clients and the Miami server must be deployed together.
+- **Terrain** (`src/render/miami/terrain.ts`): pure functions of lap position. Each side of each
+  chunk has a scene (beach, hotel strip, towers, arts, quay, lush, dunes, golf, villas, park, bay,
+  hill) = surface bands + shore + bank. Shore/bank numbers blend between chunk centres, so
+  coastlines curve instead of stepping. Islands are ellipses in road coordinates. `miamiGround`
+  is the single source of truth for land mesh, prop feet and tests. Water is at -3 m.
+- **Surfaces** (`surfaces.ts`): no photographs. Ten ground layers (concrete, pavers, grass, sand,
+  asphalt, rock, wood, planting, tiles, lawn) are generated as pixels into one 256² texture array;
+  a land vertex carries its layer, so a chunk of land is one draw. A low-frequency layer varies
+  tone over tens of metres. Road asphalt, structure concrete and the water normal map are generated
+  the same way; only the kit's asphalt normal map is still borrowed. The bay is the single far disc
+  with world-anchored scrolling swells; there are no per-chunk water meshes.
+- **Land** (`land.ts`): per chunk, the ground of both sides, islands, kerbs, parking bays, side
+  streets every 100 m, hedges, seawall copings, the downtown people-mover, and cheap facade
+  buildings (12 triangles each, procedural windows, lit at night) that fill the blocks behind the
+  front row and the far shores.
+- **Props** (`props.ts`): thirteen code-built models of a few hundred triangles (two palms, shade
+  tree, bush, villa, shop, beach umbrella set, lifeguard stand, sloop, cruise ship, gantry crane,
+  container stack, observation wheel). They share one vertex-coloured material plus paint/glass.
+- **Layout** (`layout.ts`) rations the heavy kit to the front row (at most two kit buildings per
+  side per block) and lets props carry the density. `world.ts` sizes every batch to the exact peak
+  of the layout; landmarks (cruise ships, cranes, containers, the wheel) use a 300/1300 m window so
+  they arrive through the haze, everything else 100/600 m. The island-skyline dither is gone with
+  the kit towers it served.
 
-`skyline.ts` owns two 12×1 RG32F metadata textures (192 data bytes total), tower
-material clones and matching custom depth materials. It borrows unchanged source
-geometry/maps and preserves opaque depth/transparent-ghost ordering. Both shader
-paths are warmed under the existing initial loader, even for towers absent at
-spawn. Movement changes only player-S uniforms; metadata/matrices/tints update
-only on the existing chunk/road invalidations, not steady frames or origin rebases.
-World disposal frees variants/textures once, never another world's borrowed kit.
-Only tower capacities increase from 8 to 12; the measured world maximum is 266
-placements / 67 active parts, with the same 74 allocated parts and ten source maps.
+Measured in the real game on the whole lap with traffic (1280×720, medium, DPR 1): 439 draw calls
+and 2.37 M triangles on average, 501 / 3.75 M at the worst spots (lap seam at Bayfront, Downtown). The previous
+12 km map measured 493 / 3.49 M at its Downtown.
 
 The contract tests inspect parsed buffers, triangle areas, normal lengths, UV
 variation, ground pivots, actual front/bow orientation, real material identity,
 part/whole bounds, source headers and payload/checksums. Offline validator also
 reads actual image dimensions and binary geometry. Frozen/security/physics tests
-remain unchanged. The explicit world-only shadow reserve and actual four-car
-whole-frame measurements are documented in the report, not substituted for the
-500-call/5M-triangle acceptance bounds. Route/collision/network, vehicle
-models/builders/presets, menu/admin/storage and game quality remain untouched.
+remain unchanged. Collision, barriers, vehicle models/builders/presets,
+menu/admin/storage and game quality remain untouched by the map rework.

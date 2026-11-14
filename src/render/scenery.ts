@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { MIAMI_WATER } from './miami/layout';
+import { MIAMI_WATER } from './miami/terrain';
 import { CHUNK_LEN, GROUND_LEVEL, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
-import { MIAMI, type MapTheme } from './miami';
+import type { MapTheme } from './miami';
 
 const GROUND = new THREE.Color(0x0a0c0f);
 const WATER = new THREE.Color(0x060c16);
@@ -33,12 +33,12 @@ export class FarGround {
       level = Math.min(level, GROUND_LEVEL[c.kind]);
       if (c.kind === 'bridge') water = true;
     }
-    this.mesh.position.set(camera.x, this.theme === 'miami' ? (this.borrowed ? MIAMI_WATER : MIAMI.waterLevel) - 0.35 : level - 0.35, camera.z);
+    // Miami: this disc is the whole bay and ocean; the land stands in it.
+    this.mesh.position.set(camera.x, this.theme === 'miami' ? MIAMI_WATER : level - 0.35, camera.z);
     if (this.borrowed) return;
-    if (this.theme === 'miami') this.mat.color.setHex(MIAMI.water);
-    else this.mat.color.copy(water ? WATER : GROUND);
-    this.mat.roughness = this.theme === 'miami' ? 0.32 : water ? 0.16 : 1;
-    this.mat.metalness = this.theme === 'miami' ? 0.2 : water ? 0.6 : 0;
+    this.mat.color.copy(water ? WATER : GROUND);
+    this.mat.roughness = water ? 0.16 : 1;
+    this.mat.metalness = water ? 0.6 : 0;
   }
 
   /** RoadView owns this material; the far disc only borrows it, including its shared normal map. */

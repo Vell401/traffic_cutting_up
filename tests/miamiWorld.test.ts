@@ -5,16 +5,13 @@ import { GLTFLoader } from 'three-stdlib';
 import { mulberry32 } from '../src/core/rng';
 import { WALL_D } from '../src/config';
 import { getMap } from '../src/sim/maps';
+import { MIAMI_CHUNKS, MIAMI_LEN, miamiZone } from '../src/sim/miami';
 import { Road } from '../src/sim/road';
 import { extractMiamiAssets, type MiamiAssets, type MiamiManifest } from '../src/render/miami/assets';
-import { miamiPlacements, miamiGround, MIAMI_WATER, MIAMI_QUAY } from '../src/render/miami/layout';
-import { MiamiWorld, MIAMI_WINDOW, MIAMI_CAPACITIES } from '../src/render/miami/world';
-import { isMiamiSkyline, miamiSkylineCoverage } from '../src/render/miami/skyline';
-import { RoadView } from '../src/render/roadView';
-import { ChaseCamera } from '../src/render/camera';
-import { CAMERA_RIGS } from '../src/render/car';
-import { QUALITY } from '../src/settings';
-import { renderDocument } from './renderCanvas';
+import { MIAMI_PLOTS, miamiFrontage, miamiPeakCounts, miamiPlacements } from '../src/render/miami/layout';
+import { PROP_NAMES, TINTED, makeMiamiProps, makePropMaterials } from '../src/render/miami/props';
+import { MIAMI_QUAY, MIAMI_WATER, miamiGround } from '../src/render/miami/terrain';
+import { MIAMI_FAR_WINDOW, MIAMI_LANDMARKS, MIAMI_WINDOW, MiamiWorld, NO_SHADOW_MATERIALS } from '../src/render/miami/world';
 
 const manifest = JSON.parse(readFileSync('public/models/miami/manifest.json', 'utf8')) as MiamiManifest;
 let a: MiamiAssets;
@@ -29,270 +26,246 @@ afterAll(() => releaseFixture());
 const road = () => new Road(mulberry32(7), getMap('miami').script);
 const batches = (w: MiamiWorld) => w.group.children as THREE.InstancedMesh[];
 const output = (w: MiamiWorld) => batches(w).map(m => ({ name: m.name, count: m.count, matrices: [...m.instanceMatrix.array.slice(0, m.count * 16)] }));
-const skylineState = (m: THREE.InstancedMesh) => {
-  const shader = { ...THREE.ShaderLib.standard, uniforms: {} as Record<string, THREE.IUniform> };
-  (m.material as THREE.Material).onBeforeCompile(shader as Parameters<THREE.Material['onBeforeCompile']>[0], {} as THREE.WebGLRenderer);
-  return { texture: shader.uniforms.miamiSkylineSlots.value as THREE.DataTexture, player: shader.uniforms.miamiPlayerS };
+const instances = (w: MiamiWorld, prototype: string) => {
+  const m = batches(w).find(mesh => mesh.userData.prototype === prototype && mesh.userData.firstPart)!;
+  return Array.from({ length: m.count }, (_, i) => {
+    const matrix = new THREE.Matrix4(); m.getMatrixAt(i, matrix);
+    const position = new THREE.Vector3(), scale = new THREE.Vector3();
+    matrix.decompose(position, new THREE.Quaternion(), scale);
+    return { position, scale: scale.x };
+  });
 };
 
-describe('actual authored Miami world', () => {
-  it('keeps the complete island tower resident on both sides of the rejected 2199/2201 admission boundary', () => {
-    const r = road(); r.ensure(1000, 4500); const w = new MiamiWorld(a);
-    const target = r.toWorld(2845, -290, { x: 0, z: 0, th: 0, k: 0 });
-    try { for (const s of [2199, 2201]) {
-      w.update(r, s, 0, 0, 0);
-      for (const m of batches(w).filter(m => m.userData.prototype === 'tower_glass')) {
-        const matrices = Array.from({ length: m.count }, (_, i) => { const matrix = new THREE.Matrix4(); m.getMatrixAt(i, matrix); return matrix; });
-        expect(matrices.some(matrix => Math.hypot(matrix.elements[12] - target.x, matrix.elements[14] - target.z) < .001),
-          `${m.name} at s=${s}: a visible 90px tower cannot enter with the floor window`).toBe(true);
-      }
-    } } finally { w.dispose(); }
-  });
-  it('makes every island entry/exit continuous, including neighbouring floor boundaries, negative laps and seam/rebase', () => {
-    const r = road(); r.ensure(-14000, 26000); const w = new MiamiWorld(a);
-    try {
-      for (const lap of [-12000, 0, 12000]) for (let index = 0; index < 120; index++) {
-        const p = miamiPlacements(index).find(isMiamiSkyline); if (!p) continue;
-        const start = lap + index * 100, along = start + p.s;
-        const mesh = batches(w).find(m => m.userData.prototype === p.prototype)!;
-        const state = skylineState(mesh);
-        const coverage = (s: number) => {
-          // The actual simulation retains only 300m behind, not the art harness's
-          // generous teleport range. Coverage must be zero before its prune too.
-          r.ensure(s - 300, s + 1700);
-          w.update(r, s, 1600, -2000, 0);
-          const data = state.texture.image.data as Float32Array;
-          const slot = Array.from({ length: mesh.count }, (_, i) => i).find(i => data[i * 2] === along && data[i * 2 + 1] === 1);
-          return slot === undefined ? 0 : miamiSkylineCoverage(data[slot * 2] - state.player.value);
-        };
-        // Admission, original near-window entry, original exit, final retirement.
-        for (const boundary of [start - 1000, start - 600, start + 200, start + 400, start + 500]) {
-          const before = coverage(boundary - 1), after = coverage(boundary + 1);
-          expect(Math.abs(after - before), `${along} at ${boundary}`).toBeLessThan(.016);
-          if (boundary === start - 600) expect([before, after]).toEqual([1, 1]);
-          if (boundary === start - 1000 || boundary === start + 500) expect([before, after]).toEqual([0, 0]);
+describe('code-built Miami props', () => {
+  it('builds every prop as a light, ground-centred model from kit and prop materials', () => {
+    const own = makePropMaterials();
+    const props = makeMiamiProps(new Map([...a.materials, ...own]));
+    expect([...props.keys()].sort()).toEqual([...PROP_NAMES].sort());
+    for (const [name, prop] of props) {
+      // A few hundred triangles: these are what a 30 km lap is filled with.
+      expect(prop.triangles, name).toBeLessThan(1500);
+      expect(prop.parts.length, name).toBeLessThanOrEqual(8);
+      // On the ground (shrubs root a little into it), never floating or buried.
+      expect(prop.bounds.min[1], name).toBeGreaterThanOrEqual(-0.5);
+      expect(prop.bounds.min[1], name).toBeLessThanOrEqual(0.5);
+      expect(prop.bounds.min[0]).toBeCloseTo(-prop.bounds.max[0], 10);
+      expect(prop.bounds.min[2]).toBeCloseTo(-prop.bounds.max[2], 10);
+      let triangles = 0;
+      for (const part of prop.parts) {
+        expect(part.name).toBe(`${name}__${part.material.name}`);
+        expect([...a.materials.values(), ...own.values()]).toContain(part.material);
+        const g = part.geometry, p = g.getAttribute('position'), n = g.getAttribute('normal');
+        expect(g.index).not.toBeNull(); expect(g.getAttribute('uv')).toBeDefined();
+        for (let i = 0; i < p.count; i++) {
+          expect(Number.isFinite(p.getX(i) + p.getY(i) + p.getZ(i))).toBe(true);
+          expect(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)), `${part.name} vertex ${i}`).toBeCloseTo(1, 3);
         }
-        expect(coverage(along - 850)).toBe(.5); expect(coverage(along + 250)).toBe(.5);
+        triangles += g.index!.count / 3;
       }
-      expect(w.group.position.toArray()).toEqual([-1600, 0, 2000]);
-    } finally { w.dispose(); }
+      expect(triangles).toBe(prop.triangles);
+    }
+    // Boats sit on their waterline, not their keel.
+    expect(props.get('sailboat')!.waterline).toBeGreaterThan(0);
+    expect(props.get('cruise')!.waterline).toBeGreaterThan(0);
+    expect(props.get('villa')!.waterline).toBeUndefined();
+    expect(props.get('cruise')!.bounds.max[2]).toBeGreaterThan(100);
+    expect(props.get('wheel')!.bounds.max[1]).toBeGreaterThan(50);
+    for (const prop of props.values()) for (const part of prop.parts) part.geometry.dispose();
+    own.forEach(m => m.dispose());
   });
-  it('retains every original close-window placement at full detail and updates only a uniform between chunk boundaries', () => {
-    const r = road(); r.ensure(-1000, 14000); const w = new MiamiWorld(a);
-    try {
-      for (let s = 0; s < 12000; s += 100) {
-        w.update(r, s, 0, 0, 0);
-        for (const chunk of r.chunks) {
-          if (chunk.index < Math.floor((s - 100) / 100) || chunk.index > Math.floor((s + 600) / 100) || chunk.void || chunk.kind === 'tunnel') continue;
-          for (const p of miamiPlacements(chunk.index)) {
-            if ((chunk.kind === 'bridge' || chunk.kind === 'viaduct') && Math.abs(p.d) < 100 && p.prototype !== 'streetlight') continue;
-            const mesh = batches(w).find(m => m.userData.prototype === p.prototype)!;
-            const target = r.toWorld(chunk.s0 + p.s, p.d, { x: 0, z: 0, th: 0, k: 0 });
-            const slot = Array.from({ length: mesh.count }, (_, i) => i).find(i => {
-              const matrix = new THREE.Matrix4(); mesh.getMatrixAt(i, matrix);
-              return Math.hypot(matrix.elements[12] - target.x, matrix.elements[14] - target.z) < .01;
-            });
-            expect(slot, `${chunk.index}/${p.prototype}`).toBeDefined();
-            if (p.prototype.startsWith('tower_')) {
-              const state = skylineState(mesh), data = state.texture.image.data as Float32Array;
-              expect(data[slot! * 2 + 1]).toBe(isMiamiSkyline(p) ? 1 : 0);
-              expect(data[slot! * 2 + 1] ? miamiSkylineCoverage(data[slot! * 2] - s) : 1).toBe(1);
-            }
-          }
+});
+
+describe('Miami layout', () => {
+  it('is canonical: the same frozen placements on every lap, and different from block to block', () => {
+    for (const i of [3, 40, 80, 150, 210, 290]) {
+      expect(miamiPlacements(i + MIAMI_CHUNKS)).toBe(miamiPlacements(i));
+      expect(miamiPlacements(i - 2 * MIAMI_CHUNKS)).toBe(miamiPlacements(i));
+      expect(Object.isFrozen(miamiPlacements(i))).toBe(true);
+      expect(miamiPlacements(i)).not.toEqual(miamiPlacements(i + 1));
+    }
+  });
+
+  it('fills every block of open road on both sides, and leaves no causeway without boats or islands', () => {
+    const quiet: string[] = [];
+    for (let i = 0; i < MIAMI_CHUNKS; i++) {
+      const zone = miamiZone(i), all = miamiPlacements(i);
+      if (zone.kind === 'tunnel') { expect(all).toHaveLength(0); continue; }
+      for (const p of all) { expect(p.s).toBeGreaterThanOrEqual(0); expect(p.s).toBeLessThan(100); expect(p.scale).toBeGreaterThan(0.4); }
+      const scenery = all.filter(p => p.prototype !== 'streetlight');
+      if (zone.kind === 'open') {
+        // Something to look at every few metres: at least a dozen pieces per side per 100 m.
+        // (Under a crossing overpass the middle of the block is kept clear.)
+        for (const side of [-1, 1]) if (scenery.filter(p => Math.sign(p.d) === side).length < (zone.overpass ? 6 : 12)) quiet.push(`${i} ${zone.district} side ${side}`);
+        // And something tall on each side: a building, a tree or a palm.
+        for (const side of [-1, 1]) {
+          expect(scenery.some(p => Math.sign(p.d) === side && /^(hotel|condo|tower|villa|shop|palm|tree)/.test(p.prototype)), `${i} side ${side}`).toBe(true);
         }
       }
-      w.update(r, 2199, 0, 0, 0); w.update(r, 2201, 0, 0, 0);
-      const mesh = batches(w).find(m => m.userData.prototype === 'tower_glass')!, state = skylineState(mesh);
-      const matrixVersion = mesh.instanceMatrix.version, tintVersion = mesh.instanceColor!.version, textureVersion = state.texture.version;
-      const before = output(w); w.update(r, 2202, 1000, 2000, 0);
-      expect(state.player.value).toBe(2202); expect(state.texture.version).toBe(textureVersion);
-      expect(mesh.instanceMatrix.version).toBe(matrixVersion); expect(mesh.instanceColor!.version).toBe(tintVersion); expect(output(w)).toEqual(before);
-    } finally { w.dispose(); }
+    }
+    expect(quiet).toEqual([]);
+    // Causeways: over any 500 m of bridge or viaduct there are boats or island life in view.
+    for (let i = 0; i < MIAMI_CHUNKS; i++) {
+      const kinds = Array.from({ length: 5 }, (_, k) => miamiZone(i + k).kind);
+      if (!kinds.every(kind => kind === 'bridge' || kind === 'viaduct')) continue;
+      const scenery = Array.from({ length: 5 }, (_, k) => miamiPlacements(i + k)).flat().filter(p => p.prototype !== 'streetlight');
+      expect(scenery.length, `causeway at chunk ${i}`).toBeGreaterThanOrEqual(4);
+    }
+    // The landmarks of the lap exist.
+    const count = (name: string) => Array.from({ length: MIAMI_CHUNKS }, (_, i) => miamiPlacements(i)).flat().filter(p => p.prototype === name).length;
+    expect(count('wheel')).toBe(1);
+    expect(count('cruise')).toBeGreaterThanOrEqual(4);
+    expect(count('crane')).toBeGreaterThanOrEqual(10);
+    expect(count('lifeguard')).toBeGreaterThanOrEqual(8);
+    expect(count('marina_pontoon')).toBe(28);
   });
-  it('allocates every prototype tint attribute before loader warm-up, including models absent at spawn', () => {
+
+  it('keeps modelled frontage on its plots, clear of side streets and of each other', () => {
+    expect(MIAMI_PLOTS).toEqual([20, 50, 80]);
+    for (let i = 0; i < MIAMI_CHUNKS; i++) for (const side of [-1, 1]) {
+      const spans = [...miamiFrontage(i, side)].sort((p, q) => p[0] - q[0]);
+      for (const [from, to] of spans) { expect(from).toBeGreaterThan(0); expect(to).toBeLessThan(100); expect(to).toBeGreaterThan(from); }
+      for (let k = 1; k < spans.length; k++) expect(spans[k][0], `chunk ${i} side ${side}`).toBeGreaterThanOrEqual(spans[k - 1][1]);
+      if (miamiZone(i).overpass) for (const [from, to] of spans) expect(to < 44 || from > 56).toBe(true);
+    }
+  });
+});
+
+describe('instanced Miami world', () => {
+  it('keeps every transformed model bound clear of the protected road on the whole lap', () => {
     const w = new MiamiWorld(a);
-    for (const m of batches(w)) {
-      expect(m.instanceColor, m.name).not.toBeNull();
-      expect(m.instanceColor!.count).toBe(m.instanceMatrix.count);
-      expect(Array.from(m.instanceColor!.array.slice(0, 3))).toEqual([1, 1, 1]);
-      expect(m.instanceColor!.usage).toBe(THREE.DynamicDrawUsage);
+    for (let i = 0; i < MIAMI_CHUNKS; i++) for (const p of miamiPlacements(i)) {
+      const prototype = w.prototypes.get(p.prototype);
+      expect(prototype, p.prototype).toBeDefined();
+      const extent = p.scale * (Math.abs(Math.cos(p.heading)) * prototype!.bounds.max[0] + Math.abs(Math.sin(p.heading)) * prototype!.bounds.max[2]);
+      expect(Math.abs(p.d) - extent, `${p.prototype} in chunk ${i}`).toBeGreaterThan(WALL_D + 2);
     }
     w.dispose();
   });
-  it('composes four canonical districts and keeps actual transformed model bounds clear of the protected road on every lap', () => {
-    const r = road(); r.ensure(-12000, 24000);
-    for (let index = 0; index < 120; index++) {
-      const placements = miamiPlacements(index);
-      expect(placements).toEqual(miamiPlacements(index - 120)); expect(placements).toEqual(miamiPlacements(index + 240));
-      for (const p of placements) {
-        const prototype = a.prototypes.get(p.prototype)!; expect(prototype).toBeDefined();
-        const bounds = new THREE.Box3(new THREE.Vector3(...prototype.bounds.min), new THREE.Vector3(...prototype.bounds.max));
-        bounds.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(p.d, p.y, -p.s),
-          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.heading), new THREE.Vector3().setScalar(p.scale)));
-        expect(Math.min(Math.abs(bounds.min.x), Math.abs(bounds.max.x))).toBeGreaterThan(WALL_D + 2);
-        let actualClearance = Infinity;
-        for (const part of prototype.parts) {
-          const vertices = part.geometry.getAttribute('position');
-          for (let v = 0; v < vertices.count; v++) {
-            const d = p.d + p.scale * (vertices.getX(v) * Math.cos(p.heading) + vertices.getZ(v) * Math.sin(p.heading));
-            actualClearance = Math.min(actualClearance, Math.abs(d));
-          }
-        }
-        expect(actualClearance, `${index}/${p.prototype}: actual submitted vertex corridor`).toBeGreaterThan(WALL_D + 2);
-        expect(p.s).toBeGreaterThanOrEqual(0); expect(p.s).toBeLessThan(100);
-        expect(Number.isFinite(miamiGround(r, index * 100 + p.s, p.d))).toBe(true);
-      }
+
+  it('sizes every batch to the exact peak of the layout and stays inside the triangle budget on the whole lap', () => {
+    const r = road(), w = new MiamiWorld(a); r.ensure(-400, MIAMI_LEN + 1500);
+    const near = miamiPeakCounts(8), far = miamiPeakCounts(17);
+    for (const m of batches(w)) {
+      const name = m.userData.prototype as string;
+      expect(m.instanceMatrix.count).toBe((MIAMI_LANDMARKS.has(name) ? far : near).get(name));
     }
-    expect(miamiPlacements(3).filter(p => p.prototype.startsWith('hotel')).length).toBeGreaterThanOrEqual(3);
-    expect(miamiPlacements(23).some(p => p.d > 0 && p.d < 100 && p.prototype !== 'streetlight')).toBe(false);
-    expect(miamiPlacements(61).some(p => p.prototype === 'yacht')).toBe(true);
-    expect(miamiPlacements(86).some(p => p.prototype.startsWith('tower'))).toBe(true);
-  });
-  it('has explicit bounded batch capacities and counts real instanced triangles including a complete shadow pass', () => {
-    const r = road(), w = new MiamiWorld(a); r.ensure(0, 12000);
-    expect(batches(w).length).toBeLessThanOrEqual(120);
-    for (let s = 0; s < 12000; s += 100) {
+    expect(batches(w).length).toBeLessThanOrEqual(130);
+    let worst = 0, most = 0;
+    for (let s = 0; s < MIAMI_LEN; s += 100) {
       w.update(r, s, 0, 0, 0);
-      let triangles = 0, shadowTriangles = 0, instances = 0;
+      let triangles = 0, shadowTriangles = 0, placed = 0;
       for (const m of batches(w)) {
         expect(m.count).toBeLessThanOrEqual(m.instanceMatrix.count);
-        expect(m.instanceMatrix.count).toBe(MIAMI_CAPACITIES[m.userData.prototype as keyof typeof MIAMI_CAPACITIES]);
+        expect(m.visible).toBe(m.count > 0);
         triangles += m.geometry.index!.count / 3 * m.count;
         if (m.castShadow) shadowTriangles += m.geometry.index!.count / 3 * m.count;
-        if (m.userData.firstPart) instances += m.count;
+        if (m.userData.firstPart) placed += m.count;
       }
-      expect(instances).toBeLessThanOrEqual(1800); expect(triangles * 2).toBeLessThan(4_400_000);
-      // One additional fully detailed island tower during exit can cost 173316
-      // submitted triangles. Retain the 4.4M doubled bound and a 3.6M full-shadow
-      // ceiling; the actual four-car 5M whole-frame gate is tested in the browser.
-      expect(triangles + shadowTriangles).toBeLessThan(3_600_000);
+      worst = Math.max(worst, triangles + shadowTriangles); most = Math.max(most, placed);
     }
+    // Colour pass plus a complete shadow pass of everything that casts.
+    expect(worst).toBeLessThan(3_000_000);
+    expect(most).toBeLessThan(1800);
     expect(MIAMI_WINDOW.ahead).toBeGreaterThanOrEqual(600); w.dispose();
-  });
-  it('keeps full close geometry but omits small metal/frame trim from the shadow pass, not the visible scene', () => {
+  }, 120_000);
+
+  it('borrows kit geometry, owns prop geometry, and keeps trim and far landmarks out of the shadow pass', () => {
     const w = new MiamiWorld(a);
+    const names = new Set(batches(w).map(m => m.userData.prototype as string));
+    for (const name of ['hotel_deco', 'tower_glass', 'palm_coconut', 'yacht', 'palm_lite', 'tree', 'villa', 'shop', 'umbrella', 'sailboat', 'cruise', 'crane', 'wheel']) expect(names).toContain(name);
     for (const m of batches(w)) {
-      expect(m.geometry).toBe(a.prototypes.get(m.userData.prototype)!.parts.find(p => p.name === m.name)!.geometry);
-      const trim = ['frame_ivory', 'metal_satin', 'bronze_dark', 'light_warm'].includes((m.material as THREE.Material).name);
-      expect(m.castShadow).toBe(!trim); expect(m.receiveShadow).toBe(true);
+      const name = m.userData.prototype as string, kit = a.prototypes.get(name);
+      expect(m.geometry).toBe(w.prototypes.get(name)!.parts.find(p => p.name === m.name)!.geometry);
+      expect(m.receiveShadow).toBe(true);
+      const material = (m.material as THREE.Material).name;
+      if (kit) expect(m.castShadow).toBe(!NO_SHADOW_MATERIALS.has(material));
+      // Walls, structure, trunks, foliage and hulls always cast.
+      if (/^(plaster_|concrete_warm|palm_|hedge_leaf|hull_pearl|teak_deck)/.test(material)) expect(m.castShadow).toBe(true);
+      if (MIAMI_LANDMARKS.has(name)) expect(m.castShadow).toBe(false);
+      expect(m.instanceColor).not.toBeNull();
     }
     w.dispose();
   });
+
   it('does no steady-frame rebuilding, rebase only moves the group, and invalidates road/version/range/empty transitions', () => {
-    const r = road(); r.ensure(0, 1500); const w = new MiamiWorld(a); w.update(r, 300, 0, 0, 0);
+    const r = road(); r.ensure(0, 1800); const w = new MiamiWorld(a); w.update(r, 300, 0, 0, 0);
     const initial = output(w), scan = vi.spyOn(r.chunks, Symbol.iterator);
     w.update(r, 301, 0, 0, 10); expect(scan).not.toHaveBeenCalled(); expect(output(w)).toEqual(initial);
     w.update(r, 300, 1000, -2000, 20); expect(scan).not.toHaveBeenCalled(); expect(output(w)).toEqual(initial);
     expect(w.group.position.toArray()).toEqual([-1000, 0, 2000]);
-    for (const s of [800, -11800, 12200]) {
-      r.ensure(s - 200, s + 1500); w.update(r, s, 9, 10, 0);
+    for (const s of [800, -29800, 30200]) {
+      r.ensure(s - 400, s + 1800); w.update(r, s, 9, 10, 0);
       const fresh = new MiamiWorld(a); fresh.update(r, s, 9, 10, 0); expect(output(w)).toEqual(output(fresh)); fresh.dispose();
     }
-    const next = road(); next.ensure(0, 1500); w.update(next, 300, 0, 0, 0); expect(output(w)).toEqual(initial);
+    const next = road(); next.ensure(0, 1800); w.update(next, 300, 0, 0, 0); expect(output(w)).toEqual(initial);
     next.chunks.length = 0; next.version++; w.update(next, 300, 0, 0, 0); expect(batches(w).every(m => m.count === 0)).toBe(true);
-    next.ensure(0, 1500); w.update(next, 300, 0, 0, 0); expect(output(w)).toEqual(initial); w.dispose();
+    next.ensure(0, 1800); w.update(next, 300, 0, 0, 0); expect(output(w)).toEqual(initial); w.dispose();
   });
-  it('grounds marina furniture on its flat boardwalk, and uses manifest draft/deck offsets rather than recentering parts', () => {
-    const r = road(); r.ensure(5800, 7000); const w = new MiamiWorld(a); w.update(r, 6100, 0, 0, 0);
-    for (const m of batches(w)) {
-      if (!m.count) continue;
-      const matrix = new THREE.Matrix4(); m.getMatrixAt(0, matrix);
-      if (m.userData.prototype === 'yacht') expect(matrix.elements[13] + .9 * new THREE.Vector3().setFromMatrixScale(matrix).x).toBeCloseTo(MIAMI_WATER);
-      if (m.userData.prototype === 'marina_pontoon') expect(matrix.elements[13]).toBeCloseTo(MIAMI_WATER - .3);
+
+  it('floats boats on their waterline and stands everything else on dry ground, never in the bay', () => {
+    const r = road(), w = new MiamiWorld(a);
+    for (const s of [500, 2950, 3900, 5400, 7250, 15000, 16850, 19400, 21000, 28500]) {
+      r.ensure(s - 500, s + 1800); w.update(r, s, 0, 0, 0);
+      for (const name of ['yacht', 'sailboat', 'cruise', 'marina_pontoon']) {
+        const waterline = w.prototypes.get(name)!.waterline!;
+        for (const boat of instances(w, name)) expect(boat.position.y + waterline * boat.scale).toBeCloseTo(MIAMI_WATER, 6);
+      }
+      for (const name of ['hotel_deco', 'hotel_colonnade', 'condo_terrace', 'tower_glass', 'tower_setback', 'villa', 'shop', 'palm_lite', 'palm_tall', 'tree', 'umbrella', 'bench', 'crane']) {
+        if (!batches(w).some(m => m.userData.prototype === name)) continue;
+        for (const item of instances(w, name)) expect(item.position.y, `${name} at s=${s}`).toBeGreaterThanOrEqual(MIAMI_WATER + 0.25);
+      }
+      for (const light of instances(w, 'streetlight')) expect(light.position.y).toBe(0);
     }
-    expect(miamiGround(r, 6150, -80)).toBe(MIAMI_QUAY); w.dispose();
-  });
-  it('brings the marina basin to the road without burying its upper promenade or losing physical yacht draft', () => {
-    const r = road(); r.ensure(5800, 6400);
-    // Furniture must stand on the upper path, not the old long slope down to -98m.
-    expect(miamiGround(r, 6150, -22)).toBe(r.groundY(6150));
-    const boats = miamiPlacements(61).filter(p => p.prototype === 'yacht');
-    expect(boats.every(p => Math.abs(p.d) < 75)).toBe(true);
-    const w = new MiamiWorld(a); w.update(r, 6100, 0, 0, 0);
-    const hull = batches(w).find(m => m.name === 'yacht__hull_pearl')!;
-    for (let i = 0; i < hull.count; i++) {
-      const matrix = new THREE.Matrix4(); hull.getMatrixAt(i, matrix);
-      const scale = new THREE.Vector3().setFromMatrixScale(matrix).x;
-      expect(matrix.elements[13] + .9 * scale).toBeCloseTo(MIAMI_WATER);
-    }
+    // Marina: benches on the lower boardwalk, yachts in their berths past the seawall.
+    r.ensure(14500, 17000); w.update(r, 15000, 0, 0, 0);
+    expect(instances(w, 'bench').some(bench => Math.abs(bench.position.y - MIAMI_QUAY) < 1e-6)).toBe(true);
+    expect(instances(w, 'yacht').length).toBeGreaterThanOrEqual(10);
+    expect(miamiGround(r, 15029, -61)).toBeLessThan(MIAMI_WATER);
     w.dispose();
   });
-  it('separates full building footprints on curves, neighbouring chunks and the lap seam', () => {
-    const r = road(); r.ensure(-200, 12300);
-    const buildings: { index: number; points: THREE.Vector2[] }[] = [];
-    for (let index = -1; index <= 120; index++) for (const p of miamiPlacements(index)) {
-      if (!/^(hotel|condo|tower)/.test(p.prototype) || Math.abs(p.d) > 200) continue;
-      const b = a.prototypes.get(p.prototype)!.bounds, along = index * 100 + p.s;
-      const at = r.toWorld(along, p.d, { x: 0, z: 0, th: 0, k: 0 }), angle = -at.th + p.heading;
-      const points = [[b.min[0], b.min[2]], [b.max[0], b.min[2]], [b.max[0], b.max[2]], [b.min[0], b.max[2]]]
-        .map(([x, z]) => new THREE.Vector2(at.x + p.scale * (x * Math.cos(angle) + z * Math.sin(angle)),
-          at.z + p.scale * (-x * Math.sin(angle) + z * Math.cos(angle))));
-      for (const other of buildings.filter(o => Math.abs(o.index - index) <= 1)) {
-        const separated = [...points, ...other.points].some((point, n) => {
-          const polygon = n < 4 ? points : other.points, j = n % 4;
-          const edge = polygon[(j + 1) % 4].clone().sub(point), axis = new THREE.Vector2(-edge.y, edge.x).normalize();
-          const a = points.map(v => v.dot(axis)), b = other.points.map(v => v.dot(axis));
-          return Math.max(...a) + .25 < Math.min(...b) || Math.max(...b) + .25 < Math.min(...a);
-        });
-        expect(separated, `building overlap ${other.index}/${index}`).toBe(true);
-      }
-      buildings.push({ index, points });
-    }
-  });
-  it('exposes real pontoon deck vertices past the real barrier/quay to the canonical on-road R34 chase camera', () => {
-    vi.stubGlobal('document', renderDocument);
-    const r = road(); r.ensure(5900, 6900);
-    const w = new MiamiWorld(a), v = new RoadView({ ...QUALITY.medium, roadTex: 64 }, 4, 'miami', 'assets');
-    try {
-      w.update(r, 6100, 0, 0, 0); v.update(r, 6000, 6799, 0, 0);
-      w.group.updateMatrixWorld(true); v.group.updateMatrixWorld(true);
-      const camera = new THREE.PerspectiveCamera(62.17771448963918, 1280 / 800, .5, 3000);
-      const chase = new ChaseCamera(); chase.setRig(CAMERA_RIGS[2]);
-      const eye = r.toWorld(6100, 0, { x: 0, z: 0, th: 0, k: 0 });
-      chase.update(0, camera, new THREE.Vector3(eye.x, 0, eye.z), eye.th, 0, null); camera.updateMatrixWorld(true);
-      expect(camera.position.y).toBe(2.05);
-      const deck = batches(w).find(m => m.name === 'marina_pontoon__teak_deck')!;
-      const at = r.toWorld(6250, -53.5, { x: 0, z: 0, th: 0, k: 0 });
-      const matrices = Array.from({ length: deck.count }, (_, i) => { const matrix = new THREE.Matrix4(); deck.getMatrixAt(i, matrix); return matrix; });
-      const matrix = matrices.find(m => Math.hypot(m.elements[12] - at.x, m.elements[14] - at.z) < .001)!;
-      expect(matrix).toBeDefined();
-      const pos = deck.geometry.getAttribute('position'), normals = deck.geometry.getAttribute('normal');
-      const occluders = v.group.children.flatMap(c => c.children as THREE.Mesh[]).filter(m => m.visible);
-      let visible = 0;
-      for (let i = 0; i < pos.count; i++) {
-        if (normals.getY(i) < .99) continue;
-        const target = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(matrix);
-        const projected = target.clone().project(camera);
-        if (Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1 || projected.z > 1) continue;
-        const direction = target.clone().sub(camera.position), distance = direction.length();
-        const ray = new THREE.Raycaster(camera.position, direction.normalize(), .5, distance - .02);
-        const hits = ray.intersectObjects(occluders, false);
-        if (!hits.length) visible++;
-      }
-      expect(visible, 'actual deck must not be entirely hidden below the barrier/quay').toBeGreaterThan(10);
-    } finally { w.dispose(); v.dispose(); vi.unstubAllGlobals(); }
-  });
-  it('uses the lowest terrain under full building bounds on portal/viaduct approaches, not only the centre', () => {
-    const r = road(); r.ensure(9000, 12000); const w = new MiamiWorld(a); w.update(r, 10600, 0, 0, 0);
-    for (const index of [106, 107]) for (const p of miamiPlacements(index).filter(p => p.prototype.startsWith('tower'))) {
-      const prototype = a.prototypes.get(p.prototype)!, extent = prototype.bounds.max[0] * p.scale;
-      const along = index * 100 + p.s;
-      const point = r.toWorld(along, p.d, { x: 0, z: 0, th: 0, k: 0 });
-      const m = batches(w).find(m => m.userData.prototype === p.prototype)!;
-      const matrices = Array.from({ length: m.count }, (_, i) => { const matrix = new THREE.Matrix4(); m.getMatrixAt(i, matrix); return matrix; });
-      const matrix = matrices.find(matrix => Math.hypot(matrix.elements[12] - point.x, matrix.elements[14] - point.z) < 0.001)!;
-      const ground = Math.min(miamiGround(r, along - extent, p.d), miamiGround(r, along + extent, p.d));
-      expect(matrix.elements[13]).toBeLessThanOrEqual(ground + 0.00001);
-    }
+
+  it('brings landmarks in from beyond the haze while ordinary scenery stays in the close window', () => {
+    const r = road(), w = new MiamiWorld(a);
+    expect(MIAMI_FAR_WINDOW.ahead).toBeGreaterThan(900); // The fog is complete by 900 m.
+    // The port cranes of the first causeway stand 3.7-4.6 km into the lap.
+    r.ensure(2000, 5000); w.update(r, 2700, 0, 0, 0);
+    const far = instances(w, 'crane');
+    w.update(r, 3400, 0, 0, 0);
+    const near = instances(w, 'crane');
+    w.update(r, 2700, 0, 0, 0);
+    expect(far.length).toBeGreaterThan(0);
+    // Nothing ordinary beyond the close window from here: no villas of the islands yet.
+    expect(batches(w).find(m => m.userData.prototype === 'villa' && m.userData.firstPart)!.count).toBe(0);
+    w.update(r, 3400, 0, 0, 0);
+    expect(batches(w).find(m => m.userData.prototype === 'villa' && m.userData.firstPart)!.count).toBeGreaterThan(0);
+    expect(near.length).toBeGreaterThanOrEqual(far.length);
     w.dispose();
   });
-  it('disposes instance buffers once but leaves borrowed source geometry/maps alive while another world uses them', () => {
+
+  it('tints only paintable surfaces, per placement', () => {
+    const r = road(); r.ensure(11000, 13500); const w = new MiamiWorld(a); w.update(r, 11500, 0, 0, 0);
+    const colours = (m: THREE.InstancedMesh) => Array.from({ length: m.count }, (_, i) => { const c = new THREE.Color(); m.getColorAt(i, c); return c.getHex(); });
+    const paint = batches(w).find(m => m.name === 'shop__paint')!, glass = batches(w).find(m => m.name === 'shop__glass')!;
+    expect(TINTED.has('paint')).toBe(true);
+    expect(paint.count).toBeGreaterThan(10);
+    // Wynwood: many colours of shopfront, the same clear glass in all of them.
+    expect(new Set(colours(paint)).size).toBeGreaterThan(4);
+    expect(new Set(colours(glass))).toEqual(new Set([0xffffff]));
+    w.dispose();
+  });
+
+  it('disposes instance buffers and prop geometry once but leaves borrowed kit geometry alive while another world uses it', () => {
     const first = new MiamiWorld(a), second = new MiamiWorld(a);
     const instanceSpies = batches(first).map(m => vi.spyOn(m, 'dispose'));
-    const geo = batches(first).map(m => vi.spyOn(m.geometry, 'dispose'));
+    const kit = batches(first).filter(m => a.prototypes.has(m.userData.prototype)).map(m => vi.spyOn(m.geometry, 'dispose'));
+    const props = batches(first).filter(m => !a.prototypes.has(m.userData.prototype)).map(m => vi.spyOn(m.geometry, 'dispose'));
+    const otherProps = batches(second).filter(m => !a.prototypes.has(m.userData.prototype)).map(m => vi.spyOn(m.geometry, 'dispose'));
     first.dispose(); first.dispose(); instanceSpies.forEach(s => expect(s).toHaveBeenCalledOnce());
-    geo.forEach(s => expect(s).not.toHaveBeenCalled()); expect(first.group.children).toHaveLength(0);
-    second.dispose(); geo.forEach(s => expect(s).not.toHaveBeenCalled());
-    releaseFixture(); geo.forEach(s => expect(s).toHaveBeenCalledOnce());
+    props.forEach((s, i) => expect(s, `prop geometry ${i} of ${props.length}`).toHaveBeenCalledOnce());
+    otherProps.forEach(s => expect(s).not.toHaveBeenCalled());
+    kit.forEach(s => expect(s).not.toHaveBeenCalled()); expect(first.group.children).toHaveLength(0);
+    second.dispose(); kit.forEach(s => expect(s).not.toHaveBeenCalled());
+    otherProps.forEach(s => expect(s).toHaveBeenCalledOnce());
+    releaseFixture(); kit.forEach(s => expect(s).toHaveBeenCalledOnce());
   });
 });

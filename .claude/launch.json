@@ -8,6 +8,18 @@
       "port": 5173
     },
     {
+      "name": "msd",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/web/traffic_msd", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
+      "port": 5174
+    },
+    {
+      "name": "msd-before",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/web/traffic_msd_before", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5175", "--strictPort"],
+      "port": 5175
+    },
+    {
       "name": "server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "server"],

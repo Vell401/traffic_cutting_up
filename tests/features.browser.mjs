@@ -31,7 +31,7 @@ try {
     await page.waitForFunction(() => !document.body.classList.contains('menu'), { timeout: 120000 });
     await page.locator('#loading').waitFor({ state: 'hidden', timeout: 120000 });
     const identity = await page.evaluate(() => ({ map: window.__game.sim.map.id, ring: window.__game.sim.road.ringLen }));
-    assert.equal(identity.map, map); assert.equal(identity.ring, 12000);
+    assert.equal(identity.map, map); assert.equal(identity.ring, map === 'miami' ? 30000 : 12000);
     await page.keyboard.down('KeyW'); await page.waitForTimeout(350); await page.keyboard.up('KeyW');
     await page.locator('#c').click({ force: true });
     await page.keyboard.press('KeyP');

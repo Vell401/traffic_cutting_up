@@ -215,9 +215,10 @@ export class View {
     if (p.scrapeSide !== 0 && p.speed > 8) this.sparkAtWall(Math.min(8, Math.max(1, Math.round(p.speed * dt * 6))), 3);
     this.sparks.update(dt, this.ox, this.oz);
     this.trafficView.update(sim, alpha, this.ox, this.oz, this.time);
-    this.roadView.update(sim.road, s - 150, s + 1300, this.ox, this.oz);
+    this.roadView.update(sim.road, s - 150, s + this.roadAhead(), this.ox, this.oz);
     this.miamiWorld?.update(sim.road, s, this.ox, this.oz, this.time);
     this.miamiEnvironment?.update(sim.road, s, this.ox, this.oz, this.moon);
+    this.roadView.updateMiamiWater(this.ox, this.oz, this.time);
     this.lampLights.update(this.roadView, sim.road, s, this.ox, this.oz);
     let cockpit: CockpitAnchor | null = null;
     const eye = this.playerView.eye;
@@ -332,11 +333,21 @@ export class View {
     this.moon.intensity = p.moonLight;
     if (this.miamiEnvironment) {
       this.miamiEnvironment.apply(this.scene, this.sky, id);
+      this.roadView.setMiamiNight(id !== 'miami-night');
       if (id === 'miami-night') {
         this.hemi.color.setHex(0xaac1d8); this.hemi.groundColor.setHex(0x85705b); this.hemi.intensity = 0.65;
         this.moon.color.setHex(0xffd2a1); this.moon.intensity = 2.6;
       }
     }
+  }
+
+  /**
+   * How far ahead road chunks are drawn. Miami chunks carry land and city blocks, and nothing of them
+   * shows past the end of the fog; the highway keeps its fixed range.
+   */
+  private roadAhead(): number {
+    const fog = this.scene.fog;
+    return this.sim.map?.theme === 'miami' && fog instanceof THREE.Fog ? Math.min(1300, Math.ceil(fog.far / 100) * 100 + 100) : 1300;
   }
 
   private makeMiamiEnvironment(assets: MiamiAssets): MiamiEnvironment { return MiamiEnvironment.create(assets, this.renderer); }
@@ -362,7 +373,7 @@ export class View {
         this.scene.add(this.miamiWorld.group);
         const water = this.roadView.applyMiamiMaterials(assets); this.farGround.setMiamiMaterial(water);
         const s = this.sim.player.s;
-        this.roadView.update(this.sim.road, s - 150, s + 1300, this.ox, this.oz);
+        this.roadView.update(this.sim.road, s - 150, s + this.roadAhead(), this.ox, this.oz);
         this.miamiWorld.update(this.sim.road, s, this.ox, this.oz, this.time);
         this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.moon.castShadow = true; this.moon.shadow.mapSize.set(2048, 2048);

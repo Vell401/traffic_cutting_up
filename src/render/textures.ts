@@ -179,14 +179,14 @@ const SIGNS: [string, string, string][] = [
 ];
 /** Original coastal place names; atlas dimensions and emergency symbols stay identical. */
 export const MIAMI_SIGNS: readonly [string, string, string][] = [
-  ['PALM COAST', 'OCEAN DRIVE', '↑'],
-  ['BLUE BAY', 'CAUSEWAY', '↑'],
-  ['CORAL QUAY', 'MARINA', '↗'],
-  ['DECO DISTRICT', 'COAST ROAD', '↑'],
-  ['SUNSET ISLES', 'BAY LOOP', '↑'],
-  ['PEARL HARBOR', 'YACHT CLUB', '↗'],
-  ['SEABREEZE', 'WATERFRONT', '↑'],
-  ['LAGOON TUNNEL', 'KEEP LANES', '↑'],
+  ['SOUTH BEACH', 'OCEAN DRIVE', '↑'],
+  ['BAY CAUSEWAY', 'PORT · ISLANDS', '↑'],
+  ['DOWNTOWN', 'BRICKELL', '↗'],
+  ['ARTS DISTRICT', 'MIDTOWN', '↑'],
+  ['THE GROVE', 'MARINA', '↗'],
+  ['KEY ISLAND', 'BEACH PARK', '↑'],
+  ['CORAL WAY', 'BAYFRONT', '↑'],
+  ['PORT TUNNEL', 'KEEP LANES', '↑'],
 ];
 export const SIGN_COLS = 2;
 export const SIGN_ROWS = 6;

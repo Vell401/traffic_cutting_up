@@ -9,6 +9,8 @@ interface BuilderOptions {
   uv?: boolean;
   /** vec4 per vertex for the city shader: facade u/v in metres, building seed, lit share (-1 = no windows). */
   win?: boolean;
+  /** float per vertex: which layer of a texture array the surface samples (Miami land). */
+  layer?: boolean;
 }
 
 /**
@@ -22,6 +24,7 @@ export class MeshBuilder {
   private readonly col: Float32Array;
   private readonly uvs: Float32Array | null;
   private readonly wins: Float32Array | null;
+  private readonly layers: Float32Array | null;
   private readonly idx: Uint16Array | Uint32Array;
   private readonly maxVerts: number;
   private nv = 0;
@@ -36,6 +39,8 @@ export class MeshBuilder {
   w1 = 0;
   w2 = 0;
   w3 = -1;
+  /** Current texture-array layer (layer builders only). */
+  layer = 0;
 
   constructor(o: BuilderOptions) {
     this.maxVerts = o.maxVerts;
@@ -44,6 +49,7 @@ export class MeshBuilder {
     this.col = new Float32Array(o.maxVerts * 3);
     this.uvs = o.uv ? new Float32Array(o.maxVerts * 2) : null;
     this.wins = o.win ? new Float32Array(o.maxVerts * 4) : null;
+    this.layers = o.layer ? new Float32Array(o.maxVerts) : null;
     this.idx = o.maxVerts > 65535 ? new Uint32Array(o.maxIndices) : new Uint16Array(o.maxIndices);
     const g = this.geometry;
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -51,6 +57,7 @@ export class MeshBuilder {
     g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
     if (this.uvs) g.setAttribute('uv', new THREE.BufferAttribute(this.uvs, 2).setUsage(THREE.DynamicDrawUsage));
     if (this.wins) g.setAttribute('aWin', new THREE.BufferAttribute(this.wins, 4).setUsage(THREE.DynamicDrawUsage));
+    if (this.layers) g.setAttribute('aLayer', new THREE.BufferAttribute(this.layers, 1).setUsage(THREE.DynamicDrawUsage));
     g.setIndex(new THREE.BufferAttribute(this.idx, 1).setUsage(THREE.DynamicDrawUsage));
     g.setDrawRange(0, 0);
     g.boundingSphere = new THREE.Sphere();
@@ -106,6 +113,7 @@ export class MeshBuilder {
       this.wins[i * 4 + 2] = this.w2;
       this.wins[i * 4 + 3] = this.w3;
     }
+    if (this.layers) this.layers[i] = this.layer;
     this.nv++;
     return i;
   }
@@ -126,7 +134,7 @@ export class MeshBuilder {
   finish(): void {
     const g = this.geometry;
     g.setDrawRange(0, this.ni);
-    for (const name of ['position', 'normal', 'color', 'uv', 'aWin']) {
+    for (const name of ['position', 'normal', 'color', 'uv', 'aWin', 'aLayer']) {
       const a = g.getAttribute(name) as THREE.BufferAttribute | undefined;
       if (!a) continue;
       a.clearUpdateRanges();

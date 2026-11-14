@@ -830,8 +830,8 @@ document.getElementById('resumeBtn')!.addEventListener('click', () => {
 });
 // Mode: single player and online are separate pages (online keeps its own sim, ring and lifecycle).
 choice('modeSeg', 'modeDesc', [
-  { id: 2, name: 'Онлайн', desc: `${MAP.name} · общее кольцо 12 км; трафик, игроки и рекорды этого сервера` },
-  { id: 1, name: 'Одиночный', desc: MAP_ID === 'miami' ? 'Miami · прибрежное кольцо, свой трафик и отдельные рекорды' : 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
+  { id: 2, name: 'Онлайн', desc: `${MAP.name} · общее кольцо ${MAP_ID === 'miami' ? 30 : 12} км; трафик, игроки и рекорды этого сервера` },
+  { id: 1, name: 'Одиночный', desc: MAP_ID === 'miami' ? 'Miami · кольцо 30 км: Саут-Бич, дамбы, даунтаун, марина, Ки-Бискейн; свой трафик и отдельные рекорды' : 'Бесконечный хайвей, свой трафик, рекорд хранится в браузере' },
 ] as const, ONLINE ? 2 : 1, (id) => {
   if ((id === 2) !== ONLINE) location.href = modeNavigation(new URL(location.href), id === 2 ? 'online' : 'solo').href;
 });
