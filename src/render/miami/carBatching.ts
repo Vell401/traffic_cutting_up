@@ -14,7 +14,13 @@ const domainName = /^(STEER_HR|SHIFT_[LR]|(?:WHEEL|DISC)_(?:LF|RF|LR|RR)|SUSP_(?
 export const hasCarDomains = (root: THREE.Object3D): boolean =>
   !!(root.getObjectByName('MAIN_BODY') || root.getObjectByName('Mercedes_W204') || root.getObjectByName('W204_Steer_FL'));
 /** The animated pivot a mesh belongs to: its nearest named ancestor, or the root. */
-export const carDomain = (mesh: THREE.Object3D, root: THREE.Object3D): THREE.Object3D => domain(mesh, root);
+export function carDomain(mesh: THREE.Object3D, root: THREE.Object3D): THREE.Object3D {
+  for (let node = mesh.parent; node; node = node.parent) {
+    if (node.name === 'MAIN_BODY' || domainName.test(node.name)) return node;
+    if (node === root) break;
+  }
+  return root;
+}
 function domain(mesh: THREE.Object3D, root: THREE.Object3D): THREE.Object3D {
   for (let node = mesh.parent; node; node = node.parent) {
     if (domainName.test(node.name)) return node;

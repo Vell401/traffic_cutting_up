@@ -26,8 +26,9 @@ async function realCar(optIn = true, own = true) {
 const meshes = (root: THREE.Object3D) => {
   const out: THREE.Mesh[] = []; root.traverseVisible(o => { if ((o as THREE.Mesh).isMesh && o.layers.test(new THREE.Layers())) out.push(o as THREE.Mesh); }); return out;
 };
-function drawCounts(root: THREE.Object3D) {
-  const colour = meshes(root), shadow: THREE.Mesh[] = [], layers = new THREE.Layers(); layers.enable(MIAMI_CAR_SHADOW_LAYER);
+function drawCounts(root: THREE.Object3D, sunOnly = false) {
+  const colour = meshes(root), shadow: THREE.Mesh[] = [], layers = new THREE.Layers();
+  if (sunOnly) layers.set(MIAMI_CAR_SHADOW_LAYER); else layers.enable(MIAMI_CAR_SHADOW_LAYER);
   root.traverseVisible(o => { const m = o as THREE.Mesh; if (m.isMesh && m.castShadow && m.layers.test(layers)) shadow.push(m); });
   return { calls: colour.length + shadow.length,
     triangles: [...colour, ...shadow].reduce((n, m) => n + (m.geometry.index?.count ?? m.geometry.getAttribute('position').count) / 3, 0) };
@@ -123,7 +124,9 @@ describe('Miami lossless static car draws — real A45 builder boundary', () => 
     for (const b of batcher.batches) for (const p of b.parts) expect(b.mesh.material).toBe(p.source.material);
     const car = createCar(bodyPhysics(3)); car.reset(300, 0, 0); car.steerAngle = -.25;
     remote.setPaint(0x889922); remote.update(.4, car, new THREE.Vector3(0,0,-50), .2, 50);
-    expect(drawCounts(detail.root).calls).toBeLessThan(300); expect(renderer.compileAsync).toHaveBeenCalled();
+    // Proxy-enabled Miami uses the sun layer alone, matching View's shadow camera.
+    expect(detail.root.getObjectByName('miami/car-shadow')).toBeDefined();
+    expect(drawCounts(detail.root, true).calls).toBeLessThan(300); expect(renderer.compileAsync).toHaveBeenCalled();
     const privateGeo = batcher.batches.map(b => vi.spyOn(b.mesh.geometry,'dispose'));
     const sharedGeo = vi.spyOn(batcher.batches[0].parts[0].source.geometry,'dispose');
     remote.dispose(); privateGeo.forEach(s=>expect(s).toHaveBeenCalledOnce()); expect(sharedGeo).not.toHaveBeenCalled();

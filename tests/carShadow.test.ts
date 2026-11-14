@@ -58,6 +58,8 @@ describe('car shadow proxies', () => {
 
   it('keeps the facing of mirrored parts: their triangles are wound the other way round', () => {
     const c = car();
+    // Isolate the two mirrors: the body's side faces also lie at x = +/-1.
+    c.shell.castShadow = false;
     const proxy = new CarShadowProxy(c.root);
     const g = proxy.proxies.find(p => p.parent === c.body)!.geometry;
     const p = g.getAttribute('position'), index = g.index!;
@@ -139,7 +141,8 @@ describe('car shadow proxies', () => {
     make(root); make(root); make(axle); make(axle);
     root.updateMatrixWorld(true);
     const proxy = new CarShadowProxy(root, undefined);
-    expect(proxy.proxies.map(p => p.parent)).toEqual([root, axle]);
+    expect(proxy.proxies.map(p => p.parent)).toEqual(expect.arrayContaining([root, axle]));
+    expect(proxy.proxies).toHaveLength(2);
     axle.rotation.z = 2; axle.updateMatrix();
     const before = [...proxy.proxies];
     for (let i = 0; i < 40; i++) proxy.update();
