@@ -83,7 +83,7 @@ export class RemoteCar {
       // Called outside render(), and serialized by View to avoid join/reconnect bursts.
       await new Promise<void>(resolve => setTimeout(resolve, 0));
       if (this.disposed) return;
-      const view = this.detail = new PlayerView(this.car, this.color, this.shadow, this.length, this.width, false, false, this.miamiStaticDraws);
+      const view = this.detail = new PlayerView(this.car, this.color, this.shadow, this.length, this.width, false, false, this.miamiStaticDraws, this.miamiStaticDraws);
       await view.ready;
       if (this.disposed) return;
       this.reveal = revealMaterials(view.root);

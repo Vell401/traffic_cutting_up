@@ -153,6 +153,40 @@ describe.skipIf(!existsSync(playwright) || !existsSync(executablePath))('server 
     expect(await page.evaluate(`pickerTest.selections`)).toEqual(['miami']);
   });
 
+  it('shows mouse users a rounded panel with a description per map; a row click is a real change', async () => {
+    const select = page.locator('select');
+    const box = await select.boundingBox();
+    const click = () => page.mouse.click(box.x + 12, box.y + box.height / 2);
+    await click();
+    const rows = page.locator('.dropdown-list .dropdown-item');
+    expect(await rows.count()).toBe(2);
+    expect(await rows.locator('span').allTextContents()).toEqual(['Night Highway', 'Miami Night']);
+    expect(await rows.nth(1).locator('small').textContent()).toContain('30 км');
+    expect(await page.locator('.dropdown-item.selected span').textContent()).toBe('Night Highway');
+    // The panel is a picture of the options: focus and semantics stay on the native select.
+    expect(await page.evaluate(`document.activeElement.tagName`)).toBe('SELECT');
+    expect(await page.locator('.dropdown-list').getAttribute('aria-hidden')).toBe('true');
+    expect(await select.evaluate((el: HTMLSelectElement) => el.classList.contains('open'))).toBe(true);
+    await page.keyboard.press('Escape');
+    expect(await page.locator('.dropdown-list').count()).toBe(0);
+    expect(await page.evaluate(`pickerTest.selections`)).toEqual([]);
+    // Clicking the control again closes it; clicking elsewhere closes it too.
+    await click(); await click();
+    expect(await page.locator('.dropdown-list').count()).toBe(0);
+    await click(); await page.locator('#after').click();
+    expect(await page.locator('.dropdown-list').count()).toBe(0);
+    await click();
+    await rows.nth(1).click();
+    expect(await page.locator('.dropdown-list').count()).toBe(0);
+    expect(await select.inputValue()).toBe('miami');
+    expect(await page.evaluate(`pickerTest.selections`)).toEqual(['miami']);
+    expect(await page.evaluate(`pickerTest.presses`)).toEqual([]);
+    // Disposal takes an open panel with it.
+    await click();
+    await page.evaluate(`pickerTest.dispose()`);
+    expect(await page.locator('.dropdown-list').count()).toBe(0);
+  });
+
   it('removes listeners on disposal without a stale disposer deleting the replacement picker', async () => {
     const result = await page.evaluate(() => {
       const state = (window as any).pickerTest;

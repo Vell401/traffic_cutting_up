@@ -36,13 +36,15 @@ export const SURFACE = {
   planting: 7,
   tiles: 8,
   lawn: 9,
+  /** Bougainvillea: flowering groundcover for hedges and garden walls. */
+  flowers: 10,
   /** Not a ground: grey fbm used for large-scale tone variation. */
-  noise: 10,
+  noise: 11,
 } as const;
 export type Surface = (typeof SURFACE)[keyof typeof SURFACE];
-export const SURFACE_COUNT = 11;
+export const SURFACE_COUNT = 12;
 /** Size of one texture repeat, m. Every size divides 1200 m so chunk-relative UVs stay seamless. */
-export const SURFACE_TILE: readonly number[] = [3, 2.4, 4, 5, 4, 4, 2, 3, 2.4, 4, 40];
+export const SURFACE_TILE: readonly number[] = [3, 2.4, 4, 5, 4, 4, 2, 3, 2.4, 4, 3, 40];
 
 export type MiamiSceneId = 'beach' | 'strip' | 'bay' | 'towers' | 'arts' | 'quay' | 'lush' | 'dunes' | 'golf' | 'villas' | 'park' | 'hill';
 
@@ -216,19 +218,25 @@ export interface MiamiIsland {
   /** Height of the flat top. */
   readonly top: number;
   readonly surface: Surface;
-  readonly kind: 'villas' | 'port' | 'beach' | 'mangrove' | 'park';
+  readonly kind: 'villas' | 'port' | 'cruise' | 'beach' | 'mangrove' | 'park';
+  /** Share of the radius taken by the sloping rim: wide for a natural shore, a sliver for a quay wall. */
+  readonly rim: number;
+  /** Exponent of the outline: 2 is an ellipse, 6 a rounded rectangle (a built pier). */
+  readonly power: number;
 }
 
-const isle = (s: number, len: number, d: number, w: number, kind: MiamiIsland['kind'], surface: Surface, top = MIAMI_WATER + 1.3): MiamiIsland =>
-  ({ s, d, len, w, top, surface, kind });
+const isle = (s: number, len: number, d: number, w: number, kind: MiamiIsland['kind'], surface: Surface, top = MIAMI_WATER + 1.3): MiamiIsland => {
+  const built = kind === 'port' || kind === 'cruise';
+  return { s, d, len, w, top, surface, kind, rim: built ? 0.06 : 0.3, power: built ? 6 : 2 };
+};
 
 export const MIAMI_ISLANDS: readonly MiamiIsland[] = [
   // MacArthur Causeway: residential islands to the north (left), the cruise port to the south (right).
   isle(3900, 430, -235, 105, 'villas', S.lawn),
   isle(4780, 360, -300, 95, 'villas', S.lawn),
-  isle(4250, 900, 345, 150, 'port', S.concrete, MIAMI_WATER + 1.6),
+  isle(4250, 900, 310, 150, 'port', S.concrete, MIAMI_WATER + 1.9),
   isle(6350, 380, -215, 90, 'villas', S.lawn),
-  isle(6500, 760, 320, 140, 'port', S.concrete, MIAMI_WATER + 1.6),
+  isle(6500, 760, 300, 140, 'cruise', S.tiles, MIAMI_WATER + 1.9),
   // Coconut Grove: picnic islands off the marina.
   isle(15500, 190, -255, 70, 'park', S.grass),
   isle(16350, 150, -215, 55, 'mangrove', S.planting),
@@ -258,26 +266,31 @@ const ISLANDS_AT: readonly (readonly MiamiIsland[])[] = (() => {
 
 export const miamiIslands = (index: number): readonly MiamiIsland[] => ISLANDS_AT[miamiChunk(index)];
 
-/** Share of the rim: the island is at full height inside 1 - RIM of its radius. */
-const RIM = 0.3;
-
 /** Height of an island at (lap distance, lateral offset); the seabed outside it. */
 export function miamiIslandY(island: MiamiIsland, s: number, d: number): number {
   let ds = s - island.s;
   ds -= MIAMI_LEN * Math.round(ds / MIAMI_LEN);
-  const u = ds / island.len;
-  const v = (d - island.d) / island.w;
-  const q = 1 - u * u - v * v;
+  const u = Math.abs(ds / island.len);
+  const v = Math.abs((d - island.d) / island.w);
+  const q = 1 - u ** island.power - v ** island.power;
   if (q <= 0) return MIAMI_SEABED;
-  return q >= RIM ? island.top : MIAMI_SEABED + (island.top - MIAMI_SEABED) * (q / RIM);
+  return q >= island.rim ? island.top : MIAMI_SEABED + (island.top - MIAMI_SEABED) * (q / island.rim);
+}
+
+/** Half-width of the flat top of an island across the road at lap distance s (0 where there is none). */
+export function miamiIslandTopHalfWidth(island: MiamiIsland, s: number): number {
+  let ds = s - island.s;
+  ds -= MIAMI_LEN * Math.round(ds / MIAMI_LEN);
+  const rest = 1 - island.rim - Math.abs(ds / island.len) ** island.power;
+  return rest <= 0 ? 0 : island.w * rest ** (1 / island.power);
 }
 
 /** Half-width of an island across the road at lap distance s (0 outside it). */
 export function miamiIslandHalfWidth(island: MiamiIsland, s: number): number {
   let ds = s - island.s;
   ds -= MIAMI_LEN * Math.round(ds / MIAMI_LEN);
-  const u = ds / island.len;
-  return u * u >= 1 ? 0 : island.w * Math.sqrt(1 - u * u);
+  const rest = 1 - Math.abs(ds / island.len) ** island.power;
+  return rest <= 0 ? 0 : island.w * rest ** (1 / island.power);
 }
 
 const section: MiamiSection = { shore: 0, slope: 0, bankFrom: 0, bankTo: 0, drop: 0 };

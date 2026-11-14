@@ -81,7 +81,7 @@ try {
       const { rulesHash, PROTOCOL_VERSION } = await import('/src/online/rules.ts');
       const g = window.__game; return { map: g.sim.map.id, revision: g.sim.map.revision, ring: g.sim.road.ringLen, hash: rulesHash(g.sim.map.id), protocol: PROTOCOL_VERSION, id: g.session.core.id };
     });
-    assert.deepEqual({ ...identity, id: 0 }, { map, revision: map === 'miami' ? 3 : 1, ring: map === 'miami' ? 30000 : 12000, hash: map === 'miami' ? '90386abf' : '766e63c6', protocol: 13, id: 0 });
+    assert.deepEqual({ ...identity, id: 0 }, { map, revision: map === 'miami' ? 3 : 1, ring: map === 'miami' ? 30000 : 12000, hash: map === 'miami' ? '21932311' : 'e570192c', protocol: 13, id: 0 });
     assert.equal(await page.locator('#start').evaluate(el => el.inert), true);
     const s = await page.evaluate(() => window.__game.sim.player.s);
     await page.locator('#c').click({ force: true }); await page.keyboard.down('KeyW');

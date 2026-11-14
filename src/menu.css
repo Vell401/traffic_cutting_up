@@ -283,10 +283,10 @@
 /* Native picker keeps the same dark/violet palette, including its platform option popup. */
 #start #serverChoice {
   max-width: 100%;
-  padding: 7px 12px;
+  padding: 10px 42px 10px 18px;
   font: inherit;
   color: var(--nr-lilac);
-  background: var(--nr-deep);
+  background-color: var(--nr-deep);
   border: 1px solid var(--nr-edge);
 }
 #start #serverChoice option {

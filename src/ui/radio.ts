@@ -1,3 +1,4 @@
+import { roundedSelect } from './dropdown';
 import type { Sound } from '../audio/sound';
 import type { RadioLibrary, RadioPlaylist } from '../audio/radioTypes';
 
@@ -16,6 +17,7 @@ export class Radio {
     this.audio.preload = 'none';
     this.audio.crossOrigin = 'anonymous';
     try { this.selected = localStorage.getItem('tcu.radio') ?? ''; } catch { /* no storage */ }
+    roundedSelect(this.select);
     this.select.addEventListener('change', () => {
       this.selected = this.select.value; this.index = 0;
       try { localStorage.setItem('tcu.radio', this.selected); } catch { /* no storage */ }

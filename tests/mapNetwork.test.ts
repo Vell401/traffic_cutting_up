@@ -24,7 +24,7 @@ function connect(game: GameServer, over: Record<string, unknown> = {}) {
 describe('per-map handshake fencing', () => {
   it('uses distinct immutable shipped hashes even after all runtime tuning changes', () => {
     const before = [rulesHash(), rulesHash('miami')];
-    expect(before[0]).toBe('766e63c6');
+    expect(before[0]).toBe('e570192c');
     expect(before[0]).not.toBe(before[1]);
     const tuning = defaultTuning();
     for (const car of Object.values(tuning.cars)) if (car.powerKW !== undefined) car.powerKW *= 1.1;
@@ -38,7 +38,7 @@ describe('per-map handshake fencing', () => {
     const highway = new GameServer({ seed: 3, map: 'highway' });
     expect(connect(miami).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'miami', mapRevision: 3 });
     expect(miami.health(false)).toMatchObject({ map: 'miami', mapRevision: 3, protocol: 13, ringLen: 30000 });
-    expect(connect(highway).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'highway', mapRevision: 1, rulesHash: '766e63c6' });
+    expect(connect(highway).messages.find(m => m.t === 'welcome')).toMatchObject({ map: 'highway', mapRevision: 1, rulesHash: 'e570192c' });
   });
 
   it('rejects the original Miami revision 1 rules before admitting a driver', () => {

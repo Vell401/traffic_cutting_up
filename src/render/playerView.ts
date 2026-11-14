@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { clamp, damp } from '../core/math';
+import { GLARE_REFERENCE } from './headlightGlare';
 import type { CarId } from '../sim/cars';
 import type { PlayerCar } from '../sim/vehicle';
 import { buildCar, isShared, waitForCar, type CarParts } from './car';
 import { createTyreFeedback, sampleTyreFeedback } from '../presentation/tyres';
 import { W204Cockpit } from './car/w204Cockpit';
 import { MiamiCarBatching } from './miami/carBatching';
+import { CarShadowProxy } from './miami/carShadow';
 
 /** Turn signal rhythm: about 85 flashes a minute, lit a bit longer than dark. */
 const BLINK_PERIOD = 0.7;
@@ -22,6 +24,9 @@ export class PlayerView {
   private readonly visuals = new THREE.Group();
   /** Our car's two headlight beams (left, right). */
   readonly headlights: THREE.SpotLight[] = [];
+  /** Full output of a beam (low or high), and how much of it each one currently keeps (anti-glare). */
+  private beamPower = 520;
+  private readonly beamKeep = [1, 1];
   private readonly parts: CarParts;
   private readonly shadowGeometry: THREE.PlaneGeometry;
   private disposed = false;
@@ -32,6 +37,7 @@ export class PlayerView {
   private ghost = false;
   private cockpitOn = false;
   private miamiBatching: MiamiCarBatching | null = null;
+  private sunShadow: CarShadowProxy | null = null;
   private blinkSide = 0;
   private blinkT = 0;
   /** Presentation-local phase; never write physics wheelSpin or integrate the rear axle for fronts. */
@@ -59,6 +65,11 @@ export class PlayerView {
     spare = false,
     /** Full-detail static draw consolidation; never implicitly changes Highway. */
     miamiStaticDraws = false,
+    /**
+     * Miami: cast the car's sun shadow from a few merged proxies on the sun-only layer instead of
+     * from every mesh. Only for scenes whose shadow camera renders that layer alone.
+     */
+    sunShadowProxies = false,
   ) {
     const L = length;
     const W = width;
@@ -70,6 +81,7 @@ export class PlayerView {
     // retain the builder's placeholder contract. A real browser must also verify the download.
     const loaded = Promise.all([p.ready, !spare && typeof window !== 'undefined' ? waitForCar(car) : undefined]).then(() => {
       if (!this.disposed && miamiStaticDraws) this.miamiBatching = new MiamiCarBatching(p.body, p.wheelRoot);
+      if (!this.disposed && sunShadowProxies) this.sunShadow = new CarShadowProxy(p.body, p.wheelRoot);
     });
     const cancelled = new Promise<never>((_resolve, reject) => {
       this.cancelReady = () => {
@@ -183,12 +195,33 @@ export class PlayerView {
     if (this.parts.cockpit instanceof W204Cockpit) this.parts.cockpit.setHighBeam(on);
     for (const beam of this.headlights) {
       const side = Math.sign(beam.position.x);
-      beam.intensity = on ? 1500 : 520;
       beam.distance = on ? 240 : 120;
       beam.angle = on ? .32 : .46;
       beam.penumbra = on ? .65 : .8;
       beam.target.position.set(side * (this.parts.lampX + (on ? .6 : 1.4)), on ? .65 : 0, this.parts.lamp.z - (on ? 110 : 40));
     }
+    this.beamPower = on ? 1500 : 520;
+    this.applyBeams();
+  }
+
+  /** Lateral offset of the left/right headlamp from the car's centre line, and how far ahead of it they sit. */
+  get lampOffset(): number { return this.parts.lampX; }
+  get lampAhead(): number { return -this.parts.lamp.z; }
+  /** Reference distance of the anti-glare dimming: the high beam is brighter, so it backs off sooner. */
+  get glareReference(): number { return GLARE_REFERENCE * Math.sqrt(this.beamPower / 520); }
+
+  /**
+   * Anti-glare: keep only `left` / `right` (0..1) of each beam's output. Eased, so a car cutting
+   * into the beam dims it over a few frames instead of snapping.
+   */
+  dimBeams(left: number, right: number, dt: number): void {
+    this.beamKeep[0] = damp(this.beamKeep[0], left, left < this.beamKeep[0] ? 18 : 6, dt);
+    this.beamKeep[1] = damp(this.beamKeep[1], right, right < this.beamKeep[1] ? 18 : 6, dt);
+    this.applyBeams();
+  }
+
+  private applyBeams(): void {
+    for (const beam of this.headlights) beam.intensity = this.beamPower * this.beamKeep[beam.position.x < 0 ? 0 : 1];
   }
 
   /** First-person view: draw the interior, skip the wheels (never seen from inside). */
@@ -199,6 +232,7 @@ export class PlayerView {
     this.parts.setCockpit?.(this.cockpitOn);
     this.applyGhost();
     this.miamiBatching?.update();
+    this.sunShadow?.update();
   }
 
   /** Online spawn protection: the car is drawn see-through while traffic passes through it. */
@@ -207,6 +241,7 @@ export class PlayerView {
     this.ghost = on;
     this.applyGhost();
     this.miamiBatching?.update();
+    this.sunShadow?.update();
   }
 
   private applyGhost(): void {
@@ -258,6 +293,7 @@ export class PlayerView {
     if (p.updateCabin) p.updateCabin(car, dt);
     else if (this.cockpitOn||this.car===1) p.cockpit?.update(car, dt);
     this.miamiBatching?.update();
+    this.sunShadow?.update();
   }
 
   /** Take it out of the scene and free its materials (geometry is shared between cars of a model). */
@@ -265,6 +301,7 @@ export class PlayerView {
     if (this.disposed) return;
     this.disposed = true;
     this.cancelReady();
+    this.sunShadow?.dispose(); this.sunShadow = null;
     this.miamiBatching?.dispose(); this.miamiBatching = null;
     this.parts.dispose?.();
     this.shadowGeometry.dispose();

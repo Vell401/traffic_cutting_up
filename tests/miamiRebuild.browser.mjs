@@ -110,7 +110,7 @@ try {
     for (const s of [300, 850, 4100, 5400, 8250, 10050, 11800, 15100, 18300, 21000, 24600, 28500, 29990, 30010]) {
       const row = await capture(g.page, car === 2 ? `miami-${s}` : `miami-car${car}-${s}`, { s, mode: 'chase' });
       assert.equal(row.dpr, 1); assert.equal(row.width, 1280); assert.equal(row.height, 800);
-      assert(row.batches <= 130 && row.instances <= 1800); rows.push(row);
+      assert(row.batches <= 160 && row.instances <= 1800); rows.push(row);
     }
     const ghost = await g.page.evaluate(() => { const { sim, view } = window.__game; sim.player.ghost = true; view.render(1, 0); sim.player.ghost = false; return { calls: view.renderer.info.render.calls, triangles: view.renderer.info.render.triangles }; });
     result.cars.push({ car, rows: rows.map(({ file, ...r }) => r), ghost, requests: g.requests }); save();

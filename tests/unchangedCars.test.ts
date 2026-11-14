@@ -9,7 +9,7 @@ import { CAMERA_RIGS } from '../src/render/car';
 /** Regression snapshots for A45/Porsche assets, rendering and vehicle response. */
 const hash = (data: string | Uint8Array) => createHash('sha256').update(data).digest('hex');
 const files: Record<string,string> = {
-  'src/config.ts':'4e428b7fac93dc9d1d9395051af4dc0923569455c87fee1aa4462ee86f89c743',
+  'src/config.ts':'c0770d60e5ddb2cce2a732cc01b5211d229234befc3f5e5b715d6119d52f14c8',
   'src/sim/vehicleMercedes.ts':'3d584300c5ab160a71046d68135608a72f5c61aeba023f76bb6ce3e2ef674c94',
   'src/sim/vehiclePorsche.ts':'f3297996ad65685ba59e0c57213463f06f2a3888a60c9ebc84dc6c770acaad82',
   'src/render/car/porscheCockpit.ts':'071803795bf178f32a97f7740281e2f12db986955d4c6acc251e5ce3510e010c',

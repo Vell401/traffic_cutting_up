@@ -5,7 +5,7 @@ import { CHUNK_LEN, SAMPLE_DS, type Road, type RoadChunk } from '../../sim/road'
 import { ROWS, type ChunkFrames, type Frame, type MeshBuilder } from '../meshBuilder';
 import {
   MIAMI_DECK, MIAMI_OUT, MIAMI_SEABED, MIAMI_WALK, MIAMI_WATER, SURFACE,
-  miamiGround, miamiIslandHalfWidth, miamiIslandY, miamiIslands, miamiProfileY, miamiScene, miamiSection,
+  miamiGround, miamiIslandHalfWidth, miamiIslandTopHalfWidth, miamiIslandY, miamiIslands, miamiProfileY, miamiScene, miamiSection,
   type MiamiIsland, type MiamiScene, type MiamiSceneId, type MiamiSection, type Surface,
 } from './terrain';
 
@@ -47,7 +47,7 @@ const STREET_HALF = 4.5;
 
 const srgb = (hex: number): THREE.Color => new THREE.Color(hex);
 const PASTELS = [0xf3e6d2, 0xf6c9b8, 0xbfe3d4, 0xf7e2a6, 0xbcd9ee, 0xfaf4ea, 0xf2b6c2, 0xd8ecc4].map(srgb);
-const OFFICE = [0xdfe6ea, 0xb9c6cf, 0xeef0ee, 0xc9d3d6, 0xa8b7c2, 0xe9e2d6].map(srgb);
+const OFFICE = [0xdfe6ea, 0xb9c6cf, 0xeef0ee, 0xc9d3d6, 0xa8b7c2, 0xe9e2d6, 0x6f8fa3, 0x4f7f86, 0xd9c3a3, 0x8a7a66, 0xf3d9cf, 0x5b6f84].map(srgb);
 const WAREHOUSE = [0xe8dcc8, 0xd9725a, 0x4fb6ad, 0xf0c04a, 0x8f6bb8, 0xcfd3d6, 0xe98fa6, 0x5a8fd0].map(srgb);
 const ROOF = srgb(0x8e8f8c);
 const PAINT = srgb(0xd8d6cc);
@@ -139,8 +139,9 @@ function ground(ctx: Ctx, side: number, scene: MiamiScene): void {
 
 /** An island: a lateral fan of columns per row, rock or sand on the rim, its own surface on top. */
 function island(ctx: Ctx, isl: MiamiIsland): void {
-  const rim: Surface = isl.kind === 'beach' ? SURFACE.sand : isl.kind === 'mangrove' ? SURFACE.planting : SURFACE.rock;
-  const rimTint: readonly [number, number, number] = isl.kind === 'beach' ? [0.76, 0.72, 0.64] : isl.kind === 'mangrove' ? [0.7, 0.8, 0.6] : WHITE;
+  const built = isl.kind === 'port' || isl.kind === 'cruise';
+  const rim: Surface = isl.kind === 'beach' ? SURFACE.sand : isl.kind === 'mangrove' ? SURFACE.planting : built ? SURFACE.concrete : SURFACE.rock;
+  const rimTint: readonly [number, number, number] = isl.kind === 'beach' ? [0.76, 0.72, 0.64] : isl.kind === 'mangrove' ? [0.7, 0.8, 0.6] : built ? [0.8, 0.8, 0.82] : WHITE;
   // Columns as fractions: the two outer ones span the rim, the inner ones the flat top.
   const d = new Float64Array(7);
   const y = new Float64Array(7);
@@ -154,9 +155,8 @@ function island(ctx: Ctx, isl: MiamiIsland): void {
       have = false;
       continue;
     }
-    // Inside this half-width the island is at full height (see RIM in terrain.ts).
-    const u2 = 1 - (hw / isl.w) ** 2;
-    const pw = isl.w * Math.sqrt(Math.max(0, 0.7 - u2));
+    // Inside this half-width the island is at full height; the rest is its rim.
+    const pw = miamiIslandTopHalfWidth(isl, s);
     const cols = [-hw, -pw, -pw * 0.5, 0, pw * 0.5, pw, hw];
     for (let k = 0; k < 7; k++) {
       d[k] = isl.d + cols[k];
@@ -251,10 +251,11 @@ function rail(ctx: Ctx, side: number, i0: number, i1: number, inner: number | Fl
   }
 }
 
-/** Facade building: four window walls (aWin = facade metres, seed, 0) and a flat roof. */
-function tower(city: MeshBuilder, f: Frame, d: number, base: number, width: number, depth: number, height: number, color: THREE.Color, seed: number): void {
+/** One window-walled box of a facade building; `floor` keeps the storeys of stacked tiers in step. */
+function tier(city: MeshBuilder, f: Frame, d: number, along: number, base: number, floor: number, width: number, depth: number, height: number,
+  color: THREE.Color, seed: number, windows = true): void {
   const rx = Math.cos(f.th), rz = Math.sin(f.th), fx = Math.sin(f.th), fz = -Math.cos(f.th);
-  const cx = f.x + rx * d, cz = f.z + rz * d;
+  const cx = f.x + rx * d + fx * along, cz = f.z + rz * d + fz * along;
   const hx = depth / 2, hz = width / 2;
   city.color(color);
   city.w2 = seed;
@@ -266,26 +267,61 @@ function tower(city: MeshBuilder, f: Frame, d: number, base: number, width: numb
   ];
   for (const [nx, nz, ax, az, span, off] of faces) {
     const ox = cx + nx * off, oz = cz + nz * off;
-    city.w3 = 0;
+    city.w3 = windows ? 0 : -1;
     const ids = [0, 0, 0, 0];
     const corners = [[-1, 0], [1, 0], [1, 1], [-1, 1]];
     for (let k = 0; k < 4; k++) {
       const [sh, sv] = corners[k];
       city.w0 = ((sh + 1) / 2) * span;
-      city.w1 = sv * height;
+      city.w1 = floor + sv * height;
       ids[k] = city.v(ox + sh * ax, base + sv * height, oz + sh * az, nx, 0, nz);
     }
     city.quad(ids[0], ids[1], ids[2], ids[3]);
   }
   city.w3 = -1;
   city.w0 = city.w1 = 0;
-  city.color(ROOF);
+  if (windows) city.color(ROOF);
   const top = base + height;
   const p = city.v(cx - rx * hx - fx * hz, top, cz - rz * hx - fz * hz, 0, 1, 0);
   const q = city.v(cx + rx * hx - fx * hz, top, cz + rz * hx - fz * hz, 0, 1, 0);
   const r = city.v(cx + rx * hx + fx * hz, top, cz + rz * hx + fz * hz, 0, 1, 0);
   const t = city.v(cx - rx * hx + fx * hz, top, cz - rz * hx + fz * hz, 0, 1, 0);
   city.quad(p, q, r, t);
+}
+
+/**
+ * Facade building. `shape` picks its silhouette, so a street is not a row of identical boxes:
+ * 0 a block with a roof plant room, 1 a tower on a podium, 2 a stepped tower with a mast,
+ * 3 a slab with a taller blade at one end. Far rows pass -1: a plain box is all the haze shows.
+ */
+function tower(city: MeshBuilder, f: Frame, d: number, base: number, width: number, depth: number, height: number, color: THREE.Color, seed: number, shape = -1): void {
+  const side = Math.sign(d);
+  switch (height > 22 ? shape : Math.min(shape, 0)) {
+    case 0:
+      tier(city, f, d, 0, base, 0, width, depth, height, color, seed);
+      tier(city, f, d + side * depth * 0.1, width * 0.12, base + height, 0, width * 0.4, depth * 0.45, 3.2, ROOF, seed, false);
+      break;
+    case 1: {
+      const podium = Math.min(13, height * 0.22);
+      tier(city, f, d, 0, base, 0, width, depth, podium, color, seed);
+      tier(city, f, d + side * depth * 0.08, 0, base + podium, podium, width * 0.7, depth * 0.72, height - podium, color, seed);
+      break;
+    }
+    case 2: {
+      const a = height * 0.56, b = height * 0.28, c = height - a - b;
+      tier(city, f, d, 0, base, 0, width, depth, a, color, seed);
+      tier(city, f, d, 0, base + a, a, width * 0.74, depth * 0.76, b, color, seed);
+      tier(city, f, d, 0, base + a + b, a + b, width * 0.48, depth * 0.5, c, color, seed);
+      tier(city, f, d, 0, base + height, 0, 0.8, 0.8, height * 0.16, ROOF, seed, false);
+      break;
+    }
+    case 3:
+      tier(city, f, d, 0, base, 0, width, depth, height, color, seed);
+      tier(city, f, d, -width * 0.36, base, 0, width * 0.3, depth * 1.06, height * 1.14, color, seed);
+      break;
+    default:
+      tier(city, f, d, 0, base, 0, width, depth, height, color, seed);
+  }
 }
 
 /** [nearest, farthest offset, min/max height, min/max width, min/max gap, colours] of one row of blocks. */
@@ -350,7 +386,8 @@ function blocks(ctx: Ctx, side: number, rows: readonly Row[], rng: Rng, onFarCoa
         miamiGround(ctx.road, ctx.c.s0 + centre + width / 2, side * d));
       if (!onFarCoast && base < DRY) continue;
       base -= 0.4;
-      tower(ctx.city, ctx.fr.at(centre, frame), side * d, base, width, depth, height, colour, seed);
+      // Near rows get a silhouette; past ~250 m the haze leaves only a block.
+      tower(ctx.city, ctx.fr.at(centre, frame), side * d, base, width, depth, height, colour, seed, dMin < 250 ? Math.floor(rng() * 4) : -1);
     }
   }
 }
@@ -466,6 +503,106 @@ function coping(ctx: Ctx, side: number, gap: boolean): void {
   }
 }
 
+const MURALS: readonly (readonly [number, number, number])[] = [
+  [1.5, 0.32, 0.26], [0.14, 1.05, 1.0], [1.5, 1.05, 0.12], [0.62, 0.3, 1.3], [1.5, 0.4, 0.8], [0.16, 0.55, 1.45], [1.4, 1.36, 1.26], [0.3, 1.15, 0.26], [0.1, 0.1, 0.12],
+];
+
+/**
+ * What stands on the walkway where the script has a walled section. Not a grey noise barrier:
+ * Downtown gets a planter with a clipped hedge and bougainvillea, Wynwood a low painted mural wall,
+ * Coral Gables a coral-stone garden wall with flowers spilling over it. All stay under 2.6 m, so the
+ * palms, towers and sky behind remain in view.
+ */
+function roadsideWall(ctx: Ctx, side: number, rng: Rng): void {
+  const district = miamiZone(ctx.c.index).district;
+  const last = ROWS - 1;
+  const ground = () => 0;
+  if (district === 'wynwood') {
+    // Painted panels of uneven length, some split into two bands of colour, under a white coping.
+    for (let i = 0; i < last;) {
+      const to = Math.min(i + 3 + Math.floor(rng() * 5), last);
+      const colour = MURALS[Math.floor(rng() * MURALS.length)];
+      if (rng() < 0.45) {
+        const split = 0.7 + rng() * 1;
+        tint(ctx.land, SURFACE.concrete, colour);
+        rail(ctx, side, i, to, 11.6, 11.95, ground, split);
+        tint(ctx.land, SURFACE.concrete, MURALS[Math.floor(rng() * MURALS.length)]);
+        rail(ctx, side, i, to, 11.6, 11.95, () => split, 2.4 - split);
+      } else {
+        tint(ctx.land, SURFACE.concrete, colour);
+        rail(ctx, side, i, to, 11.6, 11.95, ground, 2.4);
+      }
+      i = to;
+    }
+    tint(ctx.land, SURFACE.concrete, [1.3, 1.3, 1.3]);
+    rail(ctx, side, 0, last, 11.52, 12.03, () => 2.4, 0.14);
+    return;
+  }
+  if (district === 'gables') {
+    tint(ctx.land, SURFACE.rock, [1.55, 1.45, 1.25]);
+    rail(ctx, side, 0, last, 11.7, 12.3, ground, 1.5);
+    tint(ctx.land, SURFACE.concrete, [1.3, 1.28, 1.2]);
+    rail(ctx, side, 0, last, 11.62, 12.38, () => 1.5, 0.14);
+    for (let i = 0; i < last; i += 12) {
+      // Bougainvillea over the wall in drifts, with bare stone between them.
+      const from = i + Math.floor(rng() * 3), to = Math.min(from + 5 + Math.floor(rng() * 4), last);
+      tint(ctx.land, SURFACE.flowers);
+      rail(ctx, side, from, to, 11.6, 12.5, () => 1.42, 0.72);
+    }
+    tint(ctx.land, SURFACE.concrete, [1.3, 1.28, 1.2]);
+    for (const s of [0.5, 25, 50, 75, 99.5]) block(ctx.land, ctx.fr.at(s, frame), side * 12, 0, 2.2, 0.5, 0.5);
+    return;
+  }
+  // Planter, hedge, flowers.
+  tint(ctx.land, SURFACE.concrete, [1.32, 1.28, 1.15]);
+  rail(ctx, side, 0, last, 11.7, 13.3, ground, 0.8);
+  tint(ctx.land, SURFACE.planting, [0.85, 1, 0.8]);
+  rail(ctx, side, 0, last, 11.9, 13.1, () => 0.8, 1.25);
+  // The hedge is in flower along some of its length: a low crown of bougainvillea, not a box of it.
+  tint(ctx.land, SURFACE.flowers);
+  for (let i = 1; i < last - 4;) {
+    const to = Math.min(i + 2 + Math.floor(rng() * 5), last);
+    rail(ctx, side, i, to, 11.86, 13.14, () => 1.72, 0.42);
+    i = to + 3 + Math.floor(rng() * 7);
+  }
+}
+
+/**
+ * Round bed lying on level ground: a disc of `surface` inside an edging ring. Flower beds in parks
+ * and gardens, planting circles on plazas, sand bunkers on the golf course.
+ */
+function bed(ctx: Ctx, side: number, s: number, d: number, rx: number, rz: number, surface: Surface, t: readonly [number, number, number],
+  edge: Surface, edgeTint: readonly [number, number, number]): void {
+  if (!levelAt(ctx, s) || miamiGround(ctx.road, ctx.c.s0 + s, side * d) < -0.02) return;
+  const { land } = ctx;
+  const f = ctx.fr.at(s, frame);
+  const rxh = Math.cos(f.th), rzh = Math.sin(f.th), fx = Math.sin(f.th), fz = -Math.cos(f.th);
+  const cx = f.x + rxh * side * d, cz = f.z + rzh * side * d;
+  const n = 12;
+  const ring = (k: number, scale: number, y: number): number => {
+    const a = (k / n) * Math.PI * 2;
+    const across = Math.cos(a) * rx * scale, along = Math.sin(a) * rz * scale;
+    return land.v(cx + rxh * across + fx * along, y, cz + rzh * across + fz * along, 0, 1, 0, d + across, ctx.v0 + s + along);
+  };
+  tint(land, edge, edgeTint);
+  for (let k = 0; k < n; k++) land.quad(ring(k, 1, 0.07), ring(k, 0.86, 0.07), ring(k + 1, 0.86, 0.07), ring(k + 1, 1, 0.07));
+  tint(land, surface, t);
+  const centre = land.v(cx, 0.1, cz, 0, 1, 0, d, ctx.v0 + s);
+  for (let k = 0; k < n; k++) land.tri(centre, ring(k + 1, 0.88, 0.1), ring(k, 0.88, 0.1));
+}
+
+/** A few beds scattered over a lawn or plaza between `dMin` and `dMax` from the road. */
+function beds(ctx: Ctx, side: number, rng: Rng, count: number, dMin: number, dMax: number, rMin: number, rMax: number,
+  surface: Surface, t: readonly [number, number, number], edge: Surface, edgeTint: readonly [number, number, number]): void {
+  for (let k = 0; k < count; k++) {
+    const r = range(rng, rMin, rMax);
+    const s = range(rng, STREET_HALF + 2 + r, CHUNK_LEN - STREET_HALF - 2 - r);
+    bed(ctx, side, s, range(rng, dMin + r, dMax - r), r * range(rng, 0.8, 1.3), r, surface, t, edge, edgeTint);
+  }
+}
+
+const STONE: readonly [number, number, number] = [1.2, 1.18, 1.1];
+
 /** Downtown people-mover: an elevated guideway on columns over the plaza, with a parked train. */
 function peopleMover(ctx: Ctx, side: number): void {
   const rows = levelRows(ctx, 0, CHUNK_LEN);
@@ -499,6 +636,7 @@ export function buildMiamiLand(c: RoadChunk, road: Road, fr: ChunkFrames, gy: Fl
     if (scene.shore < 400 && scene.id !== 'beach' && scene.id !== 'dunes') farCoast(ctx, side, rng);
 
     sideStreets(ctx, side, scene);
+    if (c.kind === 'walls') roadsideWall(ctx, side, rng);
     switch (scene.id) {
       case 'strip':
         frontage(ctx, side, 18.5, 26);
@@ -506,24 +644,32 @@ export function buildMiamiLand(c: RoadChunk, road: Road, fr: ChunkFrames, gy: Fl
       case 'towers':
         frontage(ctx, side, 18.5, 27);
         if (side < 0 && !miamiZone(c.index).overpass) peopleMover(ctx, side);
+        // Planting circles on the street behind the towers.
+        beds(ctx, side, rng, 2, 72.5, 81.5, 2.2, 3.2, SURFACE.flowers, WHITE, SURFACE.concrete, STONE);
         break;
       case 'arts':
         frontage(ctx, side, 18, 26.5);
         break;
       case 'lush':
         hedge(ctx, side, 20.4, 21.6, 1.3);
+        beds(ctx, side, rng, 2, 25.5, 33.5, 1.6, 2.6, SURFACE.flowers, WHITE, SURFACE.concrete, STONE);
         break;
       case 'golf':
         hedge(ctx, side, 27.6, 29, 1.5);
+        // Bunkers on the fairways, a flower bed by the path.
+        beds(ctx, side, rng, 3, 40, 130, 5, 9, SURFACE.sand, [1.05, 1.02, 0.95], SURFACE.grass, [0.8, 0.9, 0.75]);
+        beds(ctx, side, rng, 1, 29.5, 38, 1.8, 2.6, SURFACE.flowers, WHITE, SURFACE.concrete, STONE);
         break;
       case 'villas':
         hedge(ctx, side, 23.2, 24.4, 1.4);
+        beds(ctx, side, rng, 2, 25, 32, 1.4, 2.2, SURFACE.flowers, WHITE, SURFACE.concrete, STONE);
         break;
       case 'quay':
         coping(ctx, side, true);
         break;
       case 'park':
         coping(ctx, side, false);
+        beds(ctx, side, rng, 3, 29, 68, 2.4, 4.2, SURFACE.flowers, WHITE, SURFACE.concrete, STONE);
         break;
       default:
     }

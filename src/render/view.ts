@@ -7,6 +7,7 @@ import type { Sim } from '../sim/world';
 import type { QualityPreset } from '../settings';
 import { ChaseCamera, type CameraMode, type CockpitAnchor } from './camera';
 import { CAMERA_RIGS } from './car';
+import { beamGap, beamScale } from './headlightGlare';
 import { LampLights } from './lampLights';
 import { PlayerView } from './playerView';
 import { Post } from './post';
@@ -135,7 +136,7 @@ export class View {
     this.shadowTex = shadowTex;
     this.farGround = new FarGround(sim.map.theme);
     this.roadView = new RoadView(quality, r.capabilities.getMaxAnisotropy(), sim.map.theme, sim.map.theme === 'miami' ? 'assets' : 'legacy');
-    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width, true, false, sim.map.theme === 'miami');
+    this.playerView = new PlayerView(car, this.paint, shadowTex, sim.player.tune.length, sim.player.tune.width, true, false, sim.map.theme === 'miami', sim.map.theme === 'miami');
     this.playerViews.set(car, { view: this.playerView, length: sim.player.tune.length, width: sim.player.tune.width });
     this.chase.setRig(CAMERA_RIGS[car]);
     this.anchor = { eye: this.playerView.eye ?? this.playerView.root, body: this.playerView.body, car: sim.player };
@@ -202,6 +203,11 @@ export class View {
     this.carPos.set(this.pt.x - this.ox, 0, this.pt.z - this.oz);
 
     this.playerView.update(dt, p, this.carPos, yaw);
+    // Anti-glare: back each beam off as a car fills it, so closing in on traffic does not burn its tail out.
+    const reference = this.playerView.glareReference;
+    this.playerView.dimBeams(
+      beamScale(beamGap(sim, s, d - this.playerView.lampOffset, this.playerView.lampAhead), reference),
+      beamScale(beamGap(sim, s, d + this.playerView.lampOffset, this.playerView.lampAhead), reference), dt);
     const r34 = this.playerView.car === 2 && p.physicsId === 2;
     this.playerView.root.updateMatrixWorld(true);
     this.tyreEffects.emit(dt, this.playerView.tyreFeedback, this.tyreContact, yaw,
@@ -379,7 +385,9 @@ export class View {
         this.moon.castShadow = true; this.moon.shadow.mapSize.set(2048, 2048);
         Object.assign(this.moon.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 1, far: 350 });
         this.moon.shadow.camera.updateProjectionMatrix(); this.moon.shadow.bias = -0.0002; this.moon.shadow.normalBias = 0.12;
-        this.moon.shadow.camera.layers.enable(MIAMI_CAR_SHADOW_LAYER);
+        // The sun layer only: scenery casters and the cars' shadow proxies are on it, the cars'
+        // hundred-odd original meshes are not (see miami/carShadow.ts).
+        this.moon.shadow.camera.layers.set(MIAMI_CAR_SHADOW_LAYER);
         this.scene.add(this.moon.target);
         this.setSky(this.skyId);
         this.miamiEnvironment.update(this.sim.road, s, this.ox, this.oz, this.moon);
@@ -490,7 +498,7 @@ export class View {
     await this.playerView.ready;
     for (const id of [1, 2, 3, 4] as const) {
       if (this.remoteSpares.some(spare => spare.car === id)) continue;
-      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false, false, this.sim.map?.theme === 'miami');
+      const spare = new PlayerView(id, 0x888888, this.shadowTex, 4.6, 1.9, false, false, this.sim.map?.theme === 'miami', this.sim.map?.theme === 'miami');
       try {
         await spare.ready;
         revealMaterials(spare.root).value = 1;
@@ -528,7 +536,7 @@ export class View {
       cached.view.dispose();
       this.playerViews.delete(car);
     }
-    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width, true, false, this.sim.map?.theme === 'miami');
+    const next = this.playerViews.get(car)?.view ?? new PlayerView(car, this.paint, this.shadowTex, length, width, true, false, this.sim.map?.theme === 'miami', this.sim.map?.theme === 'miami');
     this.playerViews.set(car, { view: next, length, width });
     next.setPaint(this.paint);
     next.setHighBeam(this.highBeam);

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LANE_W } from '../../config';
 import { mulberry32 } from '../../core/rng';
 import { SURFACE, SURFACE_COUNT, SURFACE_TILE } from './terrain';
 
@@ -40,7 +41,7 @@ function lattice(seed: number, fx: number, fy: number, size: number, out: Float3
 }
 
 /** Fractal noise in 0..1 with the base lattice fx × fy (unequal values stretch it into grain). */
-function fbm(seed: number, fx: number, fy: number, octaves: number, size: number): Float32Array {
+export function fbm(seed: number, fx: number, fy: number, octaves: number, size: number): Float32Array {
   const out = new Float32Array(size * size);
   let gain = 1;
   let total = 0;
@@ -54,7 +55,7 @@ function fbm(seed: number, fx: number, fy: number, octaves: number, size: number
 }
 
 /** Tileable cells: per pixel the id of the nearest of g × g jittered points and how close the next one is. */
-function cells(seed: number, g: number, size: number): { id: Uint16Array; edge: Float32Array } {
+export function cells(seed: number, g: number, size: number): { id: Uint16Array; edge: Float32Array } {
   const rng = mulberry32(seed);
   const px = new Float32Array(g * g);
   const py = new Float32Array(g * g);
@@ -110,6 +111,7 @@ export function makeSurfacePixels(size = SURFACE_SIZE): Uint8Array {
   for (let i = 0; i < grit.length; i++) grit[i] = rng();
   const stones = cells(67, 5, size);
   const leaves = cells(71, 14, size);
+  const petals = cells(73, 30, size);
 
   const put = (layer: number, i: number, r: number, g: number, b: number, rough: number): void => {
     const o = (layer * size * size + i) * 4;
@@ -205,6 +207,18 @@ export function makeSurfacePixels(size = SURFACE_SIZE): Uint8Array {
         const k = stripe * (0.9 + 0.36 * f + 0.1 * n + 0.2 * m);
         put(SURFACE.lawn, i, 0.25 * k, 0.45 * k, 0.15 * k, 0.95);
       }
+      // Flowers: bougainvillea, magenta and pink bracts crowding out the leaves.
+      {
+        // Small bracts in drifts: the coarse field decides where a spray blooms, the fine cells its petals.
+        const t = hash(petals.id[i] * 2.7);
+        const bloom = t + (mid[i] - 0.5) * 1.1;
+        const depth = 0.5 + 0.5 * Math.min(1, petals.edge[i] * 30);
+        const k = depth * (0.88 + 0.36 * f);
+        if (bloom < 0.5) put(SURFACE.flowers, i, (0.1 + 0.16 * t) * k, (0.26 + 0.26 * t) * k, 0.09 * k, 0.9);
+        else if (bloom < 0.82) put(SURFACE.flowers, i, 0.78 * k, (0.12 + 0.16 * t) * k, 0.46 * k, 0.85);
+        else if (bloom < 0.95) put(SURFACE.flowers, i, 0.9 * k, 0.4 * k, 0.6 * k, 0.85);
+        else put(SURFACE.flowers, i, 0.95 * k, 0.86 * k, 0.88 * k, 0.85);
+      }
       {
         const k = coarse[i];
         put(SURFACE.noise, i, k, k, k, 1);
@@ -242,8 +256,9 @@ function dataTexture(name: string, pixels: Uint8Array, size: number, colorSpace:
   return texture;
 }
 
-/** One repeat of the road surface is 8 m: two lanes, each with slightly polished wheel tracks. */
-export const ROAD_TILE = 8;
+/** One repeat of the road surface: two lanes across (each with slightly polished wheel tracks), 8 m along. */
+export const ROAD_TILE = 2 * LANE_W;
+const ROAD_TILE_ALONG = 8;
 
 export function makeAsphaltPixels(size = 512): Uint8Array {
   const out = new Uint8Array(size * size * 4);
@@ -349,7 +364,7 @@ export interface MiamiMaterials {
 export function makeMiamiMaterials(roadNormal: THREE.Texture | null, anisotropy = 4): MiamiMaterials {
   const asphalt = dataTexture('miami/asphalt', makeAsphaltPixels(), 512, THREE.SRGBColorSpace, anisotropy);
   // Road UVs are metres / 2.
-  asphalt.repeat.set(2 / ROAD_TILE, 2 / ROAD_TILE);
+  asphalt.repeat.set(2 / ROAD_TILE, 2 / ROAD_TILE_ALONG);
   const concrete = dataTexture('miami/concrete', makeConcretePixels(), 256, THREE.SRGBColorSpace, anisotropy);
   const waves = dataTexture('miami/water-normal', makeWaterNormalPixels(), 256, THREE.NoColorSpace, anisotropy);
   const surfaces = makeSurfaceTexture(anisotropy);
@@ -456,21 +471,32 @@ ${shader.fragmentShader}`
   if (vMiamiWin.w >= 0.0) {
     float seed = floor(vMiamiWin.z + 0.5);
     float style = fract(seed * 0.381966);
-    vec2 pitch = style < 0.4 ? vec2(3.2, 3.3) : style < 0.75 ? vec2(6.4, 3.3) : vec2(1.6, 3.6);
+    // Five facades, by building: punched windows, ribbon glazing, a curtain wall,
+    // balconied condominium floors, a deep square grid.
+    int kind = style < 0.22 ? 0 : style < 0.44 ? 1 : style < 0.62 ? 2 : style < 0.82 ? 3 : 4;
+    vec2 pitch = kind == 0 ? vec2(3.2, 3.3) : kind == 1 ? vec2(6.4, 3.3) : kind == 2 ? vec2(1.6, 3.6) : kind == 3 ? vec2(5.6, 3.2) : vec2(3.6, 3.6);
     vec2 g = vMiamiWin.xy / pitch;
     vec2 cell = floor(g);
     vec2 f = fract(g);
-    // Punched windows, ribbon glazing or a curtain wall, by building.
-    float wx = style < 0.4 ? step(0.2, f.x) * step(f.x, 0.8) : style < 0.75 ? step(0.04, f.x) * step(f.x, 0.96) : step(0.06, f.x);
-    float wy = step(style < 0.75 ? 0.3 : 0.1, f.y) * step(f.y, style < 0.75 ? 0.8 : 0.94);
-    float win = wx * wy * step(4.0, vMiamiWin.y);
+    float wx = kind == 0 ? step(0.2, f.x) * step(f.x, 0.8) : kind == 1 ? step(0.04, f.x) * step(f.x, 0.96)
+      : kind == 2 ? step(0.06, f.x) : kind == 3 ? step(0.03, f.x) : step(0.13, f.x) * step(f.x, 0.87);
+    float wy = kind == 0 || kind == 1 ? step(0.3, f.y) * step(f.y, 0.8) : kind == 2 ? step(0.1, f.y) * step(f.y, 0.94)
+      : kind == 3 ? step(0.04, f.y) * step(f.y, 0.78) : step(0.13, f.y) * step(f.y, 0.87);
+    float upper = step(4.0, vMiamiWin.y);
+    float win = wx * wy * upper;
     // Past the point where a floor is a pixel or two, show the facade's average instead of moire.
     float detail = clamp(1.4 - max(fwidth(g.x), fwidth(g.y)) * 2.2, 0.0, 1.0);
-    float share = style < 0.4 ? 0.3 : style < 0.75 ? 0.46 : 0.78;
+    float share = kind == 0 ? 0.3 : kind == 1 ? 0.46 : kind == 2 ? 0.78 : kind == 3 ? 0.68 : 0.52;
     float blind = miamiHash(cell + seed * 7.13);
-    vec3 glass = mix(vec3(0.03, 0.07, 0.1), vec3(0.2, 0.33, 0.42), 0.25 + 0.5 * blind);
+    // Glass is not one blue: each building has its own tint.
+    float tone = miamiHash(vec2(seed, 1.7));
+    vec3 tintGlass = tone < 0.3 ? vec3(0.2, 0.33, 0.42) : tone < 0.5 ? vec3(0.13, 0.38, 0.4) : tone < 0.68 ? vec3(0.2, 0.36, 0.27)
+      : tone < 0.84 ? vec3(0.36, 0.27, 0.19) : vec3(0.27, 0.29, 0.32);
+    vec3 glass = mix(tintGlass * 0.22, tintGlass, 0.25 + 0.5 * blind);
     miamiGlass = mix(share, win, detail);
     diffuseColor.rgb = mix(diffuseColor.rgb, glass, miamiGlass);
+    // White balcony fronts on the condominium floors.
+    if (kind == 3) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.9), step(0.8, f.y) * upper * detail);
     // After dark some rooms are lit: warm mostly, a few cool, stable per window.
     float on = step(miamiHash(cell * 1.31 + seed * 3.7), 0.38) * miamiGlass;
     miamiLit = mix(vec3(1.0, 0.7, 0.4), vec3(0.72, 0.84, 1.0), step(0.8, blind)) * on * (0.5 + blind);

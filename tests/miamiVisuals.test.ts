@@ -251,9 +251,68 @@ describe('Miami land built by the road view', () => {
     const v = new RoadView(quality, 4, 'miami', 'assets'); v.update(road, 3900, 3999, 0, 0); v.group.updateMatrixWorld(true);
     const land = v.group.children[0].children[LAND] as THREE.Mesh;
     expect(surfaceAt(road, land, 3950, -235)).toBeCloseTo(MIAMI_WATER + 1.3, 3);
-    expect(surfaceAt(road, land, 3950, 345)).toBeCloseTo(MIAMI_WATER + 1.6, 3);
+    // The port is a built pier: higher, and flat almost to its quay wall.
+    expect(surfaceAt(road, land, 3950, 310)).toBeCloseTo(MIAMI_WATER + 1.9, 3);
+    expect(surfaceAt(road, land, 3950, 310 - 150 * 0.9)).toBeCloseTo(MIAMI_WATER + 1.9, 3);
     // Open channel: anything drawn there is under the water plane.
     for (const d of [-60, -100, 60, 120]) expect(surfaceAt(road, land, 3950, d) ?? -Infinity).toBeLessThan(MIAMI_WATER);
+    v.dispose();
+  });
+
+  it('replaces noise barriers with low garden and mural walls: nothing tall beside the road in walled sections', () => {
+    const road = roadFor('miami');
+    const miami = new RoadView(quality, 4, 'miami', 'assets'), plain = new RoadView(quality, 4, 'miami');
+    const top = (mesh: THREE.Mesh) => {
+      const p = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+      let y = -Infinity;
+      for (let i = 0; i < p.updateRanges[0].count / 3; i++) y = Math.max(y, p.getY(i));
+      return y;
+    };
+    // Wynwood (mural wall) and Coral Gables (coral-stone wall with bougainvillea).
+    for (const s of [12700, 25700]) {
+      expect(miamiZone(s / 100).kind).toBe('walls');
+      road.ensure(s - 300, s + 300);
+      miami.update(road, s, s + 99, 0, 0); plain.update(road, s, s + 99, 0, 0);
+      const structure = miami.group.children[0].children[1] as THREE.Mesh, land = miami.group.children[0].children[LAND] as THREE.Mesh;
+      // The plain builder still stands 5.3 m panels on the barrier; Miami has only the barrier itself...
+      expect(top(plain.group.children[0].children[1] as THREE.Mesh)).toBeGreaterThan(5);
+      expect(top(structure)).toBeLessThan(1);
+      // ...and a wall on the walkway low enough to see the palms and houses over.
+      expect(top(land)).toBeGreaterThan(1.4);
+      expect(top(land)).toBeLessThan(2.7);
+      const layers = land.geometry.getAttribute('aLayer') as THREE.BufferAttribute;
+      const used = new Set(Array.from({ length: layers.updateRanges[0].count }, (_, i) => layers.getX(i)));
+      if (s > 20000) expect(used).toContain(SURFACE.flowers);
+    }
+    miami.dispose(); plain.dispose();
+  });
+
+  it('lays flower beds in parks and gardens and sand bunkers on the golf course', () => {
+    const road = roadFor('miami');
+    const v = new RoadView(quality, 4, 'miami', 'assets');
+    const layersIn = (from: number, to: number) => {
+      road.ensure(from - 300, to + 300); v.update(road, from, to - 1, 0, 0);
+      const used = new Set<number>();
+      for (const chunk of v.group.children) {
+        const layers = (chunk.children[LAND] as THREE.Mesh).geometry.getAttribute('aLayer') as THREE.BufferAttribute;
+        for (let i = 0; i < layers.updateRanges[0].count; i++) used.add(layers.getX(i));
+      }
+      return used;
+    };
+    // Bayfront park, Coral Gables gardens, the Grove: flowers. South Beach's hotel strip has none.
+    for (const s of [28400, 24400, 15000]) expect(layersIn(s, s + 400), `flowers from ${s}`).toContain(SURFACE.flowers);
+    expect(layersIn(400, 800)).not.toContain(SURFACE.flowers);
+    // Key Biscayne: the land side is all lawn, so any sand there is a bunker; the ocean side has the beach.
+    road.ensure(20700, 21500); v.update(road, 21000, 21399, 0, 0); v.group.updateMatrixWorld(true);
+    let bunkers = 0;
+    for (const chunk of v.group.children) {
+      const land = chunk.children[LAND] as THREE.Mesh;
+      const layers = land.geometry.getAttribute('aLayer') as THREE.BufferAttribute, uv = land.geometry.getAttribute('uv') as THREE.BufferAttribute;
+      const p = land.geometry.getAttribute('position') as THREE.BufferAttribute;
+      // Bed vertices carry their signed lateral offset in u: positive is the golf side.
+      for (let i = 0; i < layers.updateRanges[0].count; i++) if (layers.getX(i) === SURFACE.sand && uv.getX(i) > 30 && Math.abs(p.getY(i) - 0.1) < 1e-3) bunkers++;
+    }
+    expect(bunkers).toBeGreaterThan(30);
     v.dispose();
   });
 

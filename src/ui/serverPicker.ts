@@ -1,4 +1,5 @@
 import type { MapId } from '../sim/maps';
+import { roundedSelect } from './dropdown';
 
 type PreferenceStore = Pick<Storage, 'getItem' | 'setItem'>;
 const MAP_KEY = 'tcu.map';
@@ -55,7 +56,8 @@ export function saveMapSky(map: MapId, sky: string, store = browserStore()): voi
   try { store?.setItem(skyKey(map), sky); } catch { /* Current scene remains usable. */ }
 }
 
-/** Native select works with keyboard, phone pickers and screen readers. Selection reloads
+/** Native select works with keyboard, phone pickers and screen readers; with a mouse its option
+ * list is the rounded panel of ./dropdown (name plus description per map). Selection reloads
  * through the caller: never replace a road underneath an active prediction core. */
 export function mountServerPicker(root: HTMLElement, selected: MapId, onSelect: (map: MapId) => void): () => void {
   const select = document.createElement('select');
@@ -81,8 +83,10 @@ export function mountServerPicker(root: HTMLElement, selected: MapId, onSelect: 
   const keydown = (event: KeyboardEvent) => event.stopPropagation();
   select.addEventListener('keydown', keydown);
   select.addEventListener('change', change);
+  const plain = roundedSelect(select, { describe: value => SERVER_OPTIONS.find(server => server.map === value)?.description });
   root.replaceChildren(select, description);
   return () => {
+    plain();
     select.removeEventListener('keydown', keydown);
     select.removeEventListener('change', change);
     select.remove(); description.remove();

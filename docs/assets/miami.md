@@ -205,17 +205,50 @@ The kit above is unchanged, byte for byte. What changed is everything around it:
   streets every 100 m, hedges, seawall copings, the downtown people-mover, and cheap facade
   buildings (12 triangles each, procedural windows, lit at night) that fill the blocks behind the
   front row and the far shores.
-- **Props** (`props.ts`): thirteen code-built models of a few hundred triangles (two palms, shade
-  tree, bush, villa, shop, beach umbrella set, lifeguard stand, sloop, cruise ship, gantry crane,
-  container stack, observation wheel). They share one vertex-coloured material plus paint/glass.
-- **Layout** (`layout.ts`) rations the heavy kit to the front row (at most two kit buildings per
-  side per block) and lets props carry the density. `world.ts` sizes every batch to the exact peak
-  of the layout; landmarks (cruise ships, cranes, containers, the wheel) use a 300/1300 m window so
-  they arrive through the haze, everything else 100/600 m. The island-skyline dither is gone with
-  the kit towers it served.
+- **Props** (`propKit.ts`, `props.ts`, `propsCity.ts`, `propsPlants.ts`): some forty code-built
+  models of a few hundred triangles. Leisure: beach umbrella set, lifeguard stand, sloop, observation
+  wheel. Buildings: villa, bungalow, modern villa, shop, Deco corner cafe, arcaded shops, warehouse
+  loft, round glass tower, balconied condo slab, stepped Deco tower, parking deck. Port: cruise ship,
+  container ship, ship-to-shore crane, yard gantry, container stack, transit shed, tank farm, light
+  mast, cruise terminal. They share one vertex-coloured material plus paint (tinted per instance)
+  and glass.
+- **Plants** (`propsPlants.ts`, `plantAtlas.ts`): seventeen species. Palms: coconut, royal, Canary
+  date, sabal (fan), areca clump. Trees: ficus, banyan, royal poinciana, flowering tree (tinted pink,
+  yellow, lilac, white, orange), Australian pine, sea grape, mangrove. Shrubs: foliage bush,
+  flowering bush, agave, bird of paradise, sea oats. All of them sample one generated 512² atlas
+  (bark, leaf canopy, blossom, and alpha cut-outs for feather fronds, fan leaves, paddle leaves and
+  grass), with the species' colour in the vertices, so a plant is one draw (two when it flowers).
+  Each district has its own mix: sea grape and sea oats on the beaches, date palms and poincianas
+  Downtown, agave in Wynwood, banyans in Coral Gables, pines on Key Biscayne, mangroves on the islets.
+  The land module adds flower beds in parks and gardens and sand bunkers on the golf course.
+- **Districts are mixed on purpose.** Downtown fills every plot: one kit building per side per block,
+  the rest from the light towers, car parks and pocket plazas. Wynwood alternates shops, lofts, cafes
+  and arcades; Coral Gables villas, bungalows and modern villas. Facade blocks behind them come in four
+  silhouettes (plant room, podium tower, stepped tower with a mast, slab with a blade), five window
+  styles and tinted glass.
+- **The port** is two built piers (rounded rectangles with a quay wall, not sloping islands): a
+  container terminal (cranes over moored ships, three rows of stacks under yard gantries, sheds, tanks,
+  light masts) and a cruise port (terminal halls, ships alongside, palms on the apron).
+- **No noise barriers.** Where the script has a walled section, the land module builds something that
+  belongs in Miami and stays under 2.6 m: a planter with a clipped hedge and bougainvillea Downtown,
+  a painted mural wall in Wynwood, a coral-stone garden wall under flowers in Coral Gables.
+- **Layout** (`layout.ts`) rations the heavy kit to the front row (one kit building per side per
+  block downtown, two on South Beach) and lets props carry the density. `world.ts` sizes every batch
+  to the exact peak of the layout; landmarks (ships, cranes, yard, the wheel) use a 300/1300 m window
+  so they arrive through the haze, everything else 100/600 m.
+- **Detail range** (`MIAMI_DETAIL`, 100 m behind to 200 m ahead, whole chunks). Kit palms (13 k
+  triangles each) and street furniture stand only here; beyond it a light palm takes each kit palm's
+  place and benches, bollards and ground plants are not drawn (`MIAMI_FAR_LOD`). Instances of the
+  detail range are written first in every batch, and `onBeforeShadow` cuts the batch to just those
+  for the sun's shadow pass: the shadow map reaches 85 m behind and 175 m ahead, so nothing farther
+  could cast a visible shadow. The last three road chunks before the fog closes go without lane
+  paint and light pools.
 
-Measured in the real game on the whole lap with traffic (1280×720, medium, DPR 1): 439 draw calls
-and 2.37 M triangles on average, 501 / 3.75 M at the worst spots (lap seam at Bayfront, Downtown). The previous
+Measured in the real game on the whole lap (1280×720, medium, DPR 1, teleporting every 250 m): 449 draw
+calls and 2.13 M triangles on average, 521 / 3.29 M at the worst spots (lap seam at Bayfront, Downtown).
+Of a typical 500-call frame the player's own car is 288 calls and 1.31 M triangles (172 colour draws
+and 116 shadow draws of the same 657 k triangles); the Miami props are about 70 + 30 (shadow) and the
+road chunks 66. The car's shadow pass is the largest remaining cost and is untouched here. The previous
 12 km map measured 493 / 3.49 M at its Downtown.
 
 The contract tests inspect parsed buffers, triangle areas, normal lengths, UV

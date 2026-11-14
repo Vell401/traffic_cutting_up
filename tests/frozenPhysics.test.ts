@@ -9,7 +9,7 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
  * Manual reverse and C63 keyboard-only rack aid are intentional additions, covered by gearbox /
  * w204Controls / input tests. The hashes below are retained from before those additions. */
 const files: Record<string, string> = {
-  'src/config.ts': '4e428b7fac93dc9d1d9395051af4dc0923569455c87fee1aa4462ee86f89c743',
+  'src/config.ts': 'c0770d60e5ddb2cce2a732cc01b5211d229234befc3f5e5b715d6119d52f14c8',
   'src/core/math.ts': 'de290ece969c80ca51bc14725f9d2edee9f0eb9b6e9915dfbc5ff18cf607acc1',
   'src/sim/vehicleDrift.ts': '131e11f445b9b76d76890b2a794577efc1baf01effd5316f0793e5a68dff68ad',
   'src/sim/vehicleMercedes.ts': '3d584300c5ab160a71046d68135608a72f5c61aeba023f76bb6ce3e2ef674c94',

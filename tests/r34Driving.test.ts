@@ -583,7 +583,8 @@ describe('R34 controls, contact continuity and prediction', () => {
     expect(c.localCrashes).toBeGreaterThan(0); expect(c.core.stats.snapshots).toBeGreaterThan(1500);
     // A stalled speculative contact can disagree with the real contact. Position is allowed
     // to reflect that uncertainty, without demanding arcade suppression of angular impulses.
-    expect(c.core.stats.maxCorrection).toBeLessThan(2); expect(yawCorrection).toBeLessThan(.8);
+    // (2.5 m since the lanes went from 4 m to 3.75 m: the reckless bot now clips more traffic.)
+    expect(c.core.stats.maxCorrection).toBeLessThan(2.5); expect(yawCorrection).toBeLessThan(.8);
     expect(replay(seed, {}, net.journal, net.server.world.tick).hash()).toBe(net.server.world.hash());
   }, 20000);
 });

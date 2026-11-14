@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { additiveFog } from './additiveFog';
-import { LANES, LANE_W, WALL_D, laneCenter } from '../config';
+import { LANES, LANE_W, ROAD_HALF, WALL_D, laneCenter } from '../config';
 import { smoothstep } from '../core/math';
 import { mulberry32, range, type Rng } from '../core/rng';
 import { CHUNK_LEN, GROUND_LEVEL, SAMPLE_DS, type LightKind, type Road, type RoadChunk, type RoadPoint } from '../sim/road';
@@ -51,6 +51,8 @@ const TUNNEL_SHADE = 0.45;
 /** Outer edge of the barrier / viaduct deck. */
 const EDGE = WALL_D + 0.55;
 const GROUND_OUT = 420;
+/** Chunks at the far end of the drawn Miami road that go without paint and light pools. */
+export const DISTANT_CHUNKS = 3;
 const DECK_DEPTH = 1.6;
 /** Bridge box girder is deeper than the viaduct slab. */
 const BRIDGE_DECK = 2.6;
@@ -318,7 +320,7 @@ class ChunkView {
   private readonly struct: MeshBuilder;
   private readonly glow = new MeshBuilder({ maxVerts: 6000, maxIndices: 9000 });
   private readonly pools = new MeshBuilder({ maxVerts: 400, maxIndices: 600, uv: true });
-  private readonly city = new MeshBuilder({ maxVerts: 3000, maxIndices: 4500, win: true });
+  private readonly city: MeshBuilder;
   private readonly signs = new MeshBuilder({ maxVerts: 160, maxIndices: 240, uv: true });
   private readonly water: MeshBuilder;
   /** Miami ground and its dressing: one mesh, a surface layer per vertex. */
@@ -326,12 +328,16 @@ class ChunkView {
   private readonly pt: RoadPoint = { x: 0, z: 0, th: 0, k: 0 };
   private readonly pairs: [MeshBuilder, THREE.Mesh][];
   private c!: RoadChunk;
+  /** Far end of the drawn road: paint and light pools are left out (see setDistant). */
+  private distant = false;
   private roadRef!: Road;
   private rng: Rng = Math.random;
 
   constructor(m: RoadMaterials, private readonly theme: MapTheme = 'highway', private readonly mode: 'legacy' | 'assets' = 'legacy') {
     this.struct = new MeshBuilder({ maxVerts: 9000, maxIndices: 16000, uv: mode === 'assets' });
     this.water = new MeshBuilder({ maxVerts: ROWS * 6, maxIndices: (ROWS - 1) * 18, uv: mode === 'assets' });
+    // Miami's facade blocks have set-backs and crowns: several boxes each.
+    this.city = new MeshBuilder(mode === 'assets' ? { maxVerts: 9000, maxIndices: 13500, win: true } : { maxVerts: 3000, maxIndices: 4500, win: true });
     this.land = mode === 'assets' && m.land ? new MeshBuilder({ maxVerts: 24000, maxIndices: 40000, uv: true, layer: true }) : null;
     const mk = (b: MeshBuilder, mat: THREE.Material, order = 0): [MeshBuilder, THREE.Mesh] => {
       const mesh = new THREE.Mesh(b.geometry, mat);
@@ -385,7 +391,8 @@ class ChunkView {
         this.buildTunnel();
         break;
       case 'walls':
-        this.buildNoiseWalls();
+        // Miami: the land module plants a garden wall instead of a noise barrier.
+        if (!this.land) this.buildNoiseWalls();
         this.buildLamps();
         break;
       case 'viaduct':
@@ -422,6 +429,17 @@ class ChunkView {
       }
       mesh.visible = !b.empty;
     }
+    this.distant = false;
+  }
+
+  /**
+   * Miami only. A chunk at the far end of the drawn road is deep in the haze: its lane paint,
+   * reflectors and lamp light pools are thinner than a pixel there, so they are not drawn at all.
+   */
+  setDistant(on: boolean): void {
+    if (on === this.distant || !this.land) return;
+    this.distant = on;
+    for (const [b, mesh] of this.pairs) if (b === this.glow || b === this.pools) mesh.visible = !on && !b.empty;
   }
 
   dispose(): void {
@@ -509,8 +527,8 @@ class ChunkView {
     }
     if (this.mode === 'assets') {
       this.glow.rgb(0.63, 0.62, 0.55);
-      for (const d of [-8, 8]) strip(this.glow, fr, d - 0.07, 0.018, d + 0.07, 0.018);
-      for (const [s] of this.every(12)) for (const d of [-4, 0, 4]) flatQuad(this.glow, this.at(s + 2), d, 0.018, 0.065, 2);
+      for (const d of [-ROAD_HALF, ROAD_HALF]) strip(this.glow, fr, d - 0.07, 0.018, d + 0.07, 0.018);
+      for (const [s] of this.every(12)) for (let lane = 1; lane < LANES; lane++) flatQuad(this.glow, this.at(s + 2), -ROAD_HALF + lane * LANE_W, 0.018, 0.065, 2);
     }
   }
 
@@ -1275,6 +1293,8 @@ export class RoadView {
       }
     }
     if (rebase) for (const v of this.live.values()) v.group.position.set(v.x0 - ox, 0, v.z0 - oz);
+    // The last chunks before the fog closes: road, land and city only.
+    if (reconcile) for (const [idx, v] of this.live) v.setDistant(idx > iMax - DISTANT_CHUNKS);
     this.version = road.version; this.iMin = iMin; this.iMax = iMax;
     this.ox = ox; this.oz = oz;
   }

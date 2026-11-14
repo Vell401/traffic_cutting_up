@@ -10,6 +10,11 @@ export const MIAMI_CAR_SHADOW_LAYER = 1;
 // These are the actual imported builders' animation pivots, not a heuristic based on mesh order.
 // Doors/trunk remain guarded descendants: a future transform/visibility edit falls back losslessly.
 const domainName = /^(STEER_HR|SHIFT_[LR]|(?:WHEEL|DISC)_(?:LF|RF|LR|RR)|SUSP_(?:LF|RF)|W204_Spin_(?:FL|FR|RL|RR)|W204_Steer_(?:FL|FR)|SteeringWheel|c63w204kene_needle_(?:speedo|tacho)_Selected)$/;
+/** True for the car models whose animated pivots are known by name (A45, W204). */
+export const hasCarDomains = (root: THREE.Object3D): boolean =>
+  !!(root.getObjectByName('MAIN_BODY') || root.getObjectByName('Mercedes_W204') || root.getObjectByName('W204_Steer_FL'));
+/** The animated pivot a mesh belongs to: its nearest named ancestor, or the root. */
+export const carDomain = (mesh: THREE.Object3D, root: THREE.Object3D): THREE.Object3D => domain(mesh, root);
 function domain(mesh: THREE.Object3D, root: THREE.Object3D): THREE.Object3D {
   for (let node = mesh.parent; node; node = node.parent) {
     if (domainName.test(node.name)) return node;

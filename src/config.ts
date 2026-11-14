@@ -4,8 +4,8 @@
  */
 
 export const LANES = 4;
-/** Lane width, m (a little wider than the usual 3.75: room to cut between cars that drift in their lanes). */
-export const LANE_W = 4;
+/** Lane width, m: a standard 3.75 m motorway lane (it was 4; the wider lanes read as an airfield). */
+export const LANE_W = 3.75;
 /** Half width of the paved lanes (edge line). */
 export const ROAD_HALF = (LANES * LANE_W) / 2;
 export const SHOULDER = 2.5;

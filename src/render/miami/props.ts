@@ -1,233 +1,32 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { MiamiPrototype } from './assets';
+import { CITY_PROPS, cityModels } from './propsCity';
+import { PLANT_PROPS, plantModels } from './propsPlants';
+import { Model } from './propKit';
+
+export { makePropMaterials, propTextures, TINTED } from './propKit';
 
 /*
  * Light, code-built companions to the modelled Miami kit. The kit's hotels, towers and palms carry
  * tens of thousands of triangles each and can only stand in the front row; these few-hundred-triangle
- * models are what fills a 30 km lap: palm groves, shade trees, villas, shopfronts, beach umbrellas,
- * sailing boats, cruise ships, port cranes, a Ferris wheel.
+ * models are what fills a 30 km lap: plants (propsPlants.ts), buildings and port equipment
+ * (propsCity.ts), and here villas, shopfronts, beach umbrellas, boats, cranes, a Ferris wheel.
  *
  * Same conventions as the kit: metres, +Y up, front -Z, origin at the centre of the footprint on the
  * ground (or keel). They reuse the kit's materials where one fits, so they sit in the same light.
  */
 
-/**
- * Materials made here. Everything that is plain painted or natural colour shares one vertex-coloured
- * material ('solid'), so a prop is two or three draws, not one per colour.
- */
-export function makePropMaterials(): Map<string, THREE.MeshStandardMaterial> {
-  const out = new Map<string, THREE.MeshStandardMaterial>();
-  const add = (name: string, color: number, roughness: number, metalness = 0, side: THREE.Side = THREE.FrontSide, vertexColors = false) =>
-    out.set(name, new THREE.MeshStandardMaterial({ name, color, roughness, metalness, side, vertexColors }));
-  // Tinted per instance: walls, umbrellas, hulls, crane steel.
-  add('paint', 0xffffff, 0.62);
-  add('solid', 0xffffff, 0.78, 0, THREE.FrontSide, true);
-  add('glass', 0x16303c, 0.14, 0.45);
-  add('frond', 0x3f7a2c, 0.75, 0, THREE.DoubleSide);
-  add('canvas', 0xf4f1e8, 0.8, 0, THREE.DoubleSide);
-  return out;
-}
-
-/** Colours of the shared 'solid' material, by the name a model asks for. */
-const SOLID: Readonly<Record<string, THREE.Color>> = Object.fromEntries(Object.entries({
-  terracotta: 0xb4532e,
-  canopy: 0x2f6424,
-  trunk: 0x7a6248,
-  white: 0xf2f1ec,
-  steel: 0x8c949a,
-  wood: 0x9a6a3c,
-  signal: 0xd9541e,
-  coral: 0xe9806e,
-  mint: 0x7fcfb6,
-  ivory: 0xf3e6c8,
-  dark: 0x1b2f3a,
-}).map(([name, hex]) => [name, new THREE.Color(hex)]));
-
-/** Materials whose colour a placement's tint multiplies. */
-export const TINTED = new Set(['paint', 'plaster_ivory', 'plaster_coral', 'plaster_mint']);
-
-class Model {
-  private readonly parts = new Map<string, THREE.BufferGeometry[]>();
-  waterline: number | undefined;
-
-  /** Take ownership of g, move it into place and file it under a material. */
-  add(material: string, g: THREE.BufferGeometry, x = 0, y = 0, z = 0, ry = 0): this {
-    // Collapsed tips and poles have no face to take a normal from: give them one, or they shade black.
-    const n = g.getAttribute('normal');
-    for (let i = 0; i < n.count; i++) {
-      const l = Math.hypot(n.getX(i), n.getY(i), n.getZ(i));
-      if (l < 1e-6) n.setXYZ(i, 0, 1, 0);
-      else if (Math.abs(l - 1) > 1e-4) n.setXYZ(i, n.getX(i) / l, n.getY(i) / l, n.getZ(i) / l);
-    }
-    if (ry) g.rotateY(ry);
-    g.translate(x, y, z);
-    const colour = SOLID[material];
-    if (colour) {
-      const colours = new Float32Array(n.count * 3);
-      for (let i = 0; i < n.count; i++) colour.toArray(colours, i * 3);
-      g.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-      material = 'solid';
-    }
-    let list = this.parts.get(material);
-    if (!list) this.parts.set(material, list = []);
-    list.push(g);
-    return this;
-  }
-
-  /** Box centred at (x, y, z) with UVs in half-metres per face, like the kit's 2 m photo tiles. */
-  box(material: string, w: number, h: number, d: number, x = 0, y = 0, z = 0, ry = 0): this {
-    const g = new THREE.BoxGeometry(w, h, d);
-    const uv = g.getAttribute('uv');
-    const dims: [number, number][] = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-    for (let face = 0; face < 6; face++) {
-      for (let k = 0; k < 4; k++) {
-        const i = face * 4 + k;
-        uv.setXY(i, uv.getX(i) * dims[face][0] / 2, uv.getY(i) * dims[face][1] / 2);
-      }
-    }
-    return this.add(material, g, x, y, z, ry);
-  }
-
-  cylinder(material: string, top: number, bottom: number, h: number, x = 0, y = 0, z = 0, sides = 8): this {
-    return this.add(material, new THREE.CylinderGeometry(top, bottom, h, sides, 1), x, y, z);
-  }
-
-  /** Thin beam from a to b (crane booms, stays, spokes). */
-  beam(material: string, a: [number, number, number], b: [number, number, number], thickness: number): this {
-    const from = new THREE.Vector3(...a), to = new THREE.Vector3(...b);
-    const length = from.distanceTo(to);
-    const g = new THREE.BoxGeometry(thickness, length, thickness);
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize()));
-    const mid = from.add(to).multiplyScalar(0.5);
-    return this.add(material, g, mid.x, mid.y, mid.z);
-  }
-
-  /** Hip roof: a four-sided frustum over a w × d rectangle. */
-  hip(material: string, w: number, d: number, h: number, x: number, y: number, z: number, ridge = 0.25): this {
-    const g = new THREE.CylinderGeometry(ridge * Math.SQRT1_2, Math.SQRT1_2, h, 4, 1);
-    g.rotateY(Math.PI / 4);
-    g.scale(w, 1, d);
-    return this.add(material, g, x, y + h / 2, z);
-  }
-
-  build(name: string, materials: ReadonlyMap<string, THREE.MeshStandardMaterial>): MiamiPrototype {
-    const parts: MiamiPrototype['parts'] = [];
-    const box = new THREE.Box3();
-    let triangles = 0;
-    for (const [material, list] of this.parts) {
-      const mat = materials.get(material);
-      if (!mat) throw Error(`Miami prop ${name}: unknown material ${material}`);
-      const geometry = mergeGeometries(list, false);
-      if (!geometry) throw Error(`Miami prop ${name}: cannot merge ${material}`);
-      list.forEach(g => g.dispose());
-      geometry.computeBoundingBox();
-      geometry.computeBoundingSphere();
-      box.union(geometry.boundingBox!);
-      triangles += (geometry.index ? geometry.index.count : geometry.getAttribute('position').count) / 3;
-      parts.push({ name: `${name}__${material}`, geometry, material: mat });
-    }
-    // Footprint bounds are symmetric about the origin, as the placement code expects.
-    const hx = Math.max(Math.abs(box.min.x), Math.abs(box.max.x));
-    const hz = Math.max(Math.abs(box.min.z), Math.abs(box.max.z));
-    return { bounds: { min: [-hx, box.min.y, -hz], max: [hx, box.max.y, hz] }, triangles, waterline: this.waterline, parts };
-  }
-}
-
-/** Curved, tapered trunk: a cylinder whose rings lean further the higher they are. */
-function trunk(h: number, r0: number, r1: number, lean: number): THREE.BufferGeometry {
-  const g = new THREE.CylinderGeometry(r1, r0, h, 6, 4);
-  g.translate(0, h / 2, 0);
-  const p = g.getAttribute('position');
-  for (let i = 0; i < p.count; i++) {
-    const t = p.getY(i) / h;
-    p.setX(i, p.getX(i) + lean * t * t);
-  }
-  g.computeVertexNormals();
-  return g;
-}
-
-/** One palm frond: a folded strip arching out and drooping at the tip. */
-function frond(length: number, width: number, droop: number, lift: number): THREE.BufferGeometry {
-  const g = new THREE.PlaneGeometry(width, length, 2, 4);
-  g.rotateX(-Math.PI / 2);
-  g.translate(0, 0, -length / 2);
-  const p = g.getAttribute('position');
-  for (let i = 0; i < p.count; i++) {
-    const t = -p.getZ(i) / length;
-    const fold = Math.abs(p.getX(i)) / (width / 2);
-    // Narrow at both ends, V-folded along the rib, arching up then falling.
-    p.setX(i, p.getX(i) * Math.sin(Math.PI * Math.min(0.95, t * 0.9 + 0.1)));
-    p.setY(i, lift * Math.sin(t * Math.PI * 0.6) - droop * t * t - fold * 0.18 * width);
-  }
-  g.computeVertexNormals();
-  return g;
-}
-
-function palm(model: Model, h: number, lean: number, fronds: number, length: number): void {
-  model.add('trunk', trunk(h, 0.27, 0.15, lean));
-  for (let k = 0; k < fronds; k++) {
-    const angle = (k / fronds) * Math.PI * 2 + (k % 2) * 0.2;
-    const upper = k % 3 === 0;
-    const g = frond(length * (upper ? 0.82 : 1), 1.05, upper ? 1.1 : 2.4, upper ? 1.5 : 0.7);
-    model.add('frond', g, lean, h - 0.1, 0, angle);
-  }
-}
-
-/** Foliage mass: a low sphere with its rings pushed in and out, so no two crowns share a silhouette. */
-function blob(r: number, sx: number, sy: number, sz: number): THREE.BufferGeometry {
-  const g = new THREE.SphereGeometry(r, 9, 6);
-  const p = g.getAttribute('position');
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    // Position-based, so the duplicated seam vertices move together.
-    const k = 1 + 0.2 * Math.sin(x * 2.3 + y * 1.7 + r * 9) * Math.cos(z * 2.1 - y * 1.3 + r * 5);
-    p.setXYZ(i, x * k, y * k, z * k);
-  }
-  g.scale(sx, sy, sz);
-  g.computeVertexNormals();
-  return g;
-}
-
-export const PROP_NAMES = [
-  'palm_lite', 'palm_tall', 'tree', 'bush', 'villa', 'shop', 'umbrella', 'lifeguard',
-  'sailboat', 'cruise', 'crane', 'containers', 'wheel',
-] as const;
-export type PropName = (typeof PROP_NAMES)[number];
+export const PROP_NAMES: readonly string[] = [
+  ...PLANT_PROPS, 'villa', 'shop', 'umbrella', 'lifeguard',
+  'sailboat', 'cruise', 'crane', 'containers', 'wheel', ...CITY_PROPS,
+];
+export type PropName = string;
 
 /** Build every prop. The caller owns the returned geometries (dispose each part's geometry). */
 export function makeMiamiProps(materials: ReadonlyMap<string, THREE.MeshStandardMaterial>): Map<string, MiamiPrototype> {
   const out = new Map<string, MiamiPrototype>();
   const done = (name: PropName, model: Model) => out.set(name, model.build(name, materials));
 
-  {
-    const m = new Model();
-    palm(m, 8.2, 0.9, 12, 3.6);
-    done('palm_lite', m);
-  }
-  {
-    const m = new Model();
-    palm(m, 13.5, 0.5, 14, 3.9);
-    done('palm_tall', m);
-  }
-  {
-    // Broad shade tree (ficus / gumbo-limbo): short trunk, a wide layered crown.
-    const m = new Model();
-    m.add('trunk', trunk(4.2, 0.55, 0.32, 0.3));
-    m.add('trunk', trunk(2.6, 0.24, 0.14, 1.4), 0.2, 3.2, 0, 2.2);
-    m.add('canopy', blob(3.6, 1.25, 0.72, 1.15), 0.4, 6.4, 0.2);
-    m.add('canopy', blob(2.7, 1.2, 0.7, 1.1), -2.4, 5.5, 1.2);
-    m.add('canopy', blob(2.5, 1.1, 0.7, 1.2), 2.3, 5.3, -1.6);
-    m.add('canopy', blob(2.2, 1, 0.75, 1), -0.6, 7.6, -1.2);
-    done('tree', m);
-  }
-  {
-    const m = new Model();
-    m.add('canopy', blob(1.1, 1.25, 0.8, 1.1), 0, 0.75, 0);
-    m.add('canopy', blob(0.8, 1.1, 0.8, 1.2), 0.9, 0.55, 0.5);
-    m.add('canopy', blob(0.7, 1.2, 0.85, 1), -0.8, 0.5, -0.5);
-    done('bush', m);
-  }
   {
     // Mediterranean-revival villa: two-storey block, a lower wing, tiled hip roofs, a porch.
     const m = new Model();
@@ -327,6 +126,8 @@ export function makeMiamiProps(materials: ReadonlyMap<string, THREE.MeshStandard
       const t = p.getZ(i) / 125;
       const k = t < -0.55 ? Math.max(0.04, 1 - ((-t - 0.55) / 0.45) ** 1.6) : t > 0.8 ? 1 - 0.35 * ((t - 0.8) / 0.2) : 1;
       p.setX(i, p.getX(i) * k);
+      // A raked stem: the keel rises to the waterline as the bow narrows.
+      if (t < 0 && p.getY(i) < 0) p.setY(i, p.getY(i) * Math.max(k, 0.12));
     }
     hull.computeVertexNormals();
     m.add('paint', hull, 0, 7.5, 0);
@@ -407,5 +208,8 @@ export function makeMiamiProps(materials: ReadonlyMap<string, THREE.MeshStandard
     m.box('white', 12, 1, 30, 0, 0.5, 0);
     done('wheel', m);
   }
+  // Plants, and buildings and port equipment, live in their own files.
+  for (const [name, model] of plantModels()) done(name, model);
+  for (const [name, model] of cityModels()) done(name, model);
   return out;
 }
